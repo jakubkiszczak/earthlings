@@ -4,3 +4,8 @@ build_tmp/
 node_modules/
 .DS_Store
 .env
+dist/
+.vite/
+test-results/
+playwright-report/
+docs/*.docx

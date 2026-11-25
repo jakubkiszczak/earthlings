@@ -1,6 +1,6 @@
-@font-face { font-family: 'Jersey'; src: url(FONT_LATIN) format('woff2');
+@font-face { font-family: 'Jersey'; src: url('/fonts/jersey-15-latin-400-normal.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Jersey'; src: url(FONT_EXT) format('woff2');
+@font-face { font-family: 'Jersey'; src: url('/fonts/jersey-15-latin-ext-400-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 #hud { position: fixed; inset: 0; pointer-events: none; font-family: 'Jersey', monospace; font-size: calc(var(--s) * 5px + 6px); color: #e8e2d4;
   text-shadow: calc(var(--s) * 1px) calc(var(--s) * 1px) 0 #0a0706; user-select: none; --s: 3; }
@@ -40,7 +40,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .rbtn { position: absolute; }
 .rbtn .bg { position: absolute; inset: 0; width: 100%; } .rbtn .ic { position: absolute; left: calc(var(--s) * 4px); top: calc(var(--s) * 4px); width: calc(var(--s) * 14px); }
 .rbtn:hover { filter: brightness(1.3); }
-.panel9 { border: calc(var(--s) * 4px) solid transparent; border-image: url(URL_PANEL9) 4 fill / calc(var(--s) * 4px) stretch; box-sizing: border-box; }
+.panel9 { border: calc(var(--s) * 4px) solid transparent; border-image: url('/generated/ui2/panel9.png') 4 fill / calc(var(--s) * 4px) stretch; box-sizing: border-box; }
 .chat { position: absolute; display: flex; flex-direction: column; pointer-events: auto; }
 .chat.hidden { display: none; }
 .tabs { display: flex; gap: calc(var(--s) * 2px); }

@@ -1,0 +1,59 @@
+// Siatka chodzenia (walk.png), mapa wyboru (pick.png) i przeliczanie świat ↔ ekran.
+import { readPixels } from '../assets';
+import { findPath, nearestWalkable } from '../logic/pathfinding';
+import type { WorldMeta } from '../types';
+
+export class WorldGrid {
+  private readonly walk: Uint8ClampedArray;
+  private readonly pick: Uint8ClampedArray;
+
+  constructor(private readonly M: WorldMeta, walkImg: HTMLImageElement, pickImg: HTMLImageElement) {
+    this.walk = readPixels(walkImg);
+    this.pick = readPixels(pickImg);
+  }
+
+  /** wysokość komórki + 1; 0 = nieprzechodnia */
+  cellH = (ci: number, cj: number): number => {
+    const NC = this.M.NC;
+    return ci < 0 || cj < 0 || ci >= NC || cj >= NC ? 0 : this.walk[(cj * NC + ci) * 4];
+  };
+
+  cellOf(u: number, v: number): [number, number] {
+    const { OFF, CELL } = this.M;
+    return [Math.floor((u + OFF) / CELL), Math.floor((v + OFF) / CELL)];
+  }
+
+  cellCenter(i: number, j: number): [number, number] {
+    const { OFF, CELL } = this.M;
+    return [i * CELL + CELL / 2 - OFF, j * CELL + CELL / 2 - OFF];
+  }
+
+  heightAt(u: number, v: number): number {
+    const h = this.cellH(...this.cellOf(u, v));
+    return h ? h - 1 : 0;
+  }
+
+  /** współrzędne świata (u, v) → piksele obrazu świata */
+  toScreen(u: number, v: number): [number, number] {
+    return [u - v + this.M.X0, Math.floor((u + v) / 2) - this.heightAt(u, v) + this.M.Y0];
+  }
+
+  /** piksel obrazu świata → punkt (u, v) z mapy wyboru, albo null (puste tło) */
+  pickAt(wx: number, wy: number): [number, number] | null {
+    const { W, H, OFF } = this.M;
+    if (wx < 0 || wy < 0 || wx >= W || wy >= H) return null;
+    const o = (wy * W + wx) * 4;
+    const val = (this.pick[o] << 16) | (this.pick[o + 1] << 8) | this.pick[o + 2];
+    if (val === 0xffffff) return null;
+    return [(val >> 11) - OFF, (val & 2047) - OFF];
+  }
+
+  /** ścieżka (w punktach świata, bez punktu startu) z (u, v) do celu (tu, tv) */
+  pathTo(u: number, v: number, tu: number, tv: number): [number, number][] | null {
+    const target = nearestWalkable(this.cellH, ...this.cellOf(tu, tv));
+    if (!target) return null;
+    const [si, sj] = this.cellOf(u, v);
+    const p = findPath(this.cellH, si, sj, target[0], target[1], { size: this.M.NC });
+    return p ? p.slice(1).map(([i, j]) => this.cellCenter(i, j)) : null;
+  }
+}

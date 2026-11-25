@@ -1,7 +1,7 @@
 # Instrukcje dla Claude Code – Earthlings (nazwa robocza)
 
 ## O projekcie
-Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs/GDD_*.docx` (wersja online w claude.ai). Rozmawiamy po polsku.
+Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs/GDD_*.docx` (tylko lokalnie, poza repozytorium; wersja online w claude.ai). Rozmawiamy po polsku.
 
 ## Zasady grafiki (nie łamać)
 - Jedna siatka pikseli: kafel 64×32 (izometria 2:1), poziom terenu co 24 px, postać 28×42 z kotwicą w środku stóp (14, 41), ikony 14×14.
@@ -10,10 +10,12 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 - Nie kopiujemy cudzej szaty graficznej (np. Diablo, ArcoMage) – tylko ogólne wzorce układu.
 
 ## Potok budowania
-1. `python tools/ui2.py` – grafiki HUD → `assets/generated/ui2/`
-2. `python tools/export_live.py` – świat → `assets/generated/` (pasma głębi terenu, atlas, pick map, walk grid, woda)
-3. `python tools/build.py` – składa `dist/index.html`
-Po każdej zmianie: zbuduj, uruchom test w przeglądarce (Playwright), sprawdź zrzut ekranu i brak błędów w konsoli.
+- Klient: TypeScript + Vite + PixiJS 8 (`src/`). Grafiki z `assets/` serwowane jako osobne pliki (publicDir), ścieżki przez `assetUrl()`.
+- `npm run dev` – podgląd na żywo; `npm run build` – `dist/` (sprawdza typy); `npm test` – Vitest (`tests/`); `npm run test:e2e` – Playwright (`e2e/`).
+- Grafiki (Python): `python tools/ui2.py` → `assets/generated/ui2/`; `python tools/export_live.py` → `assets/generated/`.
+- Publikacja: push do `main` → GitHub Actions (`.github/workflows/pages.yml`) testuje i wystawia GitHub Pages.
+- Node i gh są w `~/.local` (ścieżka w `~/.zprofile`).
+Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `test-results/smoke.png`, brak błędów w konsoli).
 
 ## Najbliższe zadania: prototyp v0.1
 Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).

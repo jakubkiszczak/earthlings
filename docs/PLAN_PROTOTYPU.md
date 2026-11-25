@@ -20,7 +20,7 @@ Wartości liczbowe oznaczone *(do strojenia)* to propozycje startowe. Wszystkie 
 - Minimapa 3×3, dźwięki.
 - Zapis postaci w `localStorage`, do 3 postaci.
 
-**Nie ma (świadomie):** logowania, serwera, innych graczy w świecie, czatu sieciowego, handlu, zadań, telefonów i dotyku, formularza uwag, statystyk.
+**Nie ma (świadomie):** logowania, serwera, innych graczy w świecie, czatu sieciowego, handlu między graczami, zadań, telefonów i dotyku, formularza uwag, statystyk.
 
 ---
 
@@ -33,7 +33,7 @@ Wartości liczbowe oznaczone *(do strojenia)* to propozycje startowe. Wszystkie 
    - rasa: człowiek / elf,
    - klasa: wojownik / łowca,
    - atrybuty: rozdzielenie 10 punktów,
-   - wygląd: włosy (czarne, białe, blond, brązowe, łysy), budowa (chudy, normalny, krępy), broda (krótka, długa, wąsy).
+   - wygląd: włosy (czarne, białe, blond, brązowe, łysy), budowa (chudy, normalny, krępy), broda (krótka, długa, wąsy) – tylko człowiek, elf nie ma brody.
 4. **Gra:** start w mieście przy sklepie.
 
 ---
@@ -47,6 +47,7 @@ Wartości liczbowe oznaczone *(do strojenia)* to propozycje startowe. Wszystkie 
 | Siła | obrażenia wręcz: broń + Siła/2 |
 | Zręczność | obrażenia z łuku: broń + Zręczność/2; szansa uniku 0,5% za punkt (maks. 25%) |
 | Witalność | HP = 100 + 10 × Witalność |
+| Szczęście | tylko z przedmiotów (Pierścień); każdy punkt: +2% złota i +2% szansy na przedmiot *(do strojenia)* |
 | Energia | mana = 20 + 5 × Energia; regeneracja many 1 + Energia/20 na sekundę |
 
 **Wartości bazowe** *(do strojenia)*:
@@ -130,17 +131,20 @@ Postać odradza się w mieście z pełnym HP i maną, traci 10% złota. Exp i pr
 | Hełmy (3) | Skórzany kaptur (1), Żelazny hełm (3), Hełm Świtu (5) | drop |
 | Zbroje (3) | Skórznia (1), Kolczuga (3), Zbroja płytowa (5) | drop |
 | Buty (2) | Skórzane buty (1), Buty wędrowca (3) | sklep i drop |
+| Pierścień (1) | Pierścień Fortuny (2): +5 Szczęście | drop |
+| Rękawice (1) | Rękawice łucznika (2): +5 Zręczność | drop |
+| Amulet (1) | Amulet Wieży (4): +10% maks. HP | drop |
 
-Wymienione kategorie dają 17 przedmiotów; 3 brakujące do 20 są w pytaniach otwartych.
+Razem 20 przedmiotów.
 
 - Start: wojownik ma Krótki miecz, łowca Krótki łuk i 200 strzał.
 - Wojownik: miecz + tarcza. Łowca: łuk (oburęczny, bez tarczy). Hełmy, zbroje i buty dla obu klas.
 - Statystyki przedmiotów *(do strojenia)*: broń 8–12 / 14–20 / 22–30 obrażeń; pancerz zbroi 15 / 35 / 60; hełmu i tarczy 5 / 12 / 20; buty: pancerz 5 i +5% szybkości ruchu / pancerz 10 i +10% szybkości.
-- Ekwipunek: 5 slotów założonych (broń, tarcza, hełm, zbroja, buty) + plecak 4×6. Potiony i strzały jako stosy.
+- Ekwipunek: 8 slotów założonych (broń, tarcza, hełm, zbroja, rękawice, buty, pierścień, amulet) + plecak 4×6. Potiony i strzały jako stosy.
 
 ### Sklep w mieście
 
-Jeden kupiec (NPC), okno otwierane kliknięciem:
+Jeden kupiec (NPC), okno otwierane kliknięciem. Kupiec skupuje przedmioty i potiony za 25% ich wartości *(do strojenia)*. Sprzedaje:
 - strzały: 100 sztuk za 10 złota *(do strojenia)*,
 - Skórzane buty: 50 złota, Buty wędrowca: 250 złota *(do strojenia)*.
 
@@ -164,7 +168,7 @@ Postać składana z warstw w czasie gry, 8 kierunków, animacje: stanie, chód, 
 | --- | --- |
 | Ciało | 2 rasy × 3 budowy |
 | Włosy | 5 (w tym łysy) |
-| Broda | 3 |
+| Broda | 3 (tylko człowiek) |
 | Zbroja i hełm | 3 poziomy (kolor i prosty kształt) |
 | Broń i tarcza | osobne sprite'y: miecz, łuk, tarcza (3 poziomy) |
 
@@ -202,10 +206,10 @@ Wszystko generowane kodem w `tools/` (rozszerzenie `hero9.py` i `ui2.py`).
 
 ---
 
-## 10. Pytania otwarte
+## 10. Ustalenia (odpowiedzi na pytania otwarte)
 
-1. **Lista 20 przedmiotów:** wymieniona kategoria daje 17 (3+3+3+3+3+2). Jakie 3 dodatkowe przedmioty? Propozycja: 3 pierścienie lub 3 rękawice.
-2. **Sprzedaż w sklepie:** czy gracz może sprzedawać przedmioty z dropu za złoto? Bez tego złoto wydaje się tylko na strzały i buty.
-3. **Broda u elfów i opcja „bez brody”:** czy elf może mieć brodę i czy dodać wariant „bez brody”?
-4. **Odpychająca strzała – 10 klatek:** przyjęto 10 kafli. Czy chodziło o kafle mapy?
-5. **Exp na poziomie 5:** zablokować, czy liczyć dalej (np. do statystyk)?
+1. Brakujące 3 przedmioty: pierścień (+5 Szczęście), rękawice (+5 Zręczność), amulet (+10% HP).
+2. Sklep skupuje przedmioty od gracza.
+3. Elf nie może mieć brody; człowiek wybiera jedną z 3 bród.
+4. Odpychająca strzała odrzuca o 10 kafli mapy.
+5. Na poziomie 5 exp przestaje się naliczać.

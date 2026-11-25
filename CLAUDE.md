@@ -15,12 +15,9 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 3. `python tools/build.py` – składa `dist/index.html`
 Po każdej zmianie: zbuduj, uruchom test w przeglądarce (Playwright), sprawdź zrzut ekranu i brak błędów w konsoli.
 
-## Najbliższe zadania (etap 1 → MVP)
-1. Przenieść klienta na TypeScript + Vite; grafiki ładowane jako osobne pliki zamiast osadzonych base64.
-2. Rozbić `game.js` na moduły: renderer, świat, postać, kamera, wejście, HUD.
-3. Potwory i walka (serwer autorytatywny później – na razie logika w osobnym module, łatwa do przeniesienia).
-4. Portale i kolejne sekcje mapy 3×3, miasto z karczmą i warsztatem.
-5. Serwer: Node.js + Colyseus, PostgreSQL, Redis (patrz GDD: Technologia, Infrastruktura, Bezpieczeństwo).
+## Najbliższe zadania: prototyp v0.1
+Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).
+Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy ją na serwer (Node.js + Colyseus, PostgreSQL, Redis; patrz GDD).
 
 ## Skille
 Zainstalowane z `gamedev-skills/awesome-gamedev-agent-skills`: używaj ich przy assetach, PixiJS, systemach RPG, shaderach, kamerze i projektowaniu poziomów.

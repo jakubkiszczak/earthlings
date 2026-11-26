@@ -424,8 +424,9 @@ def build_sprites():
         spr[f'flowers{i}'] = props2.flowerbed(i)
     for t in (1, 2, 3):
         spr[f'mannequin{t}'] = props2.mannequin(t)
-    spr['weaponrack'] = props2.weapon_rack()
-    spr['shelfitems'] = props2.accessory_shelf()
+    spr['weaponrack'] = props2.iso_face(*props2.weapon_rack(), along='u')        # przy tylnej ścianie v
+    spr['shelfitems'] = props2.iso_face(*props2.accessory_shelf(), along='v')    # przy tylnej ścianie u
+    spr['shelfitems_u'] = props2.iso_face(*props2.accessory_shelf(), along='u')
     spr['torch0'] = props2.torch(0)
     spr['torch1'] = props2.torch(1)
     import hero9
@@ -777,7 +778,7 @@ def gen_interior():
     Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     uc = u[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]; vc = v[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     walk = (Hc == BASE) & (uc >= 4) & (uc < RU - 4) & (vc >= 4) & (vc < RV - 4) & (uc > COUNTER[1] + 6)
-    for (cu, cv_, rr_) in [(140, 28, 14), (190, 28, 14), (240, 28, 14), (296, 46, 18), (296, 112, 18), (120, 236, 18)]:
+    for (cu, cv_, rr_) in [(150, 30, 14), (200, 30, 14), (250, 30, 14), (100, 16, 18), (300, 16, 18), (14, 236, 18), (14, 26, 18)]:
         walk &= np.hypot(uc - cu, vc - cv_) > rr_
     wg = np.where(walk, BASE + 1, 0).astype(np.uint8)
     Image.fromarray(wg).save(d / 'walk.png')
@@ -786,8 +787,8 @@ def gen_interior():
     def scrh(lu, lv, h):
         return int(lu - lv + NI), int((lu + lv + 2 * MI) // 2 - h + HI_MAX)
     ents = []
-    for (cu, cv_, nm) in [(140, 28, 'mannequin1'), (190, 28, 'mannequin2'), (240, 28, 'mannequin3'),
-                          (296, 46, 'weaponrack'), (296, 112, 'weaponrack'), (120, 236, 'shelfitems')]:
+    for (cu, cv_, nm) in [(150, 30, 'mannequin1'), (200, 30, 'mannequin2'), (250, 30, 'mannequin3'),
+                          (100, 16, 'weaponrack'), (300, 16, 'weaponrack'), (14, 236, 'shelfitems'), (14, 26, 'shelfitems')]:
         x, y = scr(cu, cv_)
         ents.append(dict(k='prop', s=[nm], x=x, y=y, z=int(cu + cv_)))
     for (cu, cv_) in [(2, 62), (2, 200), (96, 2), (270, 2)]:

@@ -74,3 +74,29 @@ export const ICON_SIT = icon((px) => {
   // ognisko
   px(11, 9, '#6a4420'); px(12, 9, '#6a4420'); px(11, 8, '#ff8a2a'); px(12, 7, '#ffd84a'); px(11, 6, '#ffb030'); px(12, 8, '#ff5a2a');
 });
+
+/** kursory w stylu pixel art (data URL, 2× powiększone): ręka nad łupem */
+function cursorImg(rows: string[], pal: Record<string, string>): string {
+  const S2 = 2, h = rows.length, w = rows[0].length;
+  const c = document.createElement('canvas');
+  c.width = w * S2; c.height = h * S2;
+  const ctx = c.getContext('2d')!;
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (pal[ch]) { ctx.fillStyle = pal[ch]; ctx.fillRect(x * S2, y * S2, S2, S2); } }));
+  return c.toDataURL();
+}
+
+export const CURSOR_GRAB = `url(${cursorImg([
+  '...##.......',
+  '..#ww#......',
+  '..#ww#......',
+  '..#ww###....',
+  '..#ww#ww##..',
+  '..#ww#ww#w#.',
+  '###ww#ww#w#.',
+  '#ww#wwwwww#.',
+  '#wwwwwwwwww#',
+  '.#wwwwwwwww#',
+  '..#wwwwwww#.',
+  '...#wwwww#..',
+  '....#####...',
+], { '#': '#1a1410', w: '#ffe9a0' })}) 7 2, pointer`;

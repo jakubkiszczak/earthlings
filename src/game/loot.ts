@@ -6,7 +6,7 @@ import type { Vec } from '../logic/combat';
 import type { World } from '../world/world';
 
 export type DropKind = 'gold' | 'hp' | 'mp' | 'item';
-export interface Drop { id: number; kind: DropKind; amount: number; item: string | null; pos: Vec; t: number; view: Container; icon: Sprite }
+export interface Drop { id: number; kind: DropKind; amount: number; item: string | null; pos: Vec; t: number; view: Container; icon: Sprite; glow: Graphics }
 
 const LIFETIME = 120;
 export const PICK_RADIUS = 16;
@@ -45,20 +45,25 @@ export class LootManager {
       const view = new Container();
       const glow = new Graphics();
       const color = item ? parseInt(RARITY_COLOR(ITEMS[item]).slice(1), 16) : kind === 'gold' ? 0xffd84a : kind === 'hp' ? 0xff5a6a : 0x5a9aff;
-      glow.ellipse(0, 0, 7, 3).fill({ color, alpha: 0.35 });
+      // poświata: plama na ziemi, aureola wokół przedmiotu i słup światła
+      glow.ellipse(0, 0, 12, 5).fill({ color, alpha: 0.35 });
+      glow.ellipse(0, 0, 7, 3).fill({ color: 0xffffff, alpha: 0.18 });
+      glow.circle(0, -11, 11).fill({ color, alpha: 0.16 });
+      glow.rect(-3, -34, 6, 34).fill({ color, alpha: 0.10 });
       glow.blendMode = 'add';
       const icon = new Sprite(this.texture(this.iconUrl(kind, item)));
       icon.anchor.set(0.5, 1);
+      icon.scale.set(1.5);                      // przedmioty o 50% większe
       view.addChild(glow, icon);
       if (item) {
         const label = new Text({ text: ITEMS[item].name, style: { fontFamily: 'Jersey', fontSize: 8, fill: RARITY_COLOR(ITEMS[item]), stroke: { color: 0x0a0706, width: 2 } } });
         label.resolution = 4;
         label.anchor.set(0.5, 1);
-        label.position.set(0, -16);
+        label.position.set(0, -24);
         view.addChild(label);
       }
       this.layer.addChild(view);
-      this.drops.push({ id: this.nextId++, kind, amount, item, pos, t: Math.random() * 6, view, icon });
+      this.drops.push({ id: this.nextId++, kind, amount, item, pos, t: Math.random() * 6, view, icon, glow });
     });
   }
 
@@ -76,6 +81,7 @@ export class LootManager {
       const [x, y] = this.world.toScreenGlobal(d.pos[0], d.pos[1]);
       d.view.position.set(Math.round(x), Math.round(y));
       d.icon.y = -Math.round(1 + Math.abs(Math.sin(d.t * 2.4)) * 2);
+      d.glow.alpha = 0.7 + 0.3 * Math.sin(d.t * 3.1);
       const lu = d.pos[0] - this.world.cx * C, lv = d.pos[1] - this.world.cy * C;
       d.view.zIndex = Math.round(lu + lv) * 10 + 2;
       d.view.alpha = d.t > LIFETIME - 5 ? (LIFETIME - d.t) / 5 : 1;
@@ -86,7 +92,7 @@ export class LootManager {
   at(wx: number, wy: number): Drop | null {
     for (const d of this.drops) {
       if (!d.view.visible) continue;
-      if (Math.abs(wx - d.view.x) <= 9 && wy <= d.view.y + 3 && wy >= d.view.y - (d.item ? 24 : 16)) return d;
+      if (Math.abs(wx - d.view.x) <= 13 && wy <= d.view.y + 5 && wy >= d.view.y - (d.item ? 32 : 26)) return d;
     }
     return null;
   }

@@ -160,3 +160,39 @@ def torch(frame):
         p.put(x0, y0, x1, y1, flame[0] if i == 0 else flame[1])
     p.put(5, 6, 7, 10, flame[2])
     return p.done(), (6, 25)
+
+
+def iso_face(sprite, anchor, along='v', depth=6):
+    """Pochyla płaski sprite (widok z przodu) tak, by leżał wzdłuż osi świata (rzut izometryczny 2:1)
+    i dokleja bok o grubości `depth` – mebel stoi pod kątem 45°, a nie przodem do gracza.
+    along='u' – front wzdłuż osi u (ściana tylna v): prawa strona niżej; along='v' – wzdłuż v: lewa niżej."""
+    h, w = sprite.shape[:2]
+    sl = 0.5 if along == 'u' else -0.5
+    lift = int(np.ceil(abs(sl) * w))
+    H2 = h + lift + depth
+    W2 = w + depth * 2
+    out = np.zeros((H2, W2, 4), np.uint8)
+    ox = depth if along == 'u' else depth
+    for x in range(w):
+        dy = int(round(x * sl)) + (lift if sl < 0 else 0)
+        col = sprite[:, x]
+        m = col[:, 3] > 0
+        ys = np.nonzero(m)[0]
+        out[ys + dy, x + ox] = col[ys]
+    # bok (grubość mebla): ciemniejsza kopia krawędzi, przesunięta w drugą oś
+    edge_x = w - 1 if along == 'u' else 0
+    col = sprite[:, edge_x].copy()
+    col[..., :3] = (col[..., :3] * 0.55).astype(np.uint8)
+    for k in range(1, depth + 1):
+        sx = ox + edge_x + (k if along == 'u' else -k)
+        dy = int(round(edge_x * sl)) + (lift if sl < 0 else 0) + int(round(k * 0.5))
+        m = col[:, 3] > 0
+        ys = np.nonzero(m)[0]
+        if 0 <= sx < W2:
+            out[ys + dy, sx] = col[ys]
+    al = out[..., 3] > 0
+    ring = ndi.binary_dilation(al) & ~al
+    out[ring] = INK + (255,)
+    ax, ay = anchor
+    ndy = int(round(ax * sl)) + (lift if sl < 0 else 0)
+    return out, (ax + ox, ay + ndy)

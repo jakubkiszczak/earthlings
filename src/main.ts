@@ -25,7 +25,7 @@ import { PlayerCombat } from './game/combat';
 import { InventoryController } from './game/inventory';
 import { LootManager } from './game/loot';
 import { rollLoot } from './logic/items';
-import { ICONS, ICONS2 } from './ui/icons';
+import { CURSOR_GRAB, ICONS, ICONS2 } from './ui/icons';
 import { ShopWindow, type ShopRow, type ShopState } from './ui/shop';
 import { StashWindow, type StashState } from './ui/stash';
 import { StashStore, deposit, withdraw } from './logic/stash';
@@ -434,7 +434,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   // kursor nad potworem
   app.stage.on('globalpointermove', (e) => {
     const wx = Math.floor((e.global.x - stage.x) / camera.zoom), wy = Math.floor((e.global.y - stage.y) / camera.zoom);
-    app.stage.cursor = mobs.at(wx, wy) ? 'crosshair' : 'pointer';
+    app.stage.cursor = mobs.at(wx, wy) ? 'crosshair' : loot.at(wx, wy) ? CURSOR_GRAB : 'pointer';
   });
 
   window.__game = {

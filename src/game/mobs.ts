@@ -146,7 +146,11 @@ export class MobManager {
       }
       v.ring.clear();
       if (!dead && this.target === m.id) {
-        v.ring.ellipse(0, 0, m.kind === 'wolf' ? 15 : 11, m.kind === 'wolf' ? 6 : 5).stroke({ width: 1, color: 0xff5a4a, alpha: 0.6 + 0.4 * Math.sin(this.t * 6) });
+        // wyraźny czerwony okrąg pod atakowanym celem: wypełnienie, gruby pierścień i pulsujący zewnętrzny
+        const rx = m.kind === 'wolf' ? 17 : 13, ry = m.kind === 'wolf' ? 7 : 6, p = 0.5 + 0.5 * Math.sin(this.t * 6);
+        v.ring.ellipse(0, 0, rx, ry).fill({ color: 0xff2020, alpha: 0.22 })
+          .ellipse(0, 0, rx, ry).stroke({ width: 2, color: 0xff2a2a, alpha: 0.95 })
+          .ellipse(0, 0, rx + 3 + p * 2, ry + 1.5 + p).stroke({ width: 1, color: 0xff6a4a, alpha: 0.35 + 0.4 * p });
       }
     }
   }

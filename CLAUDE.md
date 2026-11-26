@@ -12,7 +12,8 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 ## Potok budowania
 - Klient: TypeScript + Vite + PixiJS 8 (`src/`). Grafiki z `assets/` serwowane jako osobne pliki (publicDir), ścieżki przez `assetUrl()`.
 - `npm run dev` – podgląd na żywo; `npm run build` – `dist/` (sprawdza typy); `npm test` – Vitest (`tests/`); `npm run test:e2e` – Playwright (`e2e/`).
-- Grafiki (Python): `python tools/ui2.py` → `assets/generated/ui2/`; `python tools/export_live.py` → `assets/generated/`.
+- Grafiki (Python, środowisko `.venv`): `.venv/bin/python tools/ui2.py` → `assets/generated/ui2/`; `.venv/bin/python tools/worldgen.py [cx,cy ...]` → `assets/generated/world/` (świat 3×3, komórka 40×40 kafli + margines 128 tekseli; miasto w 1,1).
+- Świat w grze: w pamięci tylko bieżąca komórka (`src/world/world.ts`), przejście przez krawędź wczytuje sąsiada (`src/logic/cells.ts`). Teren = `ground.webp` pod wszystkim + `bands.webp` (pasma głębi tylko dla murów, klifów i dachów).
 - Publikacja: push do `main` → GitHub Actions (`.github/workflows/pages.yml`) testuje i wystawia GitHub Pages.
 - Node i gh są w `~/.local` (ścieżka w `~/.zprofile`).
 Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `test-results/smoke.png`, brak błędów w konsoli).

@@ -152,8 +152,8 @@ Jeden kupiec (NPC), okno otwierane kliknięciem. Kupiec skupuje przedmioty i pot
 
 ## 6. Świat 3×3
 
-- Każda komórka: 40 × 40 kafli (kafel 64×32, izometria 2:1), wygenerowana w Pythonie jak obecna sekcja (`scene.py`, `compose.py`, `export_live.py`) – osobny zestaw danych na komórkę.
-- Przejście między komórkami na krawędzi: krótkie wygaszenie ekranu i wczytanie sąsiedniej komórki (tylko jedna komórka w pamięci naraz).
+- Każda komórka: 40 × 40 kafli (kafel 64×32, izometria 2:1), wygenerowana w Pythonie (`tools/worldgen.py`) – osobny zestaw danych na komórkę, ok. 2 MB.
+- Przejście między komórkami na krawędzi jest płynne: w pamięci jest bieżąca komórka i jej sąsiedzi, brakujący sąsiedzi doczytują się w tle (wygaszenie tylko przy skoku, np. zwój powrotu).
 - Miasto (środek): mur lub palisada z bramami na 4 strony, kupiec, kilka budynków dekoracyjnych, punkt odrodzenia.
 - Pozostałe komórki: różny charakter – las, polana z rzeką, ruiny, cmentarz.
 - **Minimapa 3×3** w rogu: komórki, obecna komórka podświetlona, pozycja gracza, miasto.
@@ -192,15 +192,15 @@ Wszystko generowane kodem w `tools/` (rozszerzenie `hero9.py` i `ui2.py`).
 
 ## 9. Etapy (każdy kończy się działającym linkiem)
 
-| # | Etap | Wynik |
-| --- | --- | --- |
-| 0 | Fundament | TypeScript + Vite, rozbicie `game.js` na moduły, repo na GitHubie, automatyczna publikacja. Obecna scena działa pod linkiem. |
-| 1 | Świat 3×3 | Generator 9 komórek, miasto, przejścia, kolizje, minimapa. |
-| 2 | Postać | Ekran startowy, wybór i kreator postaci, warstwowe sprite'y, zapis do 3 postaci. |
-| 3 | Walka | Moby z AI, auto-atak, 4 umiejętności, mana, cooldowny, śmierć i respawn mobów oraz gracza. |
-| 4 | Progresja i łup | Exp i poziomy, punkty atrybutów, złoto, potiony, 20 przedmiotów, ekwipunek, widoczna broń i zbroja. |
-| 5 | Miasto i sklep | Kupiec, strzały, buty, okno sklepu. |
-| 6 | Dźwięk, balans, wydanie | Efekty dźwiękowe, strojenie wartości, testy, wersja v0.1 dla testerów. |
+| # | Etap | Wynik | Stan |
+| --- | --- | --- | --- |
+| 0 | Fundament | TypeScript + Vite, rozbicie `game.js` na moduły, repo na GitHubie, automatyczna publikacja. Obecna scena działa pod linkiem. | gotowe |
+| 1 | Świat 3×3 | Generator 9 komórek, miasto, przejścia, kolizje, minimapa. | gotowe |
+| 2 | Postać | Ekran startowy, wybór i kreator postaci, warstwowe sprite'y, zapis do 3 postaci. |  |
+| 3 | Walka | Moby z AI, auto-atak, 4 umiejętności, mana, cooldowny, śmierć i respawn mobów oraz gracza. |  |
+| 4 | Progresja i łup | Exp i poziomy, punkty atrybutów, złoto, potiony, 20 przedmiotów, ekwipunek, widoczna broń i zbroja. |  |
+| 5 | Miasto i sklep | Kupiec, strzały, buty, okno sklepu. |  |
+| 6 | Dźwięk, balans, wydanie | Efekty dźwiękowe, strojenie wartości, testy, wersja v0.1 dla testerów. |  |
 
 **Kryterium ukończenia v0.1:** nowy tester otwiera link, tworzy postać, dochodzi do poziomu 5 dowolną klasą, kupuje buty i strzały, ginie i odradza się, a po odświeżeniu strony postać jest zapisana. Brak błędów w konsoli w Chrome, Firefox, Safari i Edge.
 

@@ -151,7 +151,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     ['Ogólny', 'Lysa:', '#e8e2d4', 'ktoś widział krakena przy klifach?'],
   ];
   demoLines.forEach((a) => line(...a));
-  sys('Witaj w Dolinie Wieży. Przytrzymaj mysz, aby iść.');
+  sys('Witaj w Earthlings. Przytrzymaj mysz, aby iść. Mapa świata: róg ekranu.');
   const NPCS: [string, string, string, string][] = [
     ['Ogólny', 'Grom:', '#e8e2d4', 'gdzie jest kowal?'], ['Handel', 'Mira:', '#f0b060', 'kupię skóry wilka'],
     ['Drużyna', 'Eryk:', '#8ecbff', 'idę do ruin, dołączysz?'], ['Ogólny', 'Thrain:', '#e8e2d4', 'piękna pogoda nad wodą'],
@@ -380,6 +380,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   // ---------------- pętla HUD
   let T_ = 0, orbT = 0, flameF = 0;
   return {
+    zone(name) { sys(`Wchodzisz: <span style="color:#f2d27a">${name}</span>`); },
     update(x, y, _zoom, dt) {
       T_ += dt;
       orbT += dt;

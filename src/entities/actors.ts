@@ -47,10 +47,21 @@ export class Hero {
     this.a.c.addChild(this.headMark);
   }
 
+  /** kontener postaci w warstwie świata (do przeniesienia między komórkami) */
+  get view(): Container { return this.a.c; }
+
   teleport(to: [number, number]) {
     [this.u, this.v] = to;
     this.path = [];
     this.trail.length = 0;
+  }
+
+  /** przesunięcie układu współrzędnych (wejście do sąsiedniej komórki) – ścieżka zostaje zachowana */
+  shift(du: number, dv: number) {
+    this.u += du;
+    this.v += dv;
+    this.path = this.path.map(([u, v]) => [u + du, v + dv]);
+    for (const p of this.trail) { p[0] += du; p[1] += dv; }
   }
 
   update(grid: WorldGrid, t: number, at: number, dt: number, speed: number) {
@@ -93,7 +104,11 @@ export class Dog {
     this.a = makeActor(atlas, layer, 0.7);
   }
 
+  get view(): Container { return this.a.c; }
+
   teleport(to: [number, number]) { [this.u, this.v] = to; }
+
+  shift(du: number, dv: number) { this.u += du; this.v += dv; }
 
   update(grid: WorldGrid, trail: [number, number][], at: number, dt: number, speed: number) {
     let frame = 'dog0';

@@ -1,10 +1,10 @@
 // Ładowanie grafik i danych jako osobnych plików (assets/ → publicDir Vite).
-import type { Ui2Meta, WorldMeta } from './types';
+import type { CellInfo, CellMeta, Ui2Meta, WorldInfo } from './types';
 
 /** Ścieżka do pliku z assets/, działa pod dowolnym adresem (base './'). */
 export const assetUrl = (path: string): string => import.meta.env.BASE_URL + path;
 
-const loadImage = (src: string): Promise<HTMLImageElement> =>
+export const loadImage = (src: string): Promise<HTMLImageElement> =>
   new Promise((res, rej) => {
     const i = new Image();
     i.onload = () => res(i);
@@ -28,8 +28,30 @@ export function readPixels(img: HTMLImageElement): Uint8ClampedArray {
   return ctx.getImageData(0, 0, img.width, img.height).data;
 }
 
-export const WORLD_IMAGES = ['bands', 'sprites', 'water_a', 'water_b', 'walk', 'pick'] as const;
-export type WorldImage = (typeof WORLD_IMAGES)[number];
+/** pliki jednej komórki świata (assets/generated/world/cXY/) */
+export const CELL_IMAGES = { ground: 'ground.webp', bands: 'bands.webp', water_a: 'water_a.png', water_b: 'water_b.png', walk: 'walk.png', pick: 'pick.png' } as const;
+export type CellImage = keyof typeof CELL_IMAGES;
+
+export interface CellAssets {
+  meta: CellMeta;
+  img: Record<CellImage, HTMLImageElement>;
+}
+
+const cellPath = (c: CellInfo, file: string) => `generated/world/${c.dir}/${file}`;
+
+export async function loadCell(c: CellInfo): Promise<CellAssets> {
+  const keys = Object.keys(CELL_IMAGES) as CellImage[];
+  const [meta, ...imgs] = await Promise.all([
+    loadJson<CellMeta>(cellPath(c, 'meta.json')),
+    ...keys.map((k) => loadImage(assetUrl(cellPath(c, CELL_IMAGES[k])))),
+  ]);
+  return { meta: meta as CellMeta, img: Object.fromEntries(keys.map((k, i) => [k, imgs[i]])) as Record<CellImage, HTMLImageElement> };
+}
+
+/** pobiera pliki komórki do pamięci podręcznej przeglądarki (szybsze przejście) */
+export function prefetchCell(c: CellInfo): void {
+  for (const f of ['meta.json', ...Object.values(CELL_IMAGES)]) fetch(assetUrl(cellPath(c, f))).catch(() => undefined);
+}
 
 export const UI2_IMAGES = [
   'cap_left', 'cap_right', 'console_fill', 'corner_tl', 'corner_tr', 'crest', 'edge_left', 'edge_right', 'edge_top',
@@ -43,9 +65,9 @@ const ICONS = [
 ] as const;
 
 export interface Assets {
-  meta: WorldMeta;
+  world: WorldInfo;
+  sprites: HTMLImageElement;
   ui2meta: Ui2Meta;
-  img: Record<WorldImage, HTMLImageElement>;
   /** adresy grafik HUD (używane w DOM jako <img src>) */
   ui2: Record<Ui2Image, string>;
   /** adresy ikon 14×14: klucz 'icon_<nazwa>' */
@@ -53,15 +75,14 @@ export interface Assets {
 }
 
 export async function loadAssets(): Promise<Assets> {
-  const [meta, ui2meta, ...imgs] = await Promise.all([
-    loadJson<WorldMeta>('generated/meta.json'),
+  const [world, ui2meta, sprites] = await Promise.all([
+    loadJson<WorldInfo>('generated/world/world.json'),
     loadJson<Ui2Meta>('generated/ui2/ui2.json'),
-    ...WORLD_IMAGES.map((k) => loadImage(assetUrl(`generated/${k}.png`))),
+    loadImage(assetUrl('generated/world/sprites.png')),
   ]);
-  const img = Object.fromEntries(WORLD_IMAGES.map((k, i) => [k, imgs[i]])) as Record<WorldImage, HTMLImageElement>;
   const ui2 = Object.fromEntries(UI2_IMAGES.map((k) => [k, assetUrl(`generated/ui2/${k}.png`)])) as Record<Ui2Image, string>;
   const icons = Object.fromEntries(ICONS.map((k) => [`icon_${k}`, assetUrl(`legacy_ui/icon_${k}.png`)]));
   // HUD podmienia źródła <img> (płomienie) – wczytaj z wyprzedzeniem, żeby nie migały
   await Promise.all(Object.values(ui2).map(loadImage));
-  return { meta, ui2meta, img, ui2, icons };
+  return { world, sprites, ui2meta, ui2, icons };
 }

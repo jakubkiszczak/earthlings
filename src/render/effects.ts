@@ -17,7 +17,12 @@ export class Effects {
     layer.addChild(this.fx, this.marker);
   }
 
+  /** obiekty efektów do przeniesienia do warstwy nowej komórki */
+  get views(): Container[] { return [this.fx, this.marker]; }
+
   ring(color: number) { this.rings.push({ t: 0, color }); }
+
+  clearMark() { this.marker.clear(); this.markT = 0; }
 
   /** romb w miejscu celu ruchu (piksele obrazu świata) */
   mark(x: number, y: number) {

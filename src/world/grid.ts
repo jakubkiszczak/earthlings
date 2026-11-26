@@ -1,13 +1,13 @@
 // Siatka chodzenia (walk.png), mapa wyboru (pick.png) i przeliczanie świat ↔ ekran.
 import { readPixels } from '../assets';
 import { findPath, nearestWalkable } from '../logic/pathfinding';
-import type { WorldMeta } from '../types';
+import type { CellMeta } from '../types';
 
 export class WorldGrid {
   private readonly walk: Uint8ClampedArray;
   private readonly pick: Uint8ClampedArray;
 
-  constructor(private readonly M: WorldMeta, walkImg: HTMLImageElement, pickImg: HTMLImageElement) {
+  constructor(private readonly M: CellMeta, walkImg: HTMLImageElement, pickImg: HTMLImageElement) {
     this.walk = readPixels(walkImg);
     this.pick = readPixels(pickImg);
   }

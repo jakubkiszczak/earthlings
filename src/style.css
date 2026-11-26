@@ -3,3 +3,4 @@ canvas { display: block; image-rendering: pixelated; }
 #hint { position: fixed; left: 50%; transform: translateX(-50%); top: 36px; z-index: 2; font: 600 14px/1.4 system-ui, sans-serif; color: #f2ead8;
   background: rgba(10, 14, 12, .72); padding: 8px 12px; border-radius: 6px; pointer-events: none; }
 .fatal { position: fixed; inset: 20px; z-index: 100; margin: 0; padding: 16px; background: #1a0d0d; color: #ffd0c8; font: 14px/1.4 monospace; white-space: pre-wrap; }
+.fade { position: fixed; inset: 0; z-index: 50; background: #050806; opacity: 0; pointer-events: none; transition: opacity .25s linear; }

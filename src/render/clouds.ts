@@ -35,6 +35,10 @@ export function createClouds(width: number, height: number, bayer: number[][]) {
   sprite.blendMode = 'multiply';
   return {
     sprite,
-    update(t: number) { sprite.tilePosition.set(Math.round(t * 5) % SIZE, Math.round(t * 2.5) % SIZE); },
+    resize(w: number, h: number) { sprite.width = w; sprite.height = h; },
+    /** (ox, oy) – przesunięcie układu po zmianie komórki, żeby cienie chmur nie skakały */
+    update(t: number, ox = 0, oy = 0) {
+      sprite.tilePosition.set((Math.round(t * 5 + ox) % SIZE + SIZE) % SIZE, (Math.round(t * 2.5 + oy) % SIZE + SIZE) % SIZE);
+    },
   };
 }

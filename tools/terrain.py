@@ -19,7 +19,7 @@ ROOFS = {'flat': 0, 'gable_u': 1, 'gable_v': 2, 'hip': 3}
 WD = K.hexs(['#24160c', '#432914', '#673e1c', '#8a5626', '#ad7034', '#cc8c46'])               # deski
 
 
-def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=None):
+def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=None, wood_axis='u'):
     """gu, gv – globalne współrzędne tekseli (N×N), H – wysokości (int), MAT – materiały,
     buildings – lista dict(u0, u1, v0, v1, base, door, window) w tych samych współrzędnych co gu/gv.
     grass_pals – lista palet trawy, gpid – indeks palety dla każdego teksela (N×N).
@@ -40,7 +40,7 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     Hd = np.pad(H, ((0, 1), (0, 1)), mode='edge')[1:, 1:]
     low = np.minimum(np.minimum(Hl, Hr), Hd)
     drop = np.clip(H - low, 0, None)
-    drop[MAT == WATER] = 0
+    drop[(MAT == WATER) & (low > H - 40)] = 0        # woda nie ma ścian, poza wodospadem na krawędzi świata
     faceL = Hl <= Hr
     faceLs = ndi.uniform_filter((Hl < Hr).astype(np.float32) + 0.5 * (Hl == Hr), 5)
 
@@ -129,8 +129,9 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
             top[mp] = ramp(pal, ri_[mp], True, SX[mp], SY[mp])
     # deski (most, pomosty)
     m = MAT == WOOD
-    pl = np.floor(u / 6)
-    wdi = 2.6 + 1.2 * hsh(pl, np.floor(v / 40), 5) - 1.6 * ((u % 6) < 1) - 1.4 * shadow
+    wa_, wb_ = (v, u) if wood_axis == 'v' else (u, v)
+    pl = np.floor(wa_ / 6)
+    wdi = 2.6 + 1.2 * hsh(pl, np.floor(wb_ / 40), 5) - 1.6 * ((wa_ % 6) < 1) - 1.4 * shadow
     top[m] = ramp(WD, wdi[m], True, SX[m], SY[m])
     # woda
     wm = MAT == WATER
@@ -296,6 +297,11 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         col = np.where(door[:, None], dcol, col)
         col = np.where(knob[:, None], K.WL[6][None], col)
         col = np.where(win[:, None], wcol, col)
+        # wodospad na krawędzi świata
+        fall = mat == WATER
+        if fall.any():
+            fi = 3.2 + 2.6 * hsh(np.floor(along / 2), np.floor(z / 5), 77) + 2.0 * (k < 3) - 0.6 * (~fl)
+            col = np.where(fall[:, None], ramp(K.WA, fi, True, xs, ys), col)
         # mech i trawa zwisająca nad klifem
         gtop = (mat == GRASS) | (mat == DIRT)
         fringe = 2 + np.floor(4 * hsh(np.floor(along / 2), 11)) + np.where(hsh(np.floor(along / 2), 12) > 0.93, 3 + 6 * hsh(np.floor(along / 2), 13), 0)

@@ -78,6 +78,75 @@ def river_v(gu):
     return 2.45 * C + 140 * np.sin(gu / 420.0) + 60 * np.sin(gu / 170.0 + 1.0)
 
 
+# most: drewniana kładka nad rzeką na drodze południowej (osobny sprite – pod nim płynie woda)
+BR_HALF_W, BR_HALF_L, BR_H = 18, 112, BASE + 2
+BRIDGE = dict(u0=int(CTR - BR_HALF_W), u1=int(CTR + BR_HALF_W), v0=int(river_v(CTR) - BR_HALF_L), v1=int(river_v(CTR) + BR_HALF_L))
+
+
+def bridge_sprite():
+    pad = 6
+    L, Wd = BRIDGE['v1'] - BRIDGE['v0'], BRIDGE['u1'] - BRIDGE['u0']
+    S = L + 2 * pad
+    iv, iu = np.mgrid[0:S, 0:S]
+    u = iu - pad; v = iv - pad
+    deck = (u >= 0) & (u < Wd) & (v >= 0) & (v < L)
+    H = np.full((S, S), BR_H - 4, np.int32)
+    MAT = np.full((S, S), TR.WOOD, np.int8)
+    H[deck] = BR_H
+    edge = deck & ((u < 3) | (u >= Wd - 3))
+    H[edge] = BR_H + 5
+    post = edge & ((v % 22) < 3)
+    H[post] = BR_H + 13
+    # pale pod mostem: przed przednią krawędzią (+u) teren głęboko, więc krawędź pomostu schodzi do wody
+    vc = L / 2
+    for pv_ in (vc - 34, vc, vc + 34):
+        H[(u == Wd) & (np.abs(v - pv_) < 5)] = 0
+        H[(u >= 0) & (u < Wd) & (v == L) & (np.abs(u - Wd / 2) < 4) & (abs(pv_ - vc) < 1)] = BR_H - 4
+    Wi, Hs_ = 2 * S, S + 40 + BR_H
+    R = TR.render(u, v, H, MAT, [], PALS, Wi, Hs_, S, 40 + BR_H, seed=5, wood_axis='v')
+    keep = (R['pu'] >= 0) & (R['pu'] < Wd) & (R['pv'] >= 0) & (R['pv'] < L) & (R['kind'] >= 0)
+    ys, xs = np.nonzero(keep)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    rgba = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
+    rgba[..., :3] = np.clip(R['img'][y0:y1, x0:x1], 0, 255)
+    rgba[..., 3] = np.where(keep[y0:y1, x0:x1], 255, 0)
+    # kotwica = teksel (0, 0) pomostu na wysokości BR_H
+    ax = (0 - 0 + pad - pad) + S - x0
+    ay = (2 * pad) // 2 - BR_H + 40 + BR_H - y0
+    return rgba, (int(ax), int(ay))
+
+
+def lamp_sprite():
+    w, h = 11, 40
+    a = np.zeros((h, w, 4), np.uint8)
+    def put(x0, x1, y0, y1, c):
+        a[y0:y1, x0:x1, :3] = K.hexs([c])[0]; a[y0:y1, x0:x1, 3] = 255
+    put(4, 7, 9, 36, '#3a3640'); put(4, 5, 9, 36, '#5a5662'); put(6, 7, 9, 36, '#24222a')
+    put(2, 9, 35, 39, '#6c6a72'); put(2, 4, 35, 39, '#8a8890'); put(7, 9, 35, 39, '#4a4850')
+    put(2, 9, 2, 10, '#24222a'); put(3, 8, 3, 9, '#ffd060'); put(3, 5, 3, 9, '#fff0a8'); put(7, 8, 3, 9, '#e8a030')
+    put(5, 6, 3, 9, '#3a3640')
+    put(3, 8, 0, 2, '#3a3640'); put(5, 6, 0, 1, '#5a5662')
+    al = a[..., 3] > 0
+    out = ndi.binary_dilation(al) & ~al
+    a[out] = (20, 14, 18, 255)
+    return a, (5, 38)
+
+
+def town_lamps():
+    bs = town_buildings()
+    lamps = []
+    for d in (-410, -290, -175, 175, 290, 410):
+        side = 26 if d > 0 else -26
+        lamps += [(CTR + d, CTR + side), (CTR - side, CTR + d)]
+    lamps += [(CTR + x, CTR + y) for x in (-160, 160) for y in (-160, 160)]
+    ok = []
+    for (u, v) in lamps:
+        if any(b['u0'] - 12 < u < b['u1'] + 12 and b['v0'] - 12 < v < b['v1'] + 12 for b in bs):
+            continue
+        ok.append((float(u), float(v)))
+    return ok
+
+
 # ------------------------------------------------------------------ miasto (komórka 1,1), współrzędne globalne
 def rect(cu, cv, hu, hv):
     return dict(u0=int(CTR + cu - hu), u1=int(CTR + cu + hu), v0=int(CTR + cv - hv), v1=int(CTR + cv + hv))
@@ -166,21 +235,17 @@ def layout(gu, gv):
     H[near_road] = BASE
     road = (dU < 15) | (dV < 15)
     MAT[road] = TR.PATH
-    # rzeka z mostem
-    rd = np.abs(gv - river_v(gu))
-    bank = rd < 96
+    # rzeka: nieregularne brzegi (szum), niższy taras przy wodzie; most to osobny sprite nad wodą
+    rn = (vnoise(gu, gv, 48, 61) - 0.5) * 30 + (vnoise(gu, gv, 17, 62) - 0.5) * 12 + (vnoise(gu, gv, 7, 63) - 0.5) * 5
+    rd = np.abs(gv - river_v(gu)) + rn
+    bank = rd < 100
     H[bank & (H > BASE)] = BASE
-    lowbank = (rd < 70) & ~(dU < 22)
+    lowbank = rd < 72 + (vnoise(gu, gv, 23, 64) - 0.5) * 16
     H[lowbank] = BASE - 24
     MAT[lowbank & (MAT == TR.PATH)] = TR.GRASS
     water = rd < 44
     H[water] = 0
     MAT[water] = TR.WATER
-    bridge = (dU < 20) & (rd < 60)
-    H[bridge] = BASE
-    MAT[bridge] = TR.WOOD
-    railing = bridge & (dU >= 17)
-    H[railing] = BASE + 6
     # miasto: wyrównany teren, plac, mur z bramami
     town = (gu > C + 40) & (gu < 2 * C - 40) & (gv > C + 40) & (gv < 2 * C - 40)
     H[town] = BASE
@@ -192,15 +257,15 @@ def layout(gu, gv):
     ring |= ((np.abs(gv - a0) < 7) | (np.abs(gv - a1) < 7)) & (gu > a0 - 7) & (gu < a1 + 7)
     gate = (np.abs(gu - CTR) < GATE) | (np.abs(gv - CTR) < GATE)
     tower_merlon = ring & ((((gu + gv) // 10) % 2) == 0)
-    H[ring & ~gate] = BASE + 36
-    H[ring & ~gate & tower_merlon] = BASE + 42
+    H[ring & ~gate] = BASE + 43
+    H[ring & ~gate & tower_merlon] = BASE + 50
     MAT[ring & ~gate] = TR.WALL
     # baszty przy bramach
     for (pu_, pv_) in [(CTR - GATE - 10, a0), (CTR + GATE + 10, a0), (CTR - GATE - 10, a1), (CTR + GATE + 10, a1),
                        (a0, CTR - GATE - 10), (a0, CTR + GATE + 10), (a1, CTR - GATE - 10), (a1, CTR + GATE + 10)]:
         bt = (np.abs(gu - pu_) < 14) & (np.abs(gv - pv_) < 14)
-        H[bt] = BASE + 56
-        H[bt & ((((gu + gv) // 8) % 2) == 0) & ((np.abs(gu - pu_) > 9) | (np.abs(gv - pv_) > 9))] = BASE + 62
+        H[bt] = BASE + 67
+        H[bt & ((((gu + gv) // 8) % 2) == 0) & ((np.abs(gu - pu_) > 9) | (np.abs(gv - pv_) > 9))] = BASE + 74
         MAT[bt] = TR.WALL
     buildings = town_buildings()
     for b in buildings:
@@ -249,10 +314,10 @@ def layout(gu, gv):
         H[m] = np.maximum(H[m], top_[m]); MAT[m] = TR.WALL
         fl_ = (np.abs(gu - (u + (L / 2 if along_u else 0))) < 60) & (np.abs(gv - (v + (0 if along_u else L / 2))) < 40)
         MAT[fl_ & (MAT == TR.GRASS) & (H == BASE) & (hsh(np.floor(gu / 7), np.floor(gv / 7), 11) > 0.35)] = TR.PAVE
-    # granica świata: wysoki klif
+    # granica świata: teren urywa się w pustkę (wyspa) – poza światem nisko i przezroczyście
     out = (gu < 0) | (gv < 0) | (gu >= GRID * C) | (gv >= GRID * C)
-    H[out] = BASE + 72
-    MAT[out & (MAT != TR.GRASS)] = TR.GRASS
+    H[out] = -96
+    MAT[out] = TR.GRASS
     return H, MAT, buildings
 
 
@@ -284,6 +349,8 @@ def build_sprites():
         spr[f'rock{i}'] = (rgba(col, al), anc)
     col, al, anc = props.chest()
     spr['chest'] = (rgba(col, al), anc)
+    spr['bridge'] = bridge_sprite()
+    spr['lamp'] = lamp_sprite()
     import hero9
     frames_h = hero9.all_frames()
     for nm, a_ in frames_h.items():
@@ -378,7 +445,7 @@ def save_water(d, R, kind, pu_l, pv_l):
     Image.fromarray(wq).save(d / 'water_b.png', optimize=True)
 
 
-def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg):
+def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg, no_occ=None):
     """ground.webp (teren pod wszystkim), bands.webp (pasma głębi: ściany, klify, dachy), pick.png (piksel → teksel)."""
     HSd, Wd = kind.shape
     wm = kind == TR.WATER
@@ -389,6 +456,8 @@ def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg):
     Image.fromarray(base_rgba).save(d / 'ground.webp', lossless=True, quality=100, method=6)
     raised = H > ndi.minimum_filter(H, size=129)
     occ = land & ((kind == TR.CLIFF_KIND) | raised[pv_l, pu_l])
+    if no_occ is not None:
+        occ &= ~no_occ[pv_l, pu_l]          # np. teren pod mostem – nie może zasłaniać pomostu
     band = np.where(occ, dep // (2 * BW), -1)
     pieces = []
     CH = 256
@@ -405,7 +474,7 @@ def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg):
             tile[..., :3] = np.clip(img[y0:y1, x0:x1], 0, 255)
             tile[..., 3] = np.where(m[y0:y1, x0:x1], 255, 0)
             pieces.append((int(b), x0, y0, tile))
-    AW = 2048
+    AW = 4096                  # szeroki atlas: wysokość poniżej 4096 (limit tekstur na słabszych GPU)
     x = y = rowh = 0
     placed_b = []
     for (b, x0, y0, t) in sorted(pieces, key=lambda p: -p[3].shape[0]):
@@ -469,6 +538,9 @@ def gen_cell(ci, cj, sizes):
     # render terenu (z wypiekanymi cieniami obiektów)
     R = TR.render(gui, gvi, H, MAT, buildings, PALS, W, HS, X0, Y0, seed=ci * 3 + cj, gpid=gpid)
     img, dep, kind = R['img'], R['dep'], R['kind']
+    # poza światem: przezroczyście (w grze widać tam niebo)
+    beyond = (R['pu'] < 0) | (R['pv'] < 0) | (R['pu'] >= GRID * C) | (R['pv'] >= GRID * C)
+    kind[beyond] = -1
 
     def to_screen(lu, lv):
         h = int(H[int(lv), int(lu)])
@@ -506,13 +578,23 @@ def gen_cell(ci, cj, sizes):
         x, y = to_screen(lu, lv)
         ground_shadow(x + 4, y, 17, 5, 0.6)
         ents.append(dict(k='prop', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for (u, v) in town_lamps():
+            lu, lv = u - ou + M, v - ov + M
+            x, y = to_screen(lu, lv)
+            ground_shadow(x + 2, y, 5, 2, 0.7)
+            ents.append(dict(k='lamp', s=['lamp'], x=x, y=y, z=int(lu + lv - 2 * M)))
+    bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)
+    if (ci, cj) == (bcx, bcy):
+        lu, lv = BRIDGE['u0'] - ou + M, BRIDGE['v0'] - ov + M
+        ents.append(dict(k='bridge', s=['bridge'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - BR_H + Y0), z=int(lu + lv - 2 * M) - 8))
 
     pu_l = np.clip(R['pu'] - ou + M, 0, N - 1)
     pv_l = np.clip(R['pv'] - ov + M, 0, N - 1)
     d = OUT / f'c{ci}{cj}'
     d.mkdir(parents=True, exist_ok=True)
     save_water(d, R, kind, pu_l, pv_l)
-    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, M)
+    under_bridge = (np.abs(gu - CTR) < BR_HALF_W + 14) & (gv > BRIDGE['v0'] - 6) & (gv < BRIDGE['v1'] + 6)
+    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, M, no_occ=under_bridge)
     NC = N // CELLW
     Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     Mc = MAT[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
@@ -526,6 +608,13 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         cic, cjc = int((chest_uv[0] - ou + M) // CELLW), int((chest_uv[1] - ov + M) // CELLW)
         walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
+        for (u, v) in town_lamps():
+            cic, cjc = int((u - ou + M) // CELLW), int((v - ov + M) // CELLW)
+            walk[cjc - 1:cjc + 2, cic - 1:cic + 2] = False
+    # most: przechodni pomost nad wodą (wysokość pomostu)
+    on_bridge = (np.abs(Gc[0] - CTR) < BR_HALF_W - 4) & (Gc[1] > BRIDGE['v0'] + 2) & (Gc[1] < BRIDGE['v1'] - 2)
+    walk |= on_bridge
+    Hc = np.where(on_bridge, BR_H, Hc)
     # usuń małe odcięte wysepki (np. wnętrza ruin)
     lab, nl = ndi.label(walk, structure=np.ones((3, 3)))
     if nl:
@@ -574,10 +663,10 @@ def gen_interior():
     front = ((u >= RU) & (u < RU + 6) & (v >= -10) & (v < RV + 6)) | ((v >= RV) & (v < RV + 6) & (u >= -10) & (u < RU + 6))
     H[front] = BASE + 8; MAT[front] = TR.WALL
     # lada (drewno) i regały
-    COUNTER = (56, 72, 60, 200)
+    COUNTER = (56, 72, 60, 200)        # lada: niska, kupiec stoi dość daleko za nią, żeby był cały widoczny
     m = (u >= COUNTER[0]) & (u <= COUNTER[1]) & (v >= COUNTER[2]) & (v <= COUNTER[3])
-    H[m] = BASE + 22; MAT[m] = TR.WOOD
-    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 12, 40, 220, 52), (300, RU - 1, 0, 70, 30)]:
+    H[m] = BASE + 14; MAT[m] = TR.WOOD
+    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 8, 40, 220, 52), (300, RU - 1, 0, 70, 30)]:
         m = (u >= a0) & (u <= a1) & (v >= b0) & (v <= b1)
         H[m] = BASE + h; MAT[m] = TR.WOOD
     W_, HS_ = 2 * NI, NI + HI_MAX + 8
@@ -610,7 +699,7 @@ def gen_interior():
     (ROOT / 'build_tmp').mkdir(exist_ok=True)
     Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / 'preview_shop.png')
     print('wnętrze sklepu zapisane', flush=True)
-    return dict(dir='shop', name='Sklep', spawn=[262.0, 196.0], exit=[290.0, 222.0], npc=[34.0, 130.0])
+    return dict(dir='shop', name='Sklep', spawn=[262.0, 196.0], exit=[290.0, 222.0], npc=[22.0, 130.0], floor=BASE)
 
 
 def _job(args):

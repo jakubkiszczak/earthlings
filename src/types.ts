@@ -36,6 +36,8 @@ export interface InteriorInfo {
   exit: [number, number];
   /** sprzedawca za ladą */
   npc: [number, number];
+  /** wysokość podłogi */
+  floor?: number;
 }
 
 /** meta.json komórki: obraz terenu, pasma głębi, obiekty. Współrzędne (u, v) lokalne dla komórki. */

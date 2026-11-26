@@ -140,7 +140,8 @@ export class Npc {
   frameName = 'npc_SE_idle0';
   private readonly a: Actor;
 
-  constructor(private readonly atlas: Atlas, layer: Container, public u: number, public v: number) {
+  /** h – wysokość podłogi (NPC może stać poza siatką chodzenia, np. za ladą) */
+  constructor(private readonly atlas: Atlas, layer: Container, public u: number, public v: number, private readonly h: number) {
     this.a = makeActor(atlas, layer, 1);
   }
 
@@ -150,7 +151,7 @@ export class Npc {
   update(grid: WorldGrid, at: number) {
     this.frameName = `npc_SE_idle${Math.floor(at * 1.4) % 2}`;
     this.atlas.setFrame(this.a.s, this.frameName);
-    const [x, y] = grid.toScreen(this.u, this.v);
+    const [x, y] = grid.toScreenAt(this.u, this.v, this.h);
     this.a.c.position.set(Math.round(x), Math.round(y));
     this.a.c.zIndex = actorZ(this.u, this.v);
   }

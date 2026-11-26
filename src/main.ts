@@ -9,6 +9,7 @@ import { Atlas } from './render/atlas';
 import { createClouds } from './render/clouds';
 import { Effects } from './render/effects';
 import { Portal } from './render/portal';
+import { Sky } from './render/sky';
 import { Xray } from './render/xray';
 import type { GameBridge } from './types';
 import { createHud } from './ui/hud';
@@ -30,7 +31,7 @@ const DOG_OFFSET: [number, number] = [-22, 6];
 async function main() {
   TextureStyle.defaultOptions.scaleMode = 'nearest';
   const app = new Application();
-  await app.init({ resizeTo: window, background: '#0b1a12', roundPixels: true, antialias: false });
+  await app.init({ resizeTo: window, background: '#06081a', roundPixels: true, antialias: false });
   document.body.appendChild(app.canvas);
 
   const assets = await loadAssets();
@@ -38,6 +39,8 @@ async function main() {
   const atlas = new Atlas(assets.sprites, info.frames);
   const world = new World(info, atlas);
 
+  const sky = new Sky();
+  app.stage.addChild(sky.view);
   const stage = new Container();     // świat w pikselach obrazu bieżącej komórki (skalowany kamerą)
   app.stage.addChild(stage);
   stage.addChild(world.view);
@@ -138,7 +141,7 @@ async function main() {
       // kupiec tylko we wnętrzu sklepu
       if (npc) { xray.remove(npcTarget!); npc.destroy(); npc = null; npcTarget = null; }
       if (world.inInterior && shopInfo) {
-        const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1]);
+        const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1], shopInfo.floor ?? 48);
         npc = n;
         npcTarget = { view: n.view, body: n.body, frame: () => n.frameName, kind: 'npc' };
         xray.add(npcTarget);
@@ -214,6 +217,8 @@ async function main() {
     xray.update();
     effects.update(dt, hero.sx, hero.sy);
     camera.update(stage, app.screen, hero.sx, hero.sy + 4, dt);
+    sky.resize(app.screen.width, app.screen.height);
+    sky.update(t, stage.x, stage.y, camera.zoom);
     minimap.set(world.cx, world.cy, hero.u / world.size, hero.v / world.size, world.name);
     minimap.update(dt);
     hud.update(stage.x + hero.sx * camera.zoom, stage.y + (hero.sy - 52) * camera.zoom, camera.zoom, dt);

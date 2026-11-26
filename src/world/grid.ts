@@ -38,6 +38,11 @@ export class WorldGrid {
     return [u - v + this.M.X0, Math.floor((u + v) / 2) - this.heightAt(u, v) + this.M.Y0];
   }
 
+  /** jak toScreen, ale z podaną wysokością (dla punktów poza siatką chodzenia) */
+  toScreenAt(u: number, v: number, h: number): [number, number] {
+    return [u - v + this.M.X0, Math.floor((u + v) / 2) - h + this.M.Y0];
+  }
+
   /** piksel obrazu świata → punkt (u, v) z mapy wyboru, albo null (puste tło) */
   pickAt(wx: number, wy: number): [number, number] | null {
     const { W, H, OFF } = this.M;

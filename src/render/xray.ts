@@ -6,7 +6,7 @@ import { Container, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.j
 import type { Atlas } from './atlas';
 import type { Item, World } from '../world/world';
 
-export const XRAY_COLORS = { hero: 0x4aa8ff, npc: 0x5ae06a, mob: 0xff4a4a } as const;
+export const XRAY_COLORS = { hero: 0xa8e4ff, npc: 0x8af59a, mob: 0xff6a6a } as const;
 export type XrayKind = keyof typeof XRAY_COLORS;
 
 /** postać do śledzenia: kontener (pozycja, zIndex) i sprite ciała z bieżącą klatką */
@@ -69,7 +69,7 @@ export class Xray {
       const ring = !inside && (a(x - 1, y) || a(x + 1, y) || a(x, y - 1) || a(x, y + 1));
       if (!inside && !ring) continue;
       out.data[o] = out.data[o + 1] = out.data[o + 2] = 255;
-      out.data[o + 3] = ring ? 255 : 70;
+      out.data[o + 3] = ring ? 255 : 120;
     }
     ctx.putImageData(out, 0, 0);
     t = Texture.from(c);

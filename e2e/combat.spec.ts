@@ -88,11 +88,9 @@ test('siedzenie: szybsza regeneracja, bez ataku, wstawanie po ataku potwora i kl
   expect(await page.evaluate(() => window.__game!.sitting())).toBe(true);
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/siedzenie.png' });
+  // 100/min w siadzie + regeneracja z Witalności (60/min) ≈ 2,7 HP/s (czas gry; wolna przeglądarka – dłużej)
   const hp0 = (await page.evaluate(() => window.__game!.player())).hp;
-  await page.waitForTimeout(3000);
-  const hp1 = (await page.evaluate(() => window.__game!.player())).hp;
-  // 100/min w siadzie + regeneracja z Witalności (60/min) ≈ 2,7 HP/s; przy wolnej przeglądarce mniej
-  expect(hp1 - hp0).toBeGreaterThan(2);
+  await page.waitForFunction((h) => window.__game!.player().hp > h + 5, hp0, { timeout: 30_000 });
   // umiejętność w siadzie nie działa
   await page.keyboard.press('1');
   await expect(page.locator('.floats')).toContainText('Wstań');

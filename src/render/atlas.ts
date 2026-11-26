@@ -1,15 +1,19 @@
 // Atlas sprite'ów (sprites.png + ramki z meta.json): tekstury z pivotem w punkcie kotwicy.
 import { ImageSource, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { FrameRect } from '../types';
+import type { FrameSource } from '../chars/sheet';
 
 export const subTexture = (source: ImageSource, x: number, y: number, w: number, h: number) =>
   new Texture({ source, frame: new Rectangle(x, y, w, h) });
 
-export class Atlas {
+export class Atlas implements FrameSource {
+  readonly id = 'world';
+  readonly image: HTMLImageElement;
   private readonly source: ImageSource;
   private readonly cache = new Map<string, Texture>();
 
   constructor(img: HTMLImageElement, private readonly frames: Record<string, FrameRect>) {
+    this.image = img;
     this.source = new ImageSource({ resource: img, scaleMode: 'nearest' });
   }
 

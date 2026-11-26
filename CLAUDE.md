@@ -18,6 +18,11 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 - Node i gh są w `~/.local` (ścieżka w `~/.zprofile`).
 Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `test-results/smoke.png`, brak błędów w konsoli).
 
+## Postacie i menu
+- Wygląd postaci rysowany w przeglądarce: `src/chars/chargen.ts` (rasa, klasa, budowa, włosy, broda; 5 kierunków + lustro) → `CharSheet` (`src/chars/sheet.ts`). NPC i obiekty świata nadal z atlasu `sprites.png`.
+- Menu (`src/ui/menu.ts`): start → wybór (do 3 postaci) → kreator. Logika i zapis: `src/logic/character.ts`, `src/logic/save.ts` (localStorage `earthlings.saves`, wersja 1).
+- Testy w przeglądarce wchodzą do gry przez `enterGame()` z `e2e/helpers.ts`.
+
 ## Najbliższe zadania: prototyp v0.1
 Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).
 Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy ją na serwer (Node.js + Colyseus, PostgreSQL, Redis; patrz GDD).

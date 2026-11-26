@@ -76,7 +76,11 @@ export interface GameBridge {
   ring(color: number): void;
 }
 
+export interface HudCharacter { name: string; title: string; level: number; hpMax: number; mpMax: number; exp: number; expMax: number; gold: number; portrait: string }
+
 export interface HudApi {
+  /** dane wybranej postaci (nazwa, poziom, HP/mana, portret) */
+  setCharacter(c: HudCharacter): void;
   /** komunikat o wejściu do strefy (komórki świata) */
   zone(name: string): void;
   /** wywoływane co klatkę: pozycja głowy bohatera na ekranie */

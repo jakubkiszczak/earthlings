@@ -41,7 +41,8 @@ const RAR: Record<string, string> = { epic: '#a86af0', rare: '#4a8af0', unc: '#4
 
 export function createHud(assets: Assets, game: GameBridge): HudApi {
   const U = assets.ui2, J = assets.ui2meta, IC = assets.icons;
-  const st = { hp: 1240, hpMax: 1510, mp: 412, mpMax: 640, xp: 8840, xpMax: 13000, gold: 12480, mounted: false };
+  const st = { hp: 1240, hpMax: 1510, mp: 412, mpMax: 640, xp: 8840, xpMax: 13000, gold: 12480, mounted: false, name: 'Aldric', level: 24 };
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const hud = document.querySelector<HTMLElement>('#hud')!;
   let s = 3;
 
@@ -165,7 +166,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
       const v = inp.value.trim();
       if (v) {
         const safe = v.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        line('Ogólny', 'Aldric:', '#f2d27a', safe);
+        line('Ogólny', `${esc(st.name)}:`, '#f2d27a', safe);
         bubble.textContent = v;
         bubble.style.display = 'block';
         bubbleT = 4;
@@ -380,13 +381,21 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   // ---------------- pętla HUD
   let T_ = 0, orbT = 0, flameF = 0;
   return {
+    setCharacter(c) {
+      st.name = c.name; st.level = c.level;
+      st.hpMax = c.hpMax; st.hp = c.hpMax; st.mpMax = c.mpMax; st.mp = c.mpMax;
+      st.xp = c.exp; st.xpMax = c.expMax; st.gold = c.gold;
+      pname.innerHTML = `${esc(c.name)} <span>${esc(c.title)} · poz. ${c.level}</span>`;
+      np.querySelector('.npn')!.innerHTML = `${esc(c.name)} <span>${c.level}</span>`;
+      portrait.src = c.portrait;
+      gold.querySelector('b')!.textContent = c.gold.toLocaleString('pl-PL');
+    },
     zone(name) { sys(`Wchodzisz: <span style="color:#f2d27a">${name}</span>`); },
     update(x, y, _zoom, dt) {
       T_ += dt;
       orbT += dt;
       st.mp = Math.min(st.mpMax, st.mp + 4 * dt);
       st.hp = Math.min(st.hpMax, st.hp + 1.5 * dt);
-      st.xp = Math.min(st.xpMax, st.xp + 2 * dt);
       if (orbT > 0.08) { orbT = 0; drawOrb(orbHP, st.hp / st.hpMax, T_); drawOrb(orbMP, st.mp / st.mpMax, T_ + 7); }
       orbHP.t.textContent = String(Math.round(st.hp));
       orbMP.t.textContent = String(Math.round(st.mp));

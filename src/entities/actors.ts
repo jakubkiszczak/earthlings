@@ -1,6 +1,7 @@
 // Bohater (ruch po ścieżce, 8 kierunków z odbiciem lustrzanym) i pies idący jego śladem.
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { Atlas } from '../render/atlas';
+import type { FrameSource } from '../chars/sheet';
 import type { WorldGrid } from '../world/grid';
 
 const HERO_SPEED = 51;   // jednostek świata na sekundę
@@ -40,7 +41,8 @@ export class Hero {
   private readonly a: Actor;
   private readonly headMark: Graphics;
 
-  constructor(private readonly atlas: Atlas, layer: Container, start: [number, number]) {
+  /** atlas – cień (wspólny atlas świata), sheet – klatki tej postaci */
+  constructor(atlas: Atlas, layer: Container, start: [number, number], readonly sheet: FrameSource) {
     [this.u, this.v] = start;
     this.a = makeActor(atlas, layer, 1);
     this.headMark = new Graphics().poly([-3, 0, 3, 0, 0, 4]).fill(0xffd84a).stroke({ width: 1, color: 0x1a1210 });
@@ -88,7 +90,7 @@ export class Hero {
     }
     const fi = this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
     this.frameName = `hero_${this.dir}_${fi}`;
-    this.atlas.setFrame(this.a.s, this.frameName);
+    this.sheet.setFrame(this.a.s, this.frameName);
     this.a.s.scale.x = this.flip ? -1 : 1;
     const [x, y] = grid.toScreen(this.u, this.v);
     this.sx = Math.round(x);

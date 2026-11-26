@@ -1,6 +1,10 @@
 // Earthlings – punkt wejścia: wczytanie danych, świat 3×3 (bieżąca komórka), pętla gry.
 import { Application, Container, TextureStyle } from 'pixi.js';
-import { loadAssets } from './assets';
+import { loadAssets, type Assets } from './assets';
+import { CharSheet } from './chars/sheet';
+import { EXP_TO_NEXT, addAttrs, baseAttributes, derived } from './logic/character';
+import { SaveStore, type SavedChar } from './logic/save';
+import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
 import { Dog, Hero, Npc } from './entities/actors';
 import { PointerInput } from './input';
@@ -21,6 +25,7 @@ declare global {
   interface Window {
     /** gotowość gry i stan do testów w przeglądarce */
     __ready?: boolean;
+    __menu?: MenuApi;
     __game?: { cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean; place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean; outlines(): number; shop(): { u: number; v: number } };
   }
 }
@@ -28,19 +33,60 @@ declare global {
 const FADE = 0.25;   // s – wygaszenie przy przejściu między komórkami
 const DOG_OFFSET: [number, number] = [-22, 6];
 
+const AUTOSAVE = 10;  // s
+
 async function main() {
   TextureStyle.defaultOptions.scaleMode = 'nearest';
   const app = new Application();
   await app.init({ resizeTo: window, background: '#06081a', roundPixels: true, antialias: false });
   document.body.appendChild(app.canvas);
 
-  const assets = await loadAssets();
+  // menu na tle nieba; dane świata wczytują się w tle
+  const sky = new Sky();
+  app.stage.addChild(sky.view);
+  let tm = 0;
+  const menuTick = (tk: { deltaMS: number }) => {
+    tm += tk.deltaMS / 1000;
+    sky.resize(app.screen.width, app.screen.height);
+    sky.update(tm, tm * 18, tm * 5, 3);
+  };
+  app.ticker.add(menuTick);
+  const assetsP = loadAssets();
+  assetsP.catch(() => undefined);
+  const store = new SaveStore();
+  document.body.classList.add('in-menu');
+  const loading = document.createElement('div');
+  loading.className = 'menu-loading';
+  loading.textContent = 'Wczytywanie świata…';
+  let started = false;
+  const menu = createMenu(store, (c) => {
+    if (started) return;
+    started = true;
+    menu.hide();
+    document.body.append(loading);
+    void (async () => {
+      try {
+        const assets = await assetsP;
+        app.ticker.remove(menuTick);
+        await runGame(app, assets, sky, c, store);
+        document.body.classList.remove('in-menu');
+      } catch (err) {
+        console.error(err);
+        document.body.insertAdjacentHTML('beforeend', `<pre class="fatal">Błąd uruchomienia gry:\n${String(err)}</pre>`);
+      } finally {
+        loading.remove();
+      }
+    })();
+  });
+  window.__menu = menu;
+  menu.show();
+}
+
+async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedChar, store: SaveStore) {
   const info = assets.world;
   const atlas = new Atlas(assets.sprites, info.frames);
   const world = new World(info, atlas);
 
-  const sky = new Sky();
-  app.stage.addChild(sky.view);
   const stage = new Container();     // świat w pikselach obrazu bieżącej komórki (skalowany kamerą)
   app.stage.addChild(stage);
   stage.addChild(world.view);
@@ -49,15 +95,17 @@ async function main() {
   let cloudOx = 0, cloudOy = 0;
 
   const start = info.start;
-  await world.center(start.cx, start.cy);
-  const hero = new Hero(atlas, world.layer, [start.u, start.v]);
-  const dog = new Dog(atlas, world.layer, [start.u + DOG_OFFSET[0], start.v + DOG_OFFSET[1]]);
+  const pos = char.pos ?? start;
+  await world.center(pos.cx, pos.cy);
+  const sheet = new CharSheet(lookOf(char));
+  const hero = new Hero(atlas, world.layer, [pos.u, pos.v], sheet);
+  const dog = new Dog(atlas, world.layer, [pos.u + DOG_OFFSET[0], pos.v + DOG_OFFSET[1]]);
   const effects = new Effects(world.layer);
 
   // kontury zasłoniętych postaci (nad światem, pod chmurami nie – widoczne zawsze)
-  const xray = new Xray(app.renderer, world, atlas, assets.sprites);
+  const xray = new Xray(app.renderer, world);
   stage.addChild(xray.overlay);
-  xray.add({ view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero' });
+  xray.add({ view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero', source: sheet });
 
   // portale: przed drzwiami sklepu (miasto) i wyjście ze sklepu (wnętrze)
   const shopInfo = info.interiors?.shop;
@@ -75,6 +123,21 @@ async function main() {
     ring(color) { effects.ring(color); },
   };
   const hud = createHud(assets, bridge);
+  const attrs = addAttrs(baseAttributes(char.race, char.cls), char.alloc);
+  const dv = derived(attrs);
+  hud.setCharacter({
+    name: char.name, title: titleOf(char), level: char.level, hpMax: dv.hp, mpMax: dv.mana,
+    exp: char.exp, expMax: EXP_TO_NEXT[char.level] || 1, gold: char.gold, portrait: portraitOf(char),
+  });
+
+  // autozapis pozycji (we wnętrzu – miejsce przed sklepem)
+  const savePos = () => {
+    const p = world.inInterior ? { cx: info.shop.cx, cy: info.shop.cy, u: info.shop.u + 22, v: info.shop.v + 6 } : { cx: world.cx, cy: world.cy, u: hero.u, v: hero.v };
+    store.upsert({ ...char, pos: p, played: Date.now() });
+  };
+  addEventListener('beforeunload', savePos);
+  addEventListener('pagehide', savePos);
+  let saveT = 0;
   const minimap = createMinimap(document.querySelector<HTMLElement>('#hud')!, info);
 
   const camera = new Camera();
@@ -143,7 +206,7 @@ async function main() {
       if (world.inInterior && shopInfo) {
         const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1], shopInfo.floor ?? 48);
         npc = n;
-        npcTarget = { view: n.view, body: n.body, frame: () => n.frameName, kind: 'npc' };
+        npcTarget = { view: n.view, body: n.body, frame: () => n.frameName, kind: 'npc', source: atlas };
         xray.add(npcTarget);
       }
       townPortal.armed = exitPortal!.armed = false;
@@ -188,6 +251,8 @@ async function main() {
     t += dt;
     at += dt;
     world.update(t, dt);
+    saveT += dt;
+    if (saveT > AUTOSAVE && !busy) { saveT = 0; savePos(); }
     clouds.update(t, cloudOx, cloudOy);
     input.update(dt);
     if (!busy) {

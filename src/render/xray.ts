@@ -3,14 +3,14 @@
 // Działanie: dla każdej postaci znajdujemy obiekty przed nią (World.occluders), renderujemy ich kopie
 // do małej tekstury o rozmiarze postaci i używamy jej jako maski konturu narysowanego nad światem.
 import { Container, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
-import type { Atlas } from './atlas';
 import type { Item, World } from '../world/world';
+import type { FrameSource } from '../chars/sheet';
 
 export const XRAY_COLORS = { hero: 0xa8e4ff, npc: 0x8af59a, mob: 0xff6a6a } as const;
 export type XrayKind = keyof typeof XRAY_COLORS;
 
 /** postać do śledzenia: kontener (pozycja, zIndex) i sprite ciała z bieżącą klatką */
-export interface XrayTarget { view: Container; body: Sprite; frame(): string; kind: XrayKind }
+export interface XrayTarget { view: Container; body: Sprite; frame(): string; kind: XrayKind; source: FrameSource }
 
 interface Entry {
   t: XrayTarget;
@@ -30,7 +30,7 @@ export class Xray {
   private readonly found: Item[] = [];
   private readonly pool: Sprite[] = [];
 
-  constructor(private readonly renderer: Renderer, private readonly world: World, private readonly atlas: Atlas, private readonly atlasImg: HTMLImageElement) {}
+  constructor(private readonly renderer: Renderer, private readonly world: World) {}
 
   add(t: XrayTarget) {
     const rt = RenderTexture.create({ width: 40, height: 56, scaleMode: 'nearest' });
@@ -51,17 +51,18 @@ export class Xray {
   }
 
   /** kontur klatki: obwódka 1 px (pełna) + wypełnienie sylwetki (półprzezroczyste), białe – kolor nadaje tint */
-  private outlineTexture(name: string): Texture {
-    let t = this.tex.get(name);
+  private outlineTexture(src: FrameSource, name: string): Texture {
+    const key = `${src.id}:${name}`;
+    let t = this.tex.get(key);
     if (t) return t;
-    const [fx, fy, w, h] = this.atlas.frame(name);
+    const [fx, fy, w, h] = src.frame(name);
     const W = w + 2 * PAD, H = h + 2 * PAD;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d', { willReadFrequently: true })!;
-    ctx.drawImage(this.atlasImg, fx, fy, w, h, PAD, PAD, w, h);
-    const src = ctx.getImageData(0, 0, W, H);
-    const a = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : src.data[(y * W + x) * 4 + 3]);
+    ctx.drawImage(src.image, fx, fy, w, h, PAD, PAD, w, h);
+    const px = ctx.getImageData(0, 0, W, H);
+    const a = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : px.data[(y * W + x) * 4 + 3]);
     const out = ctx.createImageData(W, H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const o = (y * W + x) * 4;
@@ -74,7 +75,7 @@ export class Xray {
     ctx.putImageData(out, 0, 0);
     t = Texture.from(c);
     t.source.scaleMode = 'nearest';
-    this.tex.set(name, t);
+    this.tex.set(key, t);
     return t;
   }
 
@@ -86,7 +87,7 @@ export class Xray {
       const { view, body } = e.t;
       if (!view.parent || !view.visible) { e.outline.visible = false; continue; }
       const name = e.t.frame();
-      const [, , w, h, px, py] = this.atlas.frame(name);
+      const [, , w, h, px, py] = e.t.source.frame(name);
       const flip = body.scale.x < 0;
       // prostokąt ciała w pikselach widoku świata (z obwódką)
       const x0 = Math.round(view.x + body.x + (flip ? px - w : -px)) - PAD;
@@ -112,7 +113,7 @@ export class Xray {
       if (e.rt.width !== W || e.rt.height !== H) e.rt.resize(W, H);
       this.renderer.render({ container: e.proxies, target: e.rt, clear: true });
       e.mask.position.set(x0, y0);
-      e.outline.texture = this.outlineTexture(name);
+      e.outline.texture = this.outlineTexture(e.t.source, name);
       e.outline.scale.x = flip ? -1 : 1;
       e.outline.position.set(flip ? x0 + W : x0, y0);
       e.outline.visible = true;

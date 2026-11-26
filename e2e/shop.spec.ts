@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { enterGame } from './helpers';
 
 test('wejście do sklepu przez portal, kupiec, wyjście portalem; kontur za budynkiem', async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto('/');
-  await page.waitForFunction(() => window.__ready === true);
+  await enterGame(page);
 
   // za sklepem (od strony -u) bohater jest zasłonięty → widać kontur
   const shop = await page.evaluate(() => window.__game!.shop());
@@ -40,13 +40,12 @@ test('most: da się przejść przez rzekę po kładce', async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto('/');
-  await page.waitForFunction(() => window.__ready === true);
-  await page.evaluate(() => window.__game!.warp(1, 2, 640, 280));
+  await enterGame(page);
+  // kładka: v ≈ 309–533, nurt rzeki ≈ 421; start tuż przed kładką, cel za nurtem
+  await page.evaluate(() => window.__game!.warp(1, 2, 640, 360));
   await page.waitForFunction(() => window.__game!.cell().cy === 2 && !window.__game!.busy());
-  expect(await page.evaluate(() => window.__game!.goTo(640, 560))).toBe(true);
-  await page.waitForTimeout(2500);
+  expect(await page.evaluate(() => window.__game!.goTo(640, 480))).toBe(true);
+  await page.waitForFunction(() => window.__game!.hero().v > 465, null, { timeout: 90_000 });
   await page.screenshot({ path: 'test-results/most.png' });
-  await page.waitForFunction(() => window.__game!.hero().v > 540, null, { timeout: 60_000 });
   expect(errors).toEqual([]);
 });

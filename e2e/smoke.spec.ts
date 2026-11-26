@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { enterGame } from './helpers';
 
 test('gra startuje w mieście, postać idzie, przejście do sąsiedniej komórki, brak błędów', async ({ page }) => {
   const errors: string[] = [];
@@ -6,8 +7,7 @@ test('gra startuje w mieście, postać idzie, przejście do sąsiedniej komórki
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('requestfailed', (r) => errors.push(`błąd pobrania: ${r.url()}`));
 
-  await page.goto('/');
-  await page.waitForFunction(() => window.__ready === true);
+  await enterGame(page);
   await expect(page.locator('.fatal')).toHaveCount(0);
   await expect(page.locator('#hud .skill')).toHaveCount(8);
   expect(await page.evaluate(() => window.__game!.cell())).toMatchObject({ cx: 1, cy: 1, name: 'Miasto' });

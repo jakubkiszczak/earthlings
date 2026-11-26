@@ -40,7 +40,7 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
 .venv/bin/python tools/worldgen.py 1,1 # tylko wybrana komórka (miasto)
 ```
 
-Sterowanie: przytrzymaj lub kliknij mysz, aby iść · 1–8 umiejętności · I ekwipunek · C czat · Enter pisanie · kółko myszy przybliżenie. Wyjście za krawędź komórki przenosi do sąsiedniej (minimapa w prawym górnym rogu).
+Sterowanie: przytrzymaj lub kliknij mysz, aby iść · 1–8 umiejętności · I ekwipunek · C czat · Enter pisanie · kółko myszy przybliżenie. Wyjście za krawędź komórki przenosi do sąsiedniej (minimapa w prawym górnym rogu). Niebieski portal przed sklepem w mieście prowadzi do wnętrza.
 
 ## Licencje i źródła
 

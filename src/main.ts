@@ -2,12 +2,14 @@
 import { Application, Container, TextureStyle } from 'pixi.js';
 import { loadAssets } from './assets';
 import { Camera } from './camera';
-import { Dog, Hero } from './entities/actors';
+import { Dog, Hero, Npc } from './entities/actors';
 import { PointerInput } from './input';
 import { cellStep } from './logic/cells';
 import { Atlas } from './render/atlas';
 import { createClouds } from './render/clouds';
 import { Effects } from './render/effects';
+import { Portal } from './render/portal';
+import { Xray } from './render/xray';
 import type { GameBridge } from './types';
 import { createHud } from './ui/hud';
 import { createMinimap } from './ui/minimap';
@@ -18,7 +20,7 @@ declare global {
   interface Window {
     /** gotowość gry i stan do testów w przeglądarce */
     __ready?: boolean;
-    __game?: { cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean; place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean };
+    __game?: { cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean; place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean; outlines(): number; shop(): { u: number; v: number } };
   }
 }
 
@@ -48,6 +50,18 @@ async function main() {
   const hero = new Hero(atlas, world.layer, [start.u, start.v]);
   const dog = new Dog(atlas, world.layer, [start.u + DOG_OFFSET[0], start.v + DOG_OFFSET[1]]);
   const effects = new Effects(world.layer);
+
+  // kontury zasłoniętych postaci (nad światem, pod chmurami nie – widoczne zawsze)
+  const xray = new Xray(app.renderer, world, atlas, assets.sprites);
+  stage.addChild(xray.overlay);
+  xray.add({ view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero' });
+
+  // portale: przed drzwiami sklepu (miasto) i wyjście ze sklepu (wnętrze)
+  const shopInfo = info.interiors?.shop;
+  const shopCell = world.interiorCell('shop');
+  const townPortal = new Portal(info.shop.u, info.shop.v);
+  const exitPortal = shopInfo ? new Portal(shopInfo.exit[0], shopInfo.exit[1]) : null;
+  let npc: Npc | null = null;
 
   const bridge: GameBridge = {
     speed: 1,
@@ -79,6 +93,7 @@ async function main() {
   hud.zone(world.name);
 
   let busy = false;
+  let npcTarget: Parameters<Xray['add']>[0] | null = null;
   const wait = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
   /** płynne przejście do sąsiedniej komórki: przestawienie środka i układu współrzędnych */
@@ -119,6 +134,16 @@ async function main() {
       dog.teleport([pos[0] + DOG_OFFSET[0], pos[1] + DOG_OFFSET[1]]);
       effects.clearMark();
       fitClouds();
+      clouds.sprite.visible = !world.inInterior;
+      // kupiec tylko we wnętrzu sklepu
+      if (npc) { xray.remove(npcTarget!); npc.destroy(); npc = null; npcTarget = null; }
+      if (world.inInterior && shopInfo) {
+        const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1]);
+        npc = n;
+        npcTarget = { view: n.view, body: n.body, frame: () => n.frameName, kind: 'npc' };
+        xray.add(npcTarget);
+      }
+      townPortal.armed = exitPortal!.armed = false;
       snapCamera();
     } catch (err) {
       console.error(err);
@@ -150,6 +175,8 @@ async function main() {
     place: (u, v) => { hero.teleport([u, v]); dog.teleport([u + DOG_OFFSET[0], v + DOG_OFFSET[1]]); snapCamera(); },
     warp: (cx, cy, u, v) => jump(cx, cy, [u, v]),
     busy: () => busy,
+    outlines: () => xray.visibleCount(),
+    shop: () => ({ u: info.shop.u, v: info.shop.v }),
   };
 
   let t = 0, at = 0;
@@ -164,9 +191,27 @@ async function main() {
       const grid = world.grid;
       hero.update(grid, t, at, dt, bridge.speed);
       dog.update(grid, hero.trail, at, dt, bridge.speed);
-      const step = cellStep(world.cx, world.cy, hero.u, hero.v, world.size, world.gridSize);
+      const step = world.inInterior ? null : cellStep(world.cx, world.cy, hero.u, hero.v, world.size, world.gridSize);
       if (step) void cross(step.dx, step.dy);
     }
+    // portale
+    const inTown = world.cx === info.shop.cx && world.cy === info.shop.cy;
+    townPortal.view.visible = inTown;
+    if (inTown) {
+      if (townPortal.view.parent !== world.layer) world.layer.addChild(townPortal.view);
+      townPortal.update(t, ...world.grid.toScreen(townPortal.u, townPortal.v), townPortal.u + townPortal.v);
+      if (!busy && shopCell && shopInfo && townPortal.check(hero.u, hero.v)) void jump(shopCell.cx, shopCell.cy, shopInfo.spawn);
+    }
+    if (exitPortal) {
+      exitPortal.view.visible = world.inInterior;
+      if (world.inInterior) {
+        if (exitPortal.view.parent !== world.layer) world.layer.addChild(exitPortal.view);
+        exitPortal.update(t, ...world.grid.toScreen(exitPortal.u, exitPortal.v), exitPortal.u + exitPortal.v);
+        if (!busy && exitPortal.check(hero.u, hero.v)) void jump(info.shop.cx, info.shop.cy, [info.shop.u + 22, info.shop.v + 6]);
+      }
+    }
+    if (npc && world.inInterior) npc.update(world.grid, at);
+    xray.update();
     effects.update(dt, hero.sx, hero.sy);
     camera.update(stage, app.screen, hero.sx, hero.sy + 4, dt);
     minimap.set(world.cx, world.cy, hero.u / world.size, hero.v / world.size, world.name);

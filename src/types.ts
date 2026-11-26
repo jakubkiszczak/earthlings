@@ -21,7 +21,21 @@ export interface WorldInfo {
   WA: [number, number, number][];
   BAYER: number[][];
   start: CellPos;
+  /** portal przed drzwiami sklepu (w komórce miasta) */
   shop: CellPos;
+  interiors?: Record<string, InteriorInfo>;
+}
+
+/** wnętrze budynku: osobny mały widok wczytywany przez portal */
+export interface InteriorInfo {
+  dir: string;
+  name: string;
+  /** gdzie staje postać po wejściu */
+  spawn: [number, number];
+  /** portal wyjścia */
+  exit: [number, number];
+  /** sprzedawca za ladą */
+  npc: [number, number];
 }
 
 /** meta.json komórki: obraz terenu, pasma głębi, obiekty. Współrzędne (u, v) lokalne dla komórki. */

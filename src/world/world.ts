@@ -11,7 +11,10 @@ import { WorldGrid } from './grid';
 /** zIndex w warstwie głębi: z = u + v (lokalnie), obiekty po terenie o tym samym z */
 export const depthZ = (z: number, offset: number) => z * 10 + offset;
 
-interface Item { obj: Container; x: number; y: number; z: number }
+/** obiekt warstwy głębi: pozycja bazowa (w komórce), z, prostokąt względem pozycji (do wykrywania zasłaniania) */
+export interface Item { obj: Container; x: number; y: number; z: number; bx0: number; by0: number; bx1: number; by1: number }
+
+const BUCKET = 128;
 
 interface LoadedCell {
   info: CellInfo;
@@ -26,6 +29,7 @@ interface LoadedCell {
 }
 
 const key = (cx: number, cy: number) => `${cx},${cy}`;
+const INTERIOR_BASE = 100;
 
 /** komórka doczytana, gdy środek już się przesunął dalej – pomijana */
 class StaleCell extends Error {}
@@ -44,7 +48,14 @@ export class World {
   /** środek, do którego zmierzamy (ustawiany przed wczytaniem – do odrzucania spóźnionych sąsiadów) */
   private want = { cx: 0, cy: 0 };
 
+  /** komórki świata + wnętrza (wnętrza mają współrzędne 100+, daleko od świata – bez sąsiadów) */
+  private readonly all: CellInfo[];
+
   constructor(readonly info: WorldInfo, private readonly atlas: Atlas) {
+    this.all = [...info.cells];
+    Object.entries(info.interiors ?? {}).forEach(([, it], i) => {
+      this.all.push({ cx: INTERIOR_BASE + i, cy: INTERIOR_BASE, name: it.name, biome: 'interior', dir: it.dir });
+    });
     this.layer.sortableChildren = true;
     this.view.addChild(this.waterLayer, this.groundLayer, this.layer);
   }
@@ -53,8 +64,17 @@ export class World {
   get gridSize() { return this.info.grid; }
 
   cellAt(cx: number, cy: number): CellInfo | undefined {
-    return this.info.cells.find((c) => c.cx === cx && c.cy === cy);
+    return this.all.find((c) => c.cx === cx && c.cy === cy);
   }
+
+  /** współrzędne komórki wnętrza o danym kluczu (np. 'shop') */
+  interiorCell(name: string): { cx: number; cy: number } | undefined {
+    const dir = this.info.interiors?.[name]?.dir;
+    const c = this.all.find((x) => x.biome === 'interior' && x.dir === dir);
+    return c && { cx: c.cx, cy: c.cy };
+  }
+
+  get inInterior(): boolean { return this.cx >= INTERIOR_BASE; }
 
   /** bieżąca komórka (zawsze wczytana) */
   get current(): LoadedCell { return this.cells.get(key(this.cx, this.cy))!; }
@@ -129,7 +149,7 @@ export class World {
     const items: Item[] = [];
     for (const b of meta.bands) {
       const s = new Sprite(subTexture(bandsSrc, b.ax, b.ay, b.w, b.h));
-      items.push({ obj: s, x: b.x, y: b.y, z: depthZ(b.z, 0) });
+      items.push({ obj: s, x: b.x, y: b.y, z: depthZ(b.z, 0), bx0: 0, by0: 0, bx1: b.w, by1: b.h });
     }
     // obiekty tylko z rdzenia komórki (margines pokazują sąsiedzi – bez podwójnych drzew)
     const sway: LoadedCell['sway'] = [];
@@ -137,19 +157,67 @@ export class World {
       const a = e.x - meta.X0, u = (e.z + a) / 2, v = (e.z - a) / 2;
       if (u < 0 || v < 0 || u >= C || v >= C) continue;
       const c = new Container();
+      let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
       for (const n of e.s) {
         const s = this.atlas.sprite(n);
         c.addChild(s);
+        const f = this.atlas.frame(n);
+        bx0 = Math.min(bx0, -f[4] - 2); by0 = Math.min(by0, -f[5]);
+        bx1 = Math.max(bx1, f[2] - f[4] + 2); by1 = Math.max(by1, f[3] - f[5]);
         if (n.endsWith('_c') || e.k === 'bush') sway.push({ s, ph: e.ph ?? 0, amp: e.k === 'bush' ? 0.55 : 0.85 });
       }
-      items.push({ obj: c, x: e.x, y: e.y, z: depthZ(e.z, 5) });
+      items.push({ obj: c, x: e.x, y: e.y, z: depthZ(e.z, 5), bx0, by0, bx1, by1 });
     }
     for (const it of items) this.layer.addChild(it.obj);
     return { info, meta, assets, ground, water, items, sway, sources: [groundSrc, bandsSrc] };
   }
 
   /** położenie komórki względem bieżącego środka: przesunięcie obrazu i głębi */
+  // ------------------------------------------------------------------ wykrywanie zasłaniania (siatka kubełków)
+  private hash = new Map<number, Item[]>();
+  private hashDirty = true;
+
+  /** obiekty warstwy głębi z z > zMin, których prostokąt przecina (x0, y0)–(x1, y1) w pikselach widoku */
+  occluders(x0: number, y0: number, x1: number, y1: number, zMin: number, out: Item[]): Item[] {
+    if (this.hashDirty) this.rebuildHash();
+    out.length = 0;
+    const seen = new Set<Item>();
+    for (let by = Math.floor(y0 / BUCKET); by <= Math.floor(y1 / BUCKET); by++) {
+      for (let bx = Math.floor(x0 / BUCKET); bx <= Math.floor(x1 / BUCKET); bx++) {
+        const list = this.hash.get(bx * 65536 + by);
+        if (!list) continue;
+        for (const it of list) {
+          if (it.obj.zIndex <= zMin || seen.has(it)) continue;
+          const px = it.obj.x, py = it.obj.y;
+          if (px + it.bx1 < x0 || px + it.bx0 > x1 || py + it.by1 < y0 || py + it.by0 > y1) continue;
+          seen.add(it);
+          out.push(it);
+        }
+      }
+    }
+    return out;
+  }
+
+  private rebuildHash() {
+    this.hash.clear();
+    for (const c of this.cells.values()) {
+      for (const it of c.items) {
+        const px = it.obj.x, py = it.obj.y;
+        for (let by = Math.floor((py + it.by0) / BUCKET); by <= Math.floor((py + it.by1) / BUCKET); by++) {
+          for (let bx = Math.floor((px + it.bx0) / BUCKET); bx <= Math.floor((px + it.bx1) / BUCKET); bx++) {
+            const k = bx * 65536 + by;
+            let l = this.hash.get(k);
+            if (!l) this.hash.set(k, (l = []));
+            l.push(it);
+          }
+        }
+      }
+    }
+    this.hashDirty = false;
+  }
+
   private place(c: LoadedCell) {
+    this.hashDirty = true;
     const dx = c.info.cx - this.cx, dy = c.info.cy - this.cy, C = c.meta.size;
     const ox = (dx - dy) * C, oy = ((dx + dy) * C) / 2, oz = (dx + dy) * C * 10;
     c.ground.position.set(ox, oy);
@@ -161,6 +229,7 @@ export class World {
   }
 
   private unload(c: LoadedCell) {
+    this.hashDirty = true;
     for (const it of c.items) it.obj.destroy({ children: true });
     c.ground.destroy();
     c.water.destroy();

@@ -47,8 +47,12 @@ export class Hero {
     this.a.c.addChild(this.headMark);
   }
 
+  /** bieżąca klatka (do konturu zasłoniętej postaci) */
+  frameName = 'hero_NE_idle0';
+
   /** kontener postaci w warstwie świata (do przeniesienia między komórkami) */
   get view(): Container { return this.a.c; }
+  get body(): Sprite { return this.a.s; }
 
   teleport(to: [number, number]) {
     [this.u, this.v] = to;
@@ -83,7 +87,8 @@ export class Hero {
       if (this.trail.length > TRAIL_MAX) this.trail.shift();
     }
     const fi = this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
-    this.atlas.setFrame(this.a.s, `hero_${this.dir}_${fi}`);
+    this.frameName = `hero_${this.dir}_${fi}`;
+    this.atlas.setFrame(this.a.s, this.frameName);
     this.a.s.scale.x = this.flip ? -1 : 1;
     const [x, y] = grid.toScreen(this.u, this.v);
     this.sx = Math.round(x);
@@ -128,4 +133,27 @@ export class Dog {
     this.a.c.position.set(Math.round(x), Math.round(y));
     this.a.c.zIndex = actorZ(this.u, this.v);
   }
+}
+
+/** NPC stojący w miejscu (np. kupiec za ladą): oddech 2 klatki, zwrócony w stronę SE. */
+export class Npc {
+  frameName = 'npc_SE_idle0';
+  private readonly a: Actor;
+
+  constructor(private readonly atlas: Atlas, layer: Container, public u: number, public v: number) {
+    this.a = makeActor(atlas, layer, 1);
+  }
+
+  get view(): Container { return this.a.c; }
+  get body(): Sprite { return this.a.s; }
+
+  update(grid: WorldGrid, at: number) {
+    this.frameName = `npc_SE_idle${Math.floor(at * 1.4) % 2}`;
+    this.atlas.setFrame(this.a.s, this.frameName);
+    const [x, y] = grid.toScreen(this.u, this.v);
+    this.a.c.position.set(Math.round(x), Math.round(y));
+    this.a.c.zIndex = actorZ(this.u, this.v);
+  }
+
+  destroy() { this.a.c.destroy({ children: true }); }
 }

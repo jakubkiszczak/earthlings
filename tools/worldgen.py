@@ -85,11 +85,23 @@ def rect(cu, cv, hu, hv):
 
 TOWN_WALL = (C + 150, 2 * C - 150)       # mur miejski: kwadrat
 GATE = 44                                # połowa szerokości bramy
-HOUSES = [  # (środek u, środek v względem środka miasta, pół-wymiary, wysokość dachu)
-    (-260, -130, 48, 48, 56, 'shop'), (-400, -300, 48, 40, 56, None), (-250, -330, 40, 40, 48, None),
-    (-300, 220, 48, 48, 56, None), (-420, 360, 40, 48, 48, None), (-200, 400, 40, 32, 48, None),
-    (230, 260, 48, 40, 56, None), (400, 220, 40, 40, 48, None), (300, 420, 48, 36, 56, None),
-    (230, -420, 40, 40, 48, None), (420, -250, 36, 48, 48, None),
+# Domy: (środek u, v względem środka miasta, pół-wymiary hu, hv, wysokość okapu, dach, paleta dachu,
+#        ściany, ściana z drzwiami ('u' = +u, 'v' = +v), okna na ścianie +v, okna na ścianie +u, znacznik)
+# dach: gable_u – dwuspadowy z kalenicą wzdłuż u, gable_v – wzdłuż v, hip – czterospadowy; palety: 0 dachówka, 1 gont, 2 łupek
+HOUSES = [
+    (-255, -100, 56, 44, 48, 'gable_v', 0, 'stone', 'u', 2, 2, 'shop'),
+    (-420, -300, 40, 56, 40, 'gable_u', 1, 'plaster', 'v', 1, 2, None),
+    (-250, -360, 32, 32, 36, 'hip', 2, 'plaster', 'u', 1, 1, None),
+    (-300, 235, 60, 40, 60, 'hip', 0, 'stone', 'u', 3, 2, None),
+    (-440, 380, 36, 48, 40, 'gable_v', 1, 'plaster', 'v', 2, 1, None),
+    (-210, 420, 30, 30, 34, 'gable_u', 0, 'plaster', 'u', 1, 1, None),
+    (-410, 110, 36, 28, 38, 'hip', 1, 'plaster', 'u', 1, 1, None),
+    (240, 250, 48, 36, 44, 'gable_u', 2, 'stone', 'v', 2, 1, None),
+    (420, 230, 34, 52, 62, 'gable_v', 0, 'plaster', 'u', 1, 3, None),
+    (300, 430, 56, 30, 40, 'hip', 1, 'plaster', 'v', 3, 1, None),
+    (230, -430, 40, 40, 48, 'hip', 0, 'stone', 'v', 2, 2, None),
+    (440, -230, 30, 44, 38, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
+    (220, 110, 30, 26, 34, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
 ]
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
 SPAWN = (CTR - 70, CTR + 70)
@@ -97,11 +109,13 @@ SPAWN = (CTR - 70, CTR + 70)
 
 def town_buildings():
     bs = []
-    for (cu, cv, hu, hv, h, tag) in HOUSES:
+    for (cu, cv, hu, hv, eave, roof, pal, walls, door, wu, wv, tag) in HOUSES:
         r = rect(cu, cv, hu, hv)
-        bs.append(dict(r, base=BASE, top=BASE + h, mat=TR.ROOF, tag=tag, door=True, window=True, winz=14))
+        bs.append(dict(r, base=BASE, eave=BASE + eave, roof=roof, roofpal=pal, walls=walls, door=door,
+                       wins_u=wu, wins_v=wv, winz=12, mat=TR.ROOF, tag=tag))
     r = rect(TOWER[0], TOWER[1], TOWER[2], TOWER[3])
-    bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 118, mat=TR.WALL, tag='tower', door=True, window=True, plinth=8))
+    bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 118, eave=BASE + 8 + 118, roof='flat', walls='stone', door='u',
+                   wins_u=1, wins_v=0, winz=46, mat=TR.WALL, tag='tower', plinth=8))
     return bs
 
 
@@ -195,15 +209,26 @@ def layout(gu, gv):
             m = (gu >= b['u0'] - 8) & (gu <= b['u1'] + 8) & (gv >= b['v0'] - 8) & (gv <= b['v1'] + 8)
             H[m] = b['base']; MAT[m] = TR.PAVE
         m = (gu >= b['u0']) & (gu <= b['u1']) & (gv >= b['v0']) & (gv <= b['v1'])
-        H[m] = b['top']; MAT[m] = b['mat']
+        if b['roof'] == 'flat':
+            H[m] = b['top']
+        else:
+            du_ = np.minimum(gu - b['u0'], b['u1'] - gu)
+            dv_ = np.minimum(gv - b['v0'], b['v1'] - gv)
+            d_ = dv_ if b['roof'] == 'gable_u' else du_ if b['roof'] == 'gable_v' else np.minimum(du_, dv_)
+            H[m] = (b['eave'] + np.floor(d_ * 0.8))[m].astype(np.int32)
+        MAT[m] = b['mat']
         if b['tag'] == 'tower':
             ringb = m & (((gu - b['u0']) < 4) | ((b['u1'] - gu) < 4) | ((gv - b['v0']) < 4) | ((b['v1'] - gv) < 4))
             merlon = ringb & ((((gu - b['u0']) // 7 + (gv - b['v0']) // 7) % 2) == 0)
             H[merlon] = b['top'] + 10
         else:
-            # ścieżka do drzwi (+u)
-            dc = (b['v0'] + b['v1']) / 2
-            walk = (gu > b['u1']) & (gu < b['u1'] + 40) & (np.abs(gv - dc) < 10) & town
+            # ścieżka spod drzwi
+            if b['door'] == 'u':
+                dc = (b['v0'] + b['v1']) / 2
+                walk = (gu > b['u1']) & (gu < b['u1'] + 40) & (np.abs(gv - dc) < 10) & town
+            else:
+                dc = (b['u0'] + b['u1']) / 2
+                walk = (gv > b['v1']) & (gv < b['v1'] + 40) & (np.abs(gu - dc) < 10) & town
             MAT[walk & (MAT == TR.GRASS)] = TR.PAVE
     # cmentarz: nagrobki
     for (u, v) in cemetery_graves():
@@ -260,8 +285,21 @@ def build_sprites():
     col, al, anc = props.chest()
     spr['chest'] = (rgba(col, al), anc)
     import hero9
-    for nm, a_ in hero9.all_frames().items():
+    frames_h = hero9.all_frames()
+    for nm, a_ in frames_h.items():
         spr[nm] = (a_, (14, 41))
+    # kupiec: ten sam szkielet postaci, inne kolory (włosy, chusta, kaftan, spodnie)
+    swap = {'H': '#5a3a22', 'h': '#43291a', 'g': '#2e1c12', 'G': '#1e120c', 'R': '#3a8a4a', 'r': '#286434', 'x': '#173f20',
+            'B': '#6a5a8a', 'b': '#4a3e66', 'D': '#2e2644', 'c': '#d8c070', 'L': '#7a5a3a', 'l': '#5a3e26', 'n': '#3a2616'}
+    cmap = {tuple(int(hero9.PAL[k][i:i + 2], 16) for i in (1, 3, 5)): tuple(int(v[i:i + 2], 16) for i in (1, 3, 5)) for k, v in swap.items()}
+    for d_ in ('S', 'SE'):
+        for k_ in (0, 1):
+            a_ = frames_h[f'hero_{d_}_idle{k_}'].copy()
+            rgb = a_[..., :3]
+            for src, dst in cmap.items():
+                mm = (rgb[..., 0] == src[0]) & (rgb[..., 1] == src[1]) & (rgb[..., 2] == src[2])
+                rgb[mm] = dst
+            spr[f'npc_{d_}_idle{k_}'] = (a_, (14, 41))
     col, al = props.pixmap(props.DOG, props.DP)
     d0 = rgba(col, al)
     d1 = d0.copy()
@@ -321,6 +359,78 @@ def props_in(gu0, gv0, gu1, gv1):
     return out
 
 
+
+# ------------------------------------------------------------------ zapis warstw komórki (świat i wnętrza)
+def save_water(d, R, kind, pu_l, pv_l):
+    """Dane wody do animacji na CPU: water_a (indeks koloru, fazy fal), water_b (piana)."""
+    HSd, Wd = kind.shape
+    wm = kind == TR.WATER
+    depthn = np.clip(R['dist'] / 70, 0, 1)
+    base = 5.6 - 4.4 * depthn + 0.8 * (R['wn'] - 0.5) - 1.6 * R['shadow']
+    q = R['dist'] - 3.0 * R['foamn']
+    B_ = base[pv_l, pu_l]; WF = R['wf'][pv_l, pu_l]; WF2 = R['wf2'][pv_l, pu_l]; Q = q[pv_l, pu_l]
+    wr = np.zeros((HSd, Wd, 3), np.uint8)
+    wr[..., 0] = np.where(wm, np.clip(B_ * 18 + 1, 1, 255), 0)
+    wr[..., 1] = np.where(wm, np.clip(WF * 255, 0, 255), 0)
+    wr[..., 2] = np.where(wm, np.clip(WF2 * 255, 0, 255), 0)
+    wq = np.where(wm, np.clip((Q + 4) * 20, 0, 255), 0).astype(np.uint8)
+    Image.fromarray(wr).save(d / 'water_a.png', optimize=True)
+    Image.fromarray(wq).save(d / 'water_b.png', optimize=True)
+
+
+def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg):
+    """ground.webp (teren pod wszystkim), bands.webp (pasma głębi: ściany, klify, dachy), pick.png (piksel → teksel)."""
+    HSd, Wd = kind.shape
+    wm = kind == TR.WATER
+    land = (kind >= 0) & ~wm
+    base_rgba = np.zeros((HSd, Wd, 4), np.uint8)
+    base_rgba[..., :3] = np.clip(img, 0, 255)
+    base_rgba[..., 3] = np.where(land, 255, 0)
+    Image.fromarray(base_rgba).save(d / 'ground.webp', lossless=True, quality=100, method=6)
+    raised = H > ndi.minimum_filter(H, size=129)
+    occ = land & ((kind == TR.CLIFF_KIND) | raised[pv_l, pu_l])
+    band = np.where(occ, dep // (2 * BW), -1)
+    pieces = []
+    CH = 256
+    for b in np.unique(band[band >= 0]):
+        m = band == b
+        ys_, xs_ = np.nonzero(m)
+        for cx0 in range(int(xs_.min() // CH) * CH, int(xs_.max()) + 1, CH):
+            sel = (xs_ >= cx0) & (xs_ < cx0 + CH)
+            if not sel.any():
+                continue
+            y0, y1 = ys_[sel].min(), ys_[sel].max() + 1
+            x0, x1 = xs_[sel].min(), xs_[sel].max() + 1
+            tile = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
+            tile[..., :3] = np.clip(img[y0:y1, x0:x1], 0, 255)
+            tile[..., 3] = np.where(m[y0:y1, x0:x1], 255, 0)
+            pieces.append((int(b), x0, y0, tile))
+    AW = 2048
+    x = y = rowh = 0
+    placed_b = []
+    for (b, x0, y0, t) in sorted(pieces, key=lambda p: -p[3].shape[0]):
+        h_, w_ = t.shape[:2]
+        if x + w_ + 1 > AW:
+            x, y, rowh = 0, y + rowh + 1, 0
+        placed_b.append((b, x0, y0, x, y, t))
+        x += w_ + 1
+        rowh = max(rowh, h_)
+    AH = max(1, y + rowh + 1)
+    atl = np.zeros((AH, AW, 4), np.uint8)
+    bands = []
+    for (b, x0, y0, ax, ay, t) in placed_b:
+        atl[ay:ay + t.shape[0], ax:ax + t.shape[1]] = t
+        bands.append(dict(z=int(b) * BW - 2 * Mg, x=int(x0), y=int(y0), ax=int(ax), ay=int(ay), w=int(t.shape[1]), h=int(t.shape[0])))
+    Image.fromarray(atl).save(d / 'bands.webp', lossless=True, quality=100, method=6)
+
+    # ---- mapa wyboru (piksel → teksel lokalny + OFF) i siatka chodzenia
+    pk = np.full((HSd, Wd), 0xFFFFFF, np.int64)
+    ok = (R['pu'] > -90000) & (kind >= 0)
+    pk[ok] = (pu_l[ok].astype(np.int64) << 11) | pv_l[ok]
+    Image.fromarray(np.dstack([(pk >> 16) & 255, (pk >> 8) & 255, pk & 255]).astype(np.uint8)).save(d / 'pick.png', optimize=True)
+    return bands, AW, AH
+
+
 # ------------------------------------------------------------------ komórka
 def gen_cell(ci, cj, sizes):
     name, biome = CELLS[(ci, cj)]
@@ -353,8 +463,8 @@ def gen_cell(ci, cj, sizes):
         placed.append((kind, idx, u, v, lu, lv))
     # skrzynia przy sklepie
     shop = next(b for b in buildings if b['tag'] == 'shop')
-    shop_door = (shop['u1'] + 20, (shop['v0'] + shop['v1']) / 2)
-    chest_uv = (shop['u1'] + 14, shop['v0'] - 10)
+    shop_door = (shop['u1'] + 16, (shop['v0'] + shop['v1']) / 2)        # portal przed drzwiami (+u)
+    chest_uv = (shop['u1'] + 14, shop['v0'] - 6)
 
     # render terenu (z wypiekanymi cieniami obiektów)
     R = TR.render(gui, gvi, H, MAT, buildings, PALS, W, HS, X0, Y0, seed=ci * 3 + cj, gpid=gpid)
@@ -397,72 +507,12 @@ def gen_cell(ci, cj, sizes):
         ground_shadow(x + 4, y, 17, 5, 0.6)
         ents.append(dict(k='prop', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
 
-    # ---- woda: dane do animacji na CPU
-    wm = kind == TR.WATER
     pu_l = np.clip(R['pu'] - ou + M, 0, N - 1)
     pv_l = np.clip(R['pv'] - ov + M, 0, N - 1)
-    depthn = np.clip(R['dist'] / 70, 0, 1)
-    base = 5.6 - 4.4 * depthn + 0.8 * (R['wn'] - 0.5) - 1.6 * R['shadow']
-    q = R['dist'] - 3.0 * R['foamn']
-    B_ = base[pv_l, pu_l]; WF = R['wf'][pv_l, pu_l]; WF2 = R['wf2'][pv_l, pu_l]; Q = q[pv_l, pu_l]
-    wr = np.zeros((HS, W, 3), np.uint8)
-    wr[..., 0] = np.where(wm, np.clip(B_ * 18 + 1, 1, 255), 0)
-    wr[..., 1] = np.where(wm, np.clip(WF * 255, 0, 255), 0)
-    wr[..., 2] = np.where(wm, np.clip(WF2 * 255, 0, 255), 0)
-    wq = np.where(wm, np.clip((Q + 4) * 20, 0, 255), 0).astype(np.uint8)
     d = OUT / f'c{ci}{cj}'
     d.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(wr).save(d / 'water_a.png', optimize=True)
-    Image.fromarray(wq).save(d / 'water_b.png', optimize=True)
-
-    # ---- teren: jeden obraz pod postaciami + pasma głębi tylko dla tego, co może je zasłonić
-    # (ściany, klify, dachy i wierzchy wyższe od terenu w promieniu 64 tekseli)
-    land = (kind >= 0) & ~wm
-    base_rgba = np.zeros((HS, W, 4), np.uint8)
-    base_rgba[..., :3] = np.clip(img, 0, 255)
-    base_rgba[..., 3] = np.where(land, 255, 0)
-    Image.fromarray(base_rgba).save(d / 'ground.webp', lossless=True, quality=100, method=6)
-    raised = H > ndi.minimum_filter(H, size=129)
-    occ = land & ((kind == TR.CLIFF_KIND) | raised[pv_l, pu_l])
-    band = np.where(occ, dep // (2 * BW), -1)
-    pieces = []
-    CH = 256
-    for b in np.unique(band[band >= 0]):
-        m = band == b
-        ys_, xs_ = np.nonzero(m)
-        for cx0 in range(int(xs_.min() // CH) * CH, int(xs_.max()) + 1, CH):
-            sel = (xs_ >= cx0) & (xs_ < cx0 + CH)
-            if not sel.any():
-                continue
-            y0, y1 = ys_[sel].min(), ys_[sel].max() + 1
-            x0, x1 = xs_[sel].min(), xs_[sel].max() + 1
-            tile = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
-            tile[..., :3] = np.clip(img[y0:y1, x0:x1], 0, 255)
-            tile[..., 3] = np.where(m[y0:y1, x0:x1], 255, 0)
-            pieces.append((int(b), x0, y0, tile))
-    AW = 2048
-    x = y = rowh = 0
-    placed_b = []
-    for (b, x0, y0, t) in sorted(pieces, key=lambda p: -p[3].shape[0]):
-        h_, w_ = t.shape[:2]
-        if x + w_ + 1 > AW:
-            x, y, rowh = 0, y + rowh + 1, 0
-        placed_b.append((b, x0, y0, x, y, t))
-        x += w_ + 1
-        rowh = max(rowh, h_)
-    AH = max(1, y + rowh + 1)
-    atl = np.zeros((AH, AW, 4), np.uint8)
-    bands = []
-    for (b, x0, y0, ax, ay, t) in placed_b:
-        atl[ay:ay + t.shape[0], ax:ax + t.shape[1]] = t
-        bands.append(dict(z=int(b) * BW - 2 * M, x=int(x0), y=int(y0), ax=int(ax), ay=int(ay), w=int(t.shape[1]), h=int(t.shape[0])))
-    Image.fromarray(atl).save(d / 'bands.webp', lossless=True, quality=100, method=6)
-
-    # ---- mapa wyboru (piksel → teksel lokalny + OFF) i siatka chodzenia
-    pk = np.full((HS, W), 0xFFFFFF, np.int64)
-    ok = (R['pu'] > -90000) & (kind >= 0)
-    pk[ok] = (pu_l[ok].astype(np.int64) << 11) | pv_l[ok]
-    Image.fromarray(np.dstack([(pk >> 16) & 255, (pk >> 8) & 255, pk & 255]).astype(np.uint8)).save(d / 'pick.png', optimize=True)
+    save_water(d, R, kind, pu_l, pv_l)
+    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, M)
     NC = N // CELLW
     Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     Mc = MAT[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
@@ -498,6 +548,71 @@ def gen_cell(ci, cj, sizes):
     return (ci, cj), extra
 
 
+# ------------------------------------------------------------------ wnętrze sklepu
+RU, RV = 320, 256        # pokój 10×8 kafli
+MI = 32                  # margines wokół pokoju
+NI = max(RU, RV) + 2 * MI
+HI_MAX = 120
+
+
+def gen_interior():
+    d = OUT / 'shop'
+    d.mkdir(parents=True, exist_ok=True)
+    iv, iu = np.mgrid[0:NI, 0:NI]
+    u = (iu - MI).astype(np.int64); v = (iv - MI).astype(np.int64)
+    H = np.full((NI, NI), BASE, np.int32)
+    MAT = np.full((NI, NI), TR.WOOD, np.int8)
+    room = (u >= 0) & (u < RU) & (v >= 0) & (v < RV)
+    # ściany tylne (wysokie, z oknami) i przednie (niski cokół, żeby widzieć wnętrze)
+    walls = [dict(u0=-10, u1=-1, v0=-10, v1=RV + 5, base=BASE, eave=BASE + 80, top=BASE + 80, roof='flat', walls='plaster',
+                  door=None, wins_u=0, wins_v=2, winz=30),
+             dict(u0=-10, u1=RU + 5, v0=-10, v1=-1, base=BASE, eave=BASE + 80, top=BASE + 80, roof='flat', walls='plaster',
+                  door=None, wins_u=3, wins_v=0, winz=30)]
+    for b in walls:
+        m = (u >= b['u0']) & (u <= b['u1']) & (v >= b['v0']) & (v <= b['v1'])
+        H[m] = b['top']; MAT[m] = TR.WALL
+    front = ((u >= RU) & (u < RU + 6) & (v >= -10) & (v < RV + 6)) | ((v >= RV) & (v < RV + 6) & (u >= -10) & (u < RU + 6))
+    H[front] = BASE + 8; MAT[front] = TR.WALL
+    # lada (drewno) i regały
+    COUNTER = (56, 72, 60, 200)
+    m = (u >= COUNTER[0]) & (u <= COUNTER[1]) & (v >= COUNTER[2]) & (v <= COUNTER[3])
+    H[m] = BASE + 22; MAT[m] = TR.WOOD
+    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 12, 40, 220, 52), (300, RU - 1, 0, 70, 30)]:
+        m = (u >= a0) & (u <= a1) & (v >= b0) & (v <= b1)
+        H[m] = BASE + h; MAT[m] = TR.WOOD
+    W_, HS_ = 2 * NI, NI + HI_MAX + 8
+    R = TR.render(u, v, H, MAT, walls, PALS, W_, HS_, NI, HI_MAX, seed=99)
+    img, dep, kind = R['img'], R['dep'], R['kind']
+    pu_l = np.clip(R['pu'] + MI, 0, NI - 1); pv_l = np.clip(R['pv'] + MI, 0, NI - 1)
+    # poza pokojem: przezroczyste
+    inside = (R['pu'] >= -10) & (R['pu'] < RU + 6) & (R['pv'] >= -10) & (R['pv'] < RV + 6)
+    kind[~inside] = -1
+    # ciepłe światło z okien (prosty gradient od tylnej ściany)
+    lightf = np.clip(1.15 - (R['pu'] + R['pv']) / (RU + RV) * 0.45, 0.7, 1.15)
+    img *= lightf[..., None] * np.array([1.0, 0.96, 0.88])
+    save_water(d, R, kind, pu_l, pv_l)
+    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, MI)
+    NC = NI // CELLW
+    Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
+    uc = u[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]; vc = v[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
+    walk = (Hc == BASE) & (uc >= 4) & (uc < RU - 4) & (vc >= 4) & (vc < RV - 4) & (uc > COUNTER[1] + 6)
+    wg = np.where(walk, BASE + 1, 0).astype(np.uint8)
+    Image.fromarray(wg).save(d / 'walk.png')
+    def scr(lu, lv):
+        return int(lu - lv + NI), int((lu + lv + 2 * MI) // 2 - BASE + HI_MAX)
+    ents = []
+    for (cu, cv_) in [(250, 34), (285, 90)]:
+        x, y = scr(cu, cv_)
+        ents.append(dict(k='prop', s=['chest'], x=x, y=y, z=int(cu + cv_)))
+    meta = dict(cx=-1, cy=-1, name='Sklep', biome='interior', W=W_, H=HS_, X0=NI, Y0=HI_MAX + MI, OFF=MI, N=NI, CELL=CELLW, NC=NC,
+                size=max(RU, RV), bands=bands, ents=ents)
+    json.dump(meta, open(d / 'meta.json', 'w'), separators=(',', ':'))
+    (ROOT / 'build_tmp').mkdir(exist_ok=True)
+    Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / 'preview_shop.png')
+    print('wnętrze sklepu zapisane', flush=True)
+    return dict(dir='shop', name='Sklep', spawn=[262.0, 196.0], exit=[290.0, 222.0], npc=[34.0, 130.0])
+
+
 def _job(args):
     return gen_cell(*args)
 
@@ -505,9 +620,14 @@ def _job(args):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     frames, sizes = build_sprites()
-    want = [tuple(int(x) for x in a.split(',')) for a in sys.argv[1:]] or sorted(CELLS)
-    with Pool(min(3, len(want))) as pool:
-        results = pool.map(_job, [(i, j, sizes) for (i, j) in want])
+    args = sys.argv[1:]
+    do_shop = not args or 'shop' in args
+    want = [tuple(int(x) for x in a.split(',')) for a in args if a != 'shop'] or ([] if args else sorted(CELLS))
+    results = []
+    if want:
+        with Pool(min(3, len(want))) as pool:
+            results = pool.map(_job, [(i, j, sizes) for (i, j) in want])
+    shop_int = gen_interior() if do_shop else None
     town = dict(results).get((1, 1))
     wpath = OUT / 'world.json'
     world = json.load(open(wpath)) if wpath.exists() else {}
@@ -519,6 +639,8 @@ def main():
     if town:
         world['start'] = dict(cx=1, cy=1, u=town['spawn'][0], v=town['spawn'][1])
         world['shop'] = dict(cx=1, cy=1, u=town['shop'][0], v=town['shop'][1])
+    if shop_int:
+        world['interiors'] = {'shop': shop_int}
     json.dump(world, open(wpath, 'w'), separators=(',', ':'))
     print('świat zapisany:', wpath)
 

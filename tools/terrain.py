@@ -10,7 +10,12 @@ GRASS, DIRT, PATH, WALL, PAVE, WATER, ROOF, WOOD = 0, 1, 2, 3, 4, 5, 6, 7
 WALKABLE = [GRASS, DIRT, PATH, PAVE, WOOD]
 CLIFF_KIND = 10
 
-RF = K.hexs(['#2a1210', '#4a1c16', '#6a2a1c', '#8a3a22', '#a84e2a', '#c46a36', '#da8a4a'])   # dachówka
+RF = K.hexs(['#2a1210', '#4a1c16', '#6a2a1c', '#8a3a22', '#a84e2a', '#c46a36', '#da8a4a'])   # dachówka czerwona
+RB = K.hexs(['#1c140e', '#33241a', '#4a3424', '#62462e', '#7a5a3a', '#94704a', '#ae885a'])   # gont brązowy
+RS = K.hexs(['#14161e', '#22263a', '#323a52', '#46506a', '#5c6882', '#76829a', '#929eb2'])   # łupek
+ROOF_PALS = [RF, RB, RS]
+PL = K.hexs(['#4a3e30', '#7a6a54', '#a89878', '#cbbc98', '#e2d6b4', '#f2e8cc'])               # tynk
+ROOFS = {'flat': 0, 'gable_u': 1, 'gable_v': 2, 'hip': 3}
 WD = K.hexs(['#24160c', '#432914', '#673e1c', '#8a5626', '#ad7034', '#cc8c46'])               # deski
 
 
@@ -86,13 +91,42 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     wti = 2.6 + 1.6 * tC - 0.25 * (tDX + tDY) / 9.0 * 2 - 1.5 * ao
     wti = np.where((tF2 - tF1) < 1.0, 0.8, wti)
     top[m] = ramp(K.WL, wti[m], True, SX[m], SY[m])
-    # dachówka: rzędy wzdłuż u, przesunięte co rząd
+    # budynki: mapa id, parametry (dach, ściany, drzwi, okna)
+    BID = np.full((N, N), -1, np.int16)
+    for i, b in enumerate(buildings):
+        BID[(u >= b['u0']) & (u <= b['u1']) & (v >= b['v0']) & (v <= b['v1'])] = i
+    barr = lambda key, dflt, dt=np.float32: np.array([b.get(key, dflt) for b in buildings] + [dflt], dt)
+    bu0, bu1 = barr('u0', 0), barr('u1', 0)
+    bv0, bv1 = barr('v0', 0), barr('v1', 0)
+    bbase = barr('base', 0)
+    beave = np.array([b.get('eave', b.get('top', 0)) for b in buildings] + [0], np.float32)
+    broof = np.array([ROOFS[b.get('roof', 'flat')] for b in buildings] + [0], np.int8)
+    bpal = barr('roofpal', 0, np.int8)
+    bplaster = np.array([b.get('walls', 'stone') == 'plaster' for b in buildings] + [False])
+    bdoorf = np.array([{'u': 1, 'v': 2}.get(b.get('door'), 0) for b in buildings] + [0], np.int8)
+    bwu, bwv = barr('wins_u', 0, np.int8), barr('wins_v', 0, np.int8)
+    bwinz = barr('winz', 14)
+
+    # dach: rzędy dachówek prostopadle do spadku, połać od światła jaśniejsza
     m = MAT == ROOF
-    rrow = np.floor(v / 5)
-    rcol = np.floor((u + (rrow % 2) * 3) / 6)
-    rl = (v % 5) / 5
-    ri_ = 3.0 + 1.0 * hsh(rrow, rcol, 7) + 1.4 * (rl > 0.6) - 1.6 * (rl < 0.2) - 1.2 * shadow - 1.0 * ao
-    top[m] = ramp(RF, ri_[m], True, SX[m], SY[m])
+    bid_t = BID.astype(np.int64)
+    du_e = np.minimum(u - bu0[bid_t], bu1[bid_t] - u)
+    dv_e = np.minimum(v - bv0[bid_t], bv1[bid_t] - v)
+    rk = broof[bid_t]
+    rows_by_u = (rk == ROOFS['gable_v']) | ((rk == ROOFS['hip']) & (du_e < dv_e))
+    q_ = np.where(rows_by_u, u, v); p_ = np.where(rows_by_u, v, u)
+    rrow = np.floor(q_ / 5)
+    rcol = np.floor((p_ + (rrow % 2) * 3) / 6)
+    rl = (q_ % 5) / 5
+    gHu = np.pad(H, ((0, 0), (1, 1)), mode='edge')[:, 2:] - np.pad(H, ((0, 0), (1, 1)), mode='edge')[:, :-2]
+    gHv = np.pad(H, ((1, 1), (0, 0)), mode='edge')[2:, :] - np.pad(H, ((1, 1), (0, 0)), mode='edge')[:-2, :]
+    lit = np.sign(gHu) - np.sign(gHv)
+    ridge = (np.abs(gHu) + np.abs(gHv) == 0) & (rk != ROOFS['flat'])
+    ri_ = 3.0 + 0.8 * lit + 0.8 * hsh(rrow, rcol, 7) + 1.2 * (rl > 0.6) - 1.4 * (rl < 0.2) - 1.0 * shadow - 0.6 * ao + 0.8 * ridge
+    for pi, pal in enumerate(ROOF_PALS):
+        mp = m & (bpal[bid_t] == pi)
+        if mp.any():
+            top[mp] = ramp(pal, ri_[mp], True, SX[mp], SY[mp])
     # deski (most, pomosty)
     m = MAT == WOOD
     pl = np.floor(u / 6)
@@ -118,18 +152,6 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     wi = np.where(foam, 7.3 + (hsh(u, v, 9) > 0.5), wi)
     top[wm] = ramp(K.WA, wi[wm], True, SX[wm], SY[wm])
 
-    # budynki: mapa id do narożników (węgary), drzwi i okien
-    BID = np.full((N, N), -1, np.int16)
-    for i, b in enumerate(buildings):
-        BID[(u >= b['u0']) & (u <= b['u1']) & (v >= b['v0']) & (v <= b['v1'])] = i
-    bu0 = np.array([b['u0'] for b in buildings] + [0], np.float32)
-    bu1 = np.array([b['u1'] for b in buildings] + [0], np.float32)
-    bv0 = np.array([b['v0'] for b in buildings] + [0], np.float32)
-    bv1 = np.array([b['v1'] for b in buildings] + [0], np.float32)
-    bbase = np.array([b['base'] for b in buildings] + [0], np.float32)
-    bdoor = np.array([b.get('door', True) for b in buildings] + [False])
-    bwin = np.array([b.get('window', True) for b in buildings] + [False])
-    bwinz = np.array([b.get('winz', 46) for b in buildings] + [0], np.float32)
 
     _rr = np.random.default_rng(5)
     ROWB = np.concatenate([[0], np.cumsum(6 + np.floor(_rr.random(80) * 5))]).astype(np.float32)
@@ -196,7 +218,7 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         alongW = np.where(fl, U_, V_).astype(np.float32)
         corner = np.where(fl, np.minimum(np.abs(alongW - bu0[bid]), np.abs(alongW - bu1[bid])),
                           np.minimum(np.abs(alongW - bv0[bid]), np.abs(alongW - bv1[bid])))
-        quoin = (mat == WALL) & (bid >= 0) & (corner < np.where(row2 % 2 == 0, 9, 5))
+        quoin = (mat == WALL) & (bid >= 0) & ~bplaster[bid] & (corner < np.where(row2 % 2 == 0, 9, 5))
         bw2 = np.where(quoin, 9, bw2)
         cid2 = np.floor((along + off2) / bw2)
         la2 = ((along + off2) % bw2) / bw2
@@ -212,28 +234,65 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         wall = np.where(warm[:, None], ramp(K.CB, wi_ - 0.3, True, xs, ys), wall)
         base_moss = (mat == WALL) & (zr < 10 + 10 * mossn[m]) & ~joint & (hsh(U_, V_, 65) > 0.25)
         wall = np.where(base_moss[:, None], ramp(K.G, 2.0 + 1.2 * (lz2 > 0.6), True, xs, ys), wall)
-        # drzwi (ściana +u) i okno (ściana +v) budynków
+        # budynki: ściana do okapu (kamień lub tynk z belkami), szczyt przy dachu dwuspadowym, połać dachu
         isb = (bid >= 0) & ((mat == WALL) | (mat == ROOF))
-        dc = (bv0[bid] + bv1[bid]) / 2
+        onU = isb & ~fl & (np.abs(U_ - bu1[bid]) < 1.5)          # ściana +u (wzdłuż v)
+        onV = isb & fl & (np.abs(V_ - bv1[bid]) < 1.5)           # ściana +v (wzdłuż u)
+        eaveb = beave[bid] - bbase[bid]
+        rk_ = broof[bid]
+        gable_end = ((rk_ == ROOFS['gable_u']) & onU) | ((rk_ == ROOFS['gable_v']) & onV)
+        wallpx = isb & ((zb < eaveb) | gable_end | (rk_ == ROOFS['flat']))
+        roofpx = isb & ~wallpx
         alongF = np.where(fl, U_, V_).astype(np.float32)
-        onR = isb & ~fl & (np.abs(U_ - bu1[bid]) < 1.5) & bdoor[bid]
-        door = onR & (np.abs(alongF - dc) < 9) & (zb >= 0) & ((zb < 30) | ((alongF - dc) ** 2 + (zb - 30) ** 2 < 81))
-        frame = onR & (np.abs(alongF - dc) < 12) & (zb >= 0) & ((zb < 30) | ((alongF - dc) ** 2 + (zb - 30) ** 2 < 144)) & ~door
+        # tynk z belkami (mur pruski)
+        cornerF = np.where(fl, np.minimum(U_ - bu0[bid], bu1[bid] - U_), np.minimum(V_ - bv0[bid], bv1[bid] - V_))
+        beam = (cornerF < 3) | (zb < 3) | ((np.abs(zb - eaveb) < 2.5) & (zb < eaveb + 1)) | (((alongF + 7) % 22) < 2.5)
+        beam |= gable_end & (zb >= eaveb) & (((alongF + 3) % 9) < 1.5)
+        pli = 3.2 + 0.9 * hsh(np.floor(alongF / 3), np.floor(zb / 3), 71) - 0.8 * (~fl) + 0.6 * fls
+        plcol = ramp(PL, pli, True, xs, ys)
+        plcol = np.where(beam[:, None], ramp(WD, 1.4 + 0.8 * fl, True, xs, ys), plcol)
+        # połać dachu widziana z boku (okap, spadek)
+        rface = 2.0 + 1.2 * fl - 0.6 * (zb - eaveb < 2)
+        rcol_ = np.zeros((n_, 3), np.float32)
+        for pi, pal in enumerate(ROOF_PALS):
+            sel = roofpx & (bpal[bid] == pi)
+            if sel.any():
+                rcol_[sel] = ramp(pal, rface[sel], True, xs[sel], ys[sel])
+        # drzwi
+        dcu = (bv0[bid] + bv1[bid]) / 2           # środek ściany +u (współrzędna v)
+        dcv = (bu0[bid] + bu1[bid]) / 2           # środek ściany +v (współrzędna u)
+        onDoorFace = (onU & (bdoorf[bid] == 1)) | (onV & (bdoorf[bid] == 2))
+        dc = np.where(fl, dcv, dcu)
+        door = onDoorFace & (np.abs(alongF - dc) < 9) & (zb >= 0) & ((zb < 26) | ((alongF - dc) ** 2 + (zb - 26) ** 2 < 81))
+        frame = onDoorFace & (np.abs(alongF - dc) < 12) & (zb >= 0) & ((zb < 26) | ((alongF - dc) ** 2 + (zb - 26) ** 2 < 144)) & ~door
         plank = ((alongF - dc + 9) % 4.5) < 1
-        dcol = ramp(K.DR, np.where(plank, 0.6, 2.6 + 1.2 * (zb % 11 < 1) - 0.8 * (zb > 30)), True, xs, ys)
-        knob = door & (np.abs(alongF - dc + 5) < 1.5) & (np.abs(zb - 15) < 1.5)
-        wc = (bu0[bid] + bu1[bid]) / 2
-        onL = isb & fl & (np.abs(V_ - bv1[bid]) < 1.5) & bwin[bid]
-        zw = zb - bwinz[bid]
-        win = onL & (np.abs(alongF - wc) < 6) & (zw >= 0) & ((zw < 14) | ((alongF - wc) ** 2 + (zw - 14) ** 2 < 36))
-        wfr = onL & (np.abs(alongF - wc) < 9) & (zw >= -2) & ((zw < 14) | ((alongF - wc) ** 2 + (zw - 14) ** 2 < 81)) & ~win
-        wcol = ramp(K.WA, np.where((np.abs(alongF - wc) < 0.8) | (np.abs(zw - 8) < 0.8), 0.0, 1.0 + 2.5 * ((alongF - wc + zw) % 7 < 2)), True, xs, ys)
+        dcol = ramp(K.DR, np.where(plank, 0.6, 2.6 + 1.2 * (zb % 11 < 1) - 0.8 * (zb > 26)), True, xs, ys)
+        knob = door & (np.abs(alongF - dc + 5) < 1.5) & (np.abs(zb - 13) < 1.5)
+        # okna: n na ścianę, równo rozłożone, z pominięciem miejsca na drzwi; drugi rząd przy wysokich ścianach
+        nwin = np.where(fl, bwu[bid], bwv[bid]).astype(np.float32)
+        f0 = np.where(fl, bu0[bid], bv0[bid]); f1 = np.where(fl, bu1[bid], bv1[bid])
+        span = np.maximum(f1 - f0, 1)
+        kk = np.clip(np.round((alongF - f0) / span * (nwin + 1)), 1, np.maximum(nwin, 1))
+        wc = f0 + kk * span / (nwin + 1)
+        wface = (onU | onV) & (nwin > 0) & (zb < eaveb) & ~(onDoorFace & (np.abs(wc - dc) < 16))
+        win = np.zeros(n_, bool); wfr = np.zeros(n_, bool); wcol = np.zeros((n_, 3), np.float32)
+        for row in (0, 1):
+            zw = zb - bwinz[bid] - row * 28
+            ok_row = wface & ((row == 0) | (eaveb >= 58)) & (zw + 14 < eaveb - 2)
+            w_ = ok_row & (np.abs(alongF - wc) < 5) & (zw >= 0) & (zw < 12)
+            f_ = ok_row & (np.abs(alongF - wc) < 7) & (zw >= -2) & (zw < 14) & ~w_
+            cross = (np.abs(alongF - wc) < 0.8) | (np.abs(zw - 6) < 0.8)
+            wc_ = ramp(K.WA, np.where(cross, 0.0, 1.0 + 2.5 * ((alongF - wc + zw) % 7 < 2)), True, xs, ys)
+            wcol = np.where(w_[:, None], wc_, wcol)
+            win |= w_; wfr |= f_
         col = rock.copy()
         stone = (mat == WALL) | (mat == PAVE) | (mat == PATH) | (mat == ROOF)
         col = np.where(stone[:, None], wall, col)
+        col = np.where((wallpx & bplaster[bid])[:, None], plcol, col)
+        col = np.where(roofpx[:, None], rcol_, col)
         woodf = mat == WOOD
         col = np.where(woodf[:, None], ramp(WD, 2.2 + 1.0 * (z % 6 < 1) - 0.8 * fl, True, xs, ys), col)
-        col = np.where(frame[:, None] | wfr[:, None], ramp(K.WL, np.full(n_, 5.6), True, xs, ys), col)
+        col = np.where(frame[:, None] | wfr[:, None], np.where(bplaster[bid][:, None], ramp(WD, np.full(n_, 1.6), True, xs, ys), ramp(K.WL, np.full(n_, 5.6), True, xs, ys)), col)
         col = np.where(door[:, None], dcol, col)
         col = np.where(knob[:, None], K.WL[6][None], col)
         col = np.where(win[:, None], wcol, col)

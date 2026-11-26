@@ -197,7 +197,7 @@ Wszystko generowane kodem w `tools/` (rozszerzenie `hero9.py` i `ui2.py`).
 | 0 | Fundament | TypeScript + Vite, rozbicie `game.js` na moduły, repo na GitHubie, automatyczna publikacja. Obecna scena działa pod linkiem. | gotowe |
 | 1 | Świat 3×3 | Generator 9 komórek, miasto, przejścia, kolizje, minimapa. | gotowe |
 | 2 | Postać | Ekran startowy, wybór i kreator postaci, warstwowe sprite'y, zapis do 3 postaci. | gotowe |
-| 3 | Walka | Moby z AI, auto-atak, 4 umiejętności, mana, cooldowny, śmierć i respawn mobów oraz gracza. |  |
+| 3 | Walka | Moby z AI, auto-atak, 4 umiejętności, mana, cooldowny, śmierć i respawn mobów oraz gracza. | gotowe |
 | 4 | Progresja i łup | Exp i poziomy, punkty atrybutów, złoto, potiony, 20 przedmiotów, ekwipunek, widoczna broń i zbroja. |  |
 | 5 | Miasto i sklep | Kupiec, strzały, buty, okno sklepu. |  |
 | 6 | Dźwięk, balans, wydanie | Efekty dźwiękowe, strojenie wartości, testy, wersja v0.1 dla testerów. |  |

@@ -91,6 +91,40 @@ export class World {
 
   isLoaded(cx: number, cy: number) { return this.cells.has(key(cx, cy)); }
 
+  /** komórki aktualnie wczytane (bieżąca i sąsiedzi) */
+  loadedCells(): { cx: number; cy: number; biome: string }[] {
+    return [...this.cells.values()].map((c) => ({ cx: c.info.cx, cy: c.info.cy, biome: c.info.biome }));
+  }
+
+  /** siatka chodzenia dowolnej wczytanej komórki */
+  gridAt(cx: number, cy: number): WorldGrid | null {
+    const c = this.cells.get(key(cx, cy));
+    if (!c) return null;
+    return (c.grid ??= new WorldGrid(c.meta, c.assets.img.walk, c.assets.img.pick));
+  }
+
+  /** współrzędne globalne (teksele świata) → komórka i lokalne */
+  private locate(gu: number, gv: number): { g: WorldGrid; u: number; v: number } | null {
+    const C = this.size, cx = Math.floor(gu / C), cy = Math.floor(gv / C);
+    const g = this.gridAt(cx, cy);
+    return g ? { g, u: gu - cx * C, v: gv - cy * C } : null;
+  }
+
+  /** czy punkt globalny jest przechodni (komórka musi być wczytana) */
+  walkableGlobal = (gu: number, gv: number): boolean => {
+    const l = this.locate(gu, gv);
+    return !!l && l.g.cellH(...l.g.cellOf(l.u, l.v)) > 0;
+  };
+
+  /** punkt globalny → piksel widoku bieżącej komórki */
+  toScreenGlobal(gu: number, gv: number): [number, number] {
+    const l = this.locate(gu, gv);
+    const u = gu - this.cx * this.size, v = gv - this.cy * this.size;
+    const h = l ? l.g.heightAt(l.u, l.v) : 0;
+    const M = this.meta;
+    return [u - v + M.X0, Math.floor((u + v) / 2) - h + M.Y0];
+  }
+
   /** Ustawia środek na (cx, cy): czeka na tę komórkę, sąsiadów doczytuje w tle. */
   async center(cx: number, cy: number): Promise<void> {
     this.want = { cx, cy };

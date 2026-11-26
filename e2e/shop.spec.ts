@@ -42,6 +42,7 @@ test('most: da się przejść przez rzekę po kładce', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(String(e)));
   await enterGame(page);
   // kładka: v ≈ 309–533, nurt rzeki ≈ 421; start tuż przed kładką, cel za nurtem
+  await page.evaluate(() => window.__game!.peace(true));
   await page.evaluate(() => window.__game!.warp(1, 2, 640, 360));
   await page.waitForFunction(() => window.__game!.cell().cy === 2 && !window.__game!.busy());
   expect(await page.evaluate(() => window.__game!.goTo(640, 480))).toBe(true);

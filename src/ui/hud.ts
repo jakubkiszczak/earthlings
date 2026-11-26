@@ -177,23 +177,15 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   });
 
   // ---------------- umiejętności
-  const SK: Skill[] = [
-    { k: '1', ic: 'bash', n: 'Uderzenie tarczą', cd: 4, mp: 10, d: 'Ogłusza cel na 2 s.', fx: 0xfff1c4, left: 0 },
-    { k: '2', ic: 'light', n: 'Święte światło', cd: 8, mp: 25, heal: 120, d: 'Przywraca 120 HP.', fx: 0xffe27a, left: 0 },
-    { k: '3', ic: 'heal', n: 'Leczenie', cd: 12, mp: 40, heal: 300, d: 'Przywraca 300 HP.', fx: 0x7ff0b0, left: 0 },
-    { k: '4', ic: 'sword', n: 'Cios mieczem', cd: 1.5, mp: 0, d: 'Zadaje 86–112 obrażeń.', fx: 0xffffff, left: 0 },
-    { k: '5', ic: 'shield', n: 'Osłona', cd: 20, mp: 30, d: '-30% obrażeń przez 10 s.', fx: 0x8ab0ff, buff: 'shield', left: 0 },
-    { k: '6', ic: 'hp', n: 'Mikstura zdrowia', cd: 2, mp: 0, heal: 400, count: 12, d: 'Przywraca 400 HP.', fx: 0xff5a6a, left: 0 },
-    { k: '7', ic: 'mp', n: 'Mikstura many', cd: 2, mp: 0, mana: 250, count: 8, d: 'Przywraca 250 many.', fx: 0x5a9aff, left: 0 },
-    { k: '8', ic: 'horse', n: 'Wierzchowiec', cd: 1, mp: 0, d: 'Szybsze poruszanie (x1,6).', fx: 0xd8b070, mount: true, left: 0 },
-  ];
+  // 8 miejsc na tacy – treść ustawia gra (setSlots), stan odnowienia co klatkę (setSlotState)
+  const SK: Skill[] = Array.from({ length: 8 }, (_, i) => ({ k: String(i + 1), ic: '', n: '', cd: 0, mp: 0, d: '', fx: 0xffffff, left: 0 }));
   SK.forEach((sk, i) => {
-    const b = el('button', 'skill', `<img class="px ic" src="${IC['icon_' + sk.ic]}" alt=""><span class="cd"></span><span class="cdn"></span>${sk.count != null ? `<span class="cnt">${sk.count}</span>` : ''}`);
+    const b = el('button', 'skill', `<img class="px ic" alt=""><span class="cd"></span><span class="cdn"></span><span class="cnt"></span>`);
     const num = el('span', 'num', sk.k);
     sk.el = b;
     sk.num = num;
     b.addEventListener('click', () => use(i));
-    tip(b, () => `<b class="t-rare">${sk.n}</b><br>${sk.mp ? `Mana: ${sk.mp} · ` : ''}Odnowienie: ${sk.cd} s<br><span class="t-dim">${sk.d}</span>`);
+    tip(b, () => sk.n ? `<b class="t-rare">${sk.n}</b> <span class="t-dim">[${sk.k}]</span><br>${sk.mp ? `Mana: ${sk.mp} · ` : ''}${sk.cd ? `Odnowienie: ${sk.cd} s` : ''}<br><span class="t-dim">${sk.d}</span>` : '<span class="t-dim">Puste miejsce</span>');
     tray.append(b, num);
   });
   const xp = el('div', 'xp', '<i></i>');
@@ -274,26 +266,12 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   }
   function use(i: number) {
     const sk = SK[i];
-    if (!sk || sk.left > 0) return;
-    if (sk.count === 0) { sys('Brak przedmiotu: ' + sk.n); return; }
-    if (st.mp < sk.mp) { floatText('Za mało many', '#8ab0ff'); return; }
-    st.mp -= sk.mp;
-    sk.left = sk.cd;
-    if (sk.count != null) { sk.count--; sk.el!.querySelector('.cnt')!.textContent = String(sk.count); }
-    if (sk.heal) { st.hp = Math.min(st.hpMax, st.hp + sk.heal); floatText('+' + sk.heal, '#8ae07a'); }
-    if (sk.mana) { st.mp = Math.min(st.mpMax, st.mp + sk.mana); floatText('+' + sk.mana + ' many', '#8ab0ff'); }
-    if (sk.mount) {
-      st.mounted = !st.mounted;
-      game.speed = st.mounted ? 1.6 : 1;
-      sys(st.mounted ? 'Dosiadasz wierzchowca.' : 'Zsiadasz z wierzchowca.');
-      renderBuffs();
-    }
-    if (sk.buff) { buffs.shield = 10; renderBuffs(); }
-    if (!sk.heal && !sk.mana && !sk.mount) floatText(sk.n + '!', '#fff1c4');
-    game.ring(sk.fx);
+    if (!sk || !sk.n) return;
+    game.useSlot(i);
     sk.el!.classList.add('press');
     setTimeout(() => sk.el!.classList.remove('press'), 120);
   }
+  void renderBuffs;
 
   // ---------------- układ (skala całkowita)
   const P = (e: HTMLElement, x: number, y: number, w?: number, h?: number) => {
@@ -374,13 +352,40 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     if (k === 'i') { toggleInv(); return; }
     if (k === 'c') { chat.classList.toggle('hidden'); return; }
     if (e.key === 'Escape') { inv.classList.remove('open'); return; }
-    const i = SK.findIndex((x) => x.k === e.key);
+    const i = SK.findIndex((x) => x.n && x.k.toLowerCase() === e.key.toLowerCase());
     if (i >= 0) use(i);
   });
 
   // ---------------- pętla HUD
   let T_ = 0, orbT = 0, flameF = 0;
   return {
+    setSlots(defs) {
+      SK.forEach((sk, i) => {
+        const d = defs[i];
+        Object.assign(sk, { k: d?.key ?? String(i + 1), ic: d?.icon ?? '', n: d?.name ?? '', d: d?.desc ?? '', mp: d?.mana ?? 0, cd: d?.cd ?? 0, left: 0 });
+        const im = sk.el!.querySelector('img')!;
+        if (d) { im.src = d.icon; im.style.visibility = ''; } else im.style.visibility = 'hidden';
+        sk.num!.textContent = sk.k;
+        sk.el!.querySelector('.cnt')!.textContent = d?.count != null ? String(d.count) : '';
+      });
+    },
+    setSlotState(i, left, cd, count, off) {
+      const sk = SK[i];
+      if (!sk?.el) return;
+      if (left !== sk.left) {
+        sk.left = left;
+        (sk.el.querySelector('.cd') as HTMLElement).style.background = left > 0 && cd > 0 ? `conic-gradient(rgba(0,0,0,.66) ${(left / cd) * 360}deg, transparent 0)` : 'none';
+        sk.el.querySelector('.cdn')!.textContent = left > 0 ? String(Math.ceil(left)) : '';
+      }
+      const c = sk.el.querySelector('.cnt')!, cs = count != null ? String(count) : '';
+      if (c.textContent !== cs) c.textContent = cs;
+      sk.el.classList.toggle('off', off);
+    },
+    setVitals(hp, hpMax, mp, mpMax) { st.hp = hp; st.hpMax = hpMax; st.mp = mp; st.mpMax = mpMax; },
+    setExp(exp, expMax) { st.xp = exp; st.xpMax = expMax; },
+    setGold(g) { st.gold = g; gold.querySelector('b')!.textContent = g.toLocaleString('pl-PL'); },
+    float(text, color) { floatText(text, color); },
+    say(msg) { sys(msg); },
     setCharacter(c) {
       st.name = c.name; st.level = c.level;
       st.hpMax = c.hpMax; st.hp = c.hpMax; st.mpMax = c.mpMax; st.mp = c.mpMax;
@@ -394,8 +399,6 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     update(x, y, _zoom, dt) {
       T_ += dt;
       orbT += dt;
-      st.mp = Math.min(st.mpMax, st.mp + 4 * dt);
-      st.hp = Math.min(st.hpMax, st.hp + 1.5 * dt);
       if (orbT > 0.08) { orbT = 0; drawOrb(orbHP, st.hp / st.hpMax, T_); drawOrb(orbMP, st.mp / st.mpMax, T_ + 7); }
       orbHP.t.textContent = String(Math.round(st.hp));
       orbMP.t.textContent = String(Math.round(st.mp));
@@ -419,11 +422,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
         bubble.style.transform = `translate(${Math.round(x)}px, ${Math.round(y - 62)}px) translate(-50%, -100%)`;
         if (bubbleT <= 0) bubble.style.display = 'none';
       }
-      for (const sk of SK) if (sk.left > 0) {
-        sk.left = Math.max(0, sk.left - dt);
-        (sk.el!.querySelector('.cd') as HTMLElement).style.background = sk.left > 0 ? `conic-gradient(rgba(0,0,0,.66) ${(sk.left / sk.cd) * 360}deg, transparent 0)` : 'none';
-        sk.el!.querySelector('.cdn')!.textContent = sk.left > 0 ? String(Math.ceil(sk.left)) : '';
-      }
+
       for (const fl of Array.from(floats.children) as HTMLElement[]) {
         const t = +fl.dataset.t! + dt;
         fl.dataset.t = String(t);

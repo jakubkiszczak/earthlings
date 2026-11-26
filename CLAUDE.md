@@ -23,6 +23,12 @@ Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `te
 - Menu (`src/ui/menu.ts`): start → wybór (do 3 postaci) → kreator. Logika i zapis: `src/logic/character.ts`, `src/logic/save.ts` (localStorage `earthlings.saves`, wersja 1).
 - Testy w przeglądarce wchodzą do gry przez `enterGame()` z `e2e/helpers.ts`.
 
+## Walka
+- Logika: `src/logic/combat.ts` (statystyki potworów, AI, obrażenia, umiejętności, exp) – czysta, testy w `tests/combat.test.ts`.
+- Gra: `src/game/mobs.ts` (30 potworów na komórkę poza miastem, deterministyczne rozmieszczenie, widoki), `src/game/combat.ts` (cel, auto-atak, strzały, umiejętności, śmierć).
+- Współrzędne potworów są globalne (teksele świata); `World.toScreenGlobal/walkableGlobal` przeliczają na bieżącą komórkę.
+- Grafika potworów: szkielet i zombie z `chargen.ts` (`kind`), wilk z `wolfgen.ts`.
+
 ## Najbliższe zadania: prototyp v0.1
 Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).
 Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy ją na serwer (Node.js + Colyseus, PostgreSQL, Redis; patrz GDD).

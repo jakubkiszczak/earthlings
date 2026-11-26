@@ -20,6 +20,10 @@ export interface SavedChar {
   exp: number;
   gold: number;
   pos: CellPos | null;
+  /** nierozdzielone punkty atrybutów (z awansów) */
+  points?: number;
+  /** strzały łowcy */
+  arrows?: number;
   created: number;
   played: number;
 }
@@ -39,7 +43,8 @@ function validChar(c: unknown): c is SavedChar {
     && !!look && oneOf(look.hair, HAIRS.map((h) => h.id)) && oneOf(look.build, BUILDS.map((b) => b.id))
     && oneOf(look.beard, [...BEARDS.map((b) => b.id), 'none'])
     && !!alloc && ['str', 'dex', 'vit', 'ene'].every((k) => isNum(alloc[k]))
-    && isNum(o.level) && o.level >= 1 && o.level <= MAX_LEVEL && isNum(o.exp) && isNum(o.gold);
+    && isNum(o.level) && o.level >= 1 && o.level <= MAX_LEVEL && isNum(o.exp) && isNum(o.gold)
+    && (o.points === undefined || isNum(o.points)) && (o.arrows === undefined || isNum(o.arrows));
 }
 
 /** odczyt z tekstu (np. localStorage); uszkodzone wpisy są pomijane, nieznana wersja → pusty zapis */

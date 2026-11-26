@@ -18,6 +18,10 @@ import { Xray } from './render/xray';
 import type { GameBridge } from './types';
 import { createHud } from './ui/hud';
 import { createMinimap } from './ui/minimap';
+import { Floaters } from './ui/floaters';
+import { MobManager } from './game/mobs';
+import { PlayerCombat } from './game/combat';
+import { deathPenalty, dist, type MobEvent } from './logic/combat';
 import { World } from './world/world';
 import './style.css';
 
@@ -26,7 +30,13 @@ declare global {
     /** gotowość gry i stan do testów w przeglądarce */
     __ready?: boolean;
     __menu?: MenuApi;
-    __game?: { cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean; place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean; outlines(): number; shop(): { u: number; v: number } };
+    __game?: {
+      cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
+      place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
+      outlines(): number; shop(): { u: number; v: number };
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void;
+      player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
+    };
   }
 }
 
@@ -121,19 +131,46 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       void jump(start.cx, start.cy, [start.u, start.v]);
     },
     ring(color) { effects.ring(color); },
+    useSlot(i) { combat?.useSlot(i); },
   };
   const hud = createHud(assets, bridge);
+  const portrait = portraitOf(char);
   const attrs = addAttrs(baseAttributes(char.race, char.cls), char.alloc);
   const dv = derived(attrs);
-  hud.setCharacter({
-    name: char.name, title: titleOf(char), level: char.level, hpMax: dv.hp, mpMax: dv.mana,
-    exp: char.exp, expMax: EXP_TO_NEXT[char.level] || 1, gold: char.gold, portrait: portraitOf(char),
+  const showChar = () => hud.setCharacter({
+    name: char.name, title: titleOf(char), level: combat ? combat.progress.level : char.level, hpMax: dv.hp, mpMax: dv.mana,
+    exp: combat ? combat.progress.exp : char.exp, expMax: combat ? combat.expMax() : EXP_TO_NEXT[char.level] || 1,
+    gold: combat ? combat.gold : char.gold, portrait,
   });
+  let combat: PlayerCombat | null = null;
+  showChar();
 
-  // autozapis pozycji (we wnętrzu – miejsce przed sklepem)
+  // walka: potwory, liczby obrażeń, gracz
+  const mobs = new MobManager(world, atlas);
+  const floaters = new Floaters(document.querySelector<HTMLElement>('#hud')!);
+  combat = new PlayerCombat(char, {
+    world, hero, mobs, hud, floaters, effects, layer: world.layer, icons: assets.icons,
+    moveTo: (u, v) => goToWorld(u, v, false),
+    onDeath: () => {
+      const lost = deathPenalty(combat!.gold);
+      combat!.gold -= lost;
+      hud.setGold(combat!.gold);
+      void jump(start.cx, start.cy, [start.u, start.v]).then(() => {
+        combat!.revive();
+        hud.say(lost ? `Odradzasz się w mieście. Tracisz ${lost} złota.` : 'Odradzasz się w mieście.');
+      });
+    },
+    onLevelUp: () => { showChar(); savePos(); },
+  });
+  const mobEvents: MobEvent[] = [];
+  let peaceful = false;   // tylko do testów: potwory nie widzą gracza
+  const mobXray = new Map<number, Parameters<Xray['add']>[0]>();
+
+  // autozapis postaci (we wnętrzu – miejsce przed sklepem)
   const savePos = () => {
     const p = world.inInterior ? { cx: info.shop.cx, cy: info.shop.cy, u: info.shop.u + 22, v: info.shop.v + 6 } : { cx: world.cx, cy: world.cy, u: hero.u, v: hero.v };
-    store.upsert({ ...char, pos: p, played: Date.now() });
+    const c = combat!;
+    store.upsert({ ...char, pos: p, played: Date.now(), level: c.progress.level, exp: c.progress.exp, points: c.progress.points, gold: c.gold, arrows: c.arrows });
   };
   addEventListener('beforeunload', savePos);
   addEventListener('pagehide', savePos);
@@ -175,6 +212,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       dog.shift(-dx * C, -dy * C);
       const [sx, sy] = World.screenShift(dx, dy, C);
       camera.shift(-sx, -sy);
+      floaters.shift(-sx, -sy);
       cloudOx += sx; cloudOy += sy;
       effects.clearMark();
       hud.zone(world.name);
@@ -199,6 +237,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       hero.teleport(pos);
       dog.teleport([pos[0] + DOG_OFFSET[0], pos[1] + DOG_OFFSET[1]]);
       effects.clearMark();
+      combat?.setTarget(null);
+      combat?.clearShots();
       fitClouds();
       clouds.sprite.visible = !world.inInterior;
       // kupiec tylko we wnętrzu sklepu
@@ -228,10 +268,18 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   }
 
   const input = new PointerInput(app, (gx, gy, showMark) => {
-    if (busy) return;
+    if (busy || combat!.dead) return;
     const wx = Math.floor((gx - stage.x) / camera.zoom), wy = Math.floor((gy - stage.y) / camera.zoom);
+    const m = mobs.at(wx, wy);
+    if (m) { combat!.setTarget(m); return; }
+    if (!showMark && combat!.target != null) return;      // przytrzymanie po kliknięciu w potwora – zostaje cel
     const target = world.grid.pickAt(wx, wy);
-    if (target) goToWorld(target[0], target[1], showMark);
+    if (target) { combat!.setTarget(null); goToWorld(target[0], target[1], showMark); }
+  });
+  // kursor nad potworem
+  app.stage.on('globalpointermove', (e) => {
+    const wx = Math.floor((e.global.x - stage.x) / camera.zoom), wy = Math.floor((e.global.y - stage.y) / camera.zoom);
+    app.stage.cursor = mobs.at(wx, wy) ? 'crosshair' : 'pointer';
   });
 
   window.__game = {
@@ -243,6 +291,12 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     busy: () => busy,
     outlines: () => xray.visibleCount(),
     shop: () => ({ u: info.shop.u, v: info.shop.v }),
+    mobs: () => mobs.alive().map((m) => ({ id: m.id, kind: m.kind, hp: m.hp, state: m.state, u: m.pos[0] - world.cx * world.size, v: m.pos[1] - world.cy * world.size })),
+    attack: (id) => { const m = mobs.mobs.get(id); if (m) combat!.setTarget(m); },
+    player: () => ({ hp: combat!.hp, hpMax: combat!.hpMax, mana: combat!.mana, level: combat!.progress.level, exp: combat!.progress.exp, kills: combat!.kills, dead: combat!.dead, arrows: combat!.arrows, gold: combat!.gold }),
+    skill: (i) => combat!.useSlot(i),
+    hurt: (n) => combat!.takeDamage(n),
+    peace: (on) => { peaceful = on; },
   };
 
   let t = 0, at = 0;
@@ -257,6 +311,12 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     input.update(dt);
     if (!busy) {
       const grid = world.grid;
+      const C = world.size;
+      const ppos: [number, number] = [world.cx * C + hero.u, world.cy * C + hero.v];
+      mobEvents.length = 0;
+      mobs.update(dt, { pos: ppos, alive: !combat.dead && !world.inInterior && !peaceful }, mobEvents);
+      for (const e of mobEvents) combat.onMobEvent(e);
+      combat.update(dt);
       hero.update(grid, t, at, dt, bridge.speed);
       dog.update(grid, hero.trail, at, dt, bridge.speed);
       const step = world.inInterior ? null : cellStep(world.cx, world.cy, hero.u, hero.v, world.size, world.gridSize);
@@ -279,7 +339,24 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       }
     }
     if (npc && world.inInterior) npc.update(world.grid, at);
+    mobs.render(world.layer);
+    // kontury potworów w pobliżu (czerwone)
+    {
+      const C = world.size, hp: [number, number] = [world.cx * C + hero.u, world.cy * C + hero.v];
+      const near = new Set(mobs.alive().filter((m) => dist(m.pos, hp) < 360).map((m) => m.id));
+      for (const [id, tg] of mobXray) if (!near.has(id) || !mobs.view(id)) { xray.remove(tg); mobXray.delete(id); }
+      for (const id of near) {
+        if (mobXray.has(id)) continue;
+        const v = mobs.view(id), m = mobs.mobs.get(id);
+        if (!v || !m) continue;
+        const tg = { view: v.c, body: v.s, frame: () => v.frame, kind: 'mob' as const, source: mobs.sheet(m.kind) };
+        mobXray.set(id, tg);
+        xray.add(tg);
+      }
+    }
     xray.update();
+    combat.syncHud();
+    floaters.update(stage.x, stage.y, camera.zoom, dt);
     effects.update(dt, hero.sx, hero.sy);
     camera.update(stage, app.screen, hero.sx, hero.sy + 4, dt);
     sky.resize(app.screen.width, app.screen.height);

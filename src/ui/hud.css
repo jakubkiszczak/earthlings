@@ -75,3 +75,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .minimap { position: absolute; pointer-events: auto; padding: calc(var(--s) * 1px); background: #110e14; }
 .minimap canvas { display: block; image-rendering: pixelated; }
 .mmlabel { text-align: center; color: #f2d27a; font-size: .95em; line-height: 1.1; margin-top: calc(var(--s) * 1px); }
+.wfloats { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.wfloat { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 1.15em; }
+.wfloat.big { font-size: 1.5em; }
+.skill.off { filter: grayscale(.8) brightness(.6); }

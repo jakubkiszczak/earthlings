@@ -70,9 +70,26 @@ export class Hero {
     for (const p of this.trail) { p[0] += du; p[1] += dv; }
   }
 
+  /** czas od początku animacji ataku (s), <0 = brak */
+  attackT = -1;
+  dead = false;
+
+  /** obrót w stronę punktu (u, v) */
+  faceTo(u: number, v: number) {
+    const du = u - this.u, dv = v - this.v, sdx = du - dv, sdy = (du + dv) / 2;
+    if (Math.hypot(sdx, sdy) < 0.2) return;
+    const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
+    this.dir = OCT_DIR[oct];
+    this.flip = oct >= 3 && oct <= 5;
+  }
+
+  attack() { this.attackT = 0; this.path = []; }
+
   update(grid: WorldGrid, t: number, at: number, dt: number, speed: number) {
     this.moving = false;
-    if (this.path.length) {
+    if (this.attackT >= 0) { this.attackT += dt; if (this.attackT > 0.35) this.attackT = -1; }
+    if (this.dead) this.path = [];
+    if (this.path.length && this.attackT < 0) {
       const [tu, tv] = this.path[0];
       const du = tu - this.u, dv = tv - this.v, dist = Math.hypot(du, dv);
       const sp = HERO_SPEED * speed * dt;
@@ -88,10 +105,12 @@ export class Hero {
       this.trail.push([this.u, this.v]);
       if (this.trail.length > TRAIL_MAX) this.trail.shift();
     }
-    const fi = this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
-    this.frameName = `hero_${this.dir}_${fi}`;
+    const fi = this.attackT >= 0 ? (this.attackT < 0.14 ? 'atk0' : 'atk1')
+      : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
+    this.frameName = this.dead ? 'hero_dead' : `hero_${this.dir}_${fi}`;
     this.sheet.setFrame(this.a.s, this.frameName);
-    this.a.s.scale.x = this.flip ? -1 : 1;
+    this.a.s.scale.x = this.flip && !this.dead ? -1 : 1;
+    this.headMark.visible = !this.dead;
     const [x, y] = grid.toScreen(this.u, this.v);
     this.sx = Math.round(x);
     this.sy = Math.round(y);

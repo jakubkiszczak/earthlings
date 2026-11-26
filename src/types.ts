@@ -74,11 +74,25 @@ export interface GameBridge {
   speed: number;
   teleport(): void;
   ring(color: number): void;
+  /** użycie miejsca z tacy (umiejętność, mikstura) */
+  useSlot(i: number): void;
 }
 
 export interface HudCharacter { name: string; title: string; level: number; hpMax: number; mpMax: number; exp: number; expMax: number; gold: number; portrait: string }
 
+export interface SlotDef { key: string; icon: string; name: string; desc: string; mana?: number; cd?: number; count?: number }
+
 export interface HudApi {
+  setSlots(defs: (SlotDef | null)[]): void;
+  /** stan miejsca: pozostałe odnowienie, pełny czas, liczba (np. strzał), wyszarzenie */
+  setSlotState(i: number, left: number, cd: number, count: number | undefined, off: boolean): void;
+  setVitals(hp: number, hpMax: number, mp: number, mpMax: number): void;
+  setExp(exp: number, expMax: number): void;
+  setGold(gold: number): void;
+  /** krótki napis nad postacią */
+  float(text: string, color: string): void;
+  /** komunikat systemowy na czacie */
+  say(msg: string): void;
   /** dane wybranej postaci (nazwa, poziom, HP/mana, portret) */
   setCharacter(c: HudCharacter): void;
   /** komunikat o wejściu do strefy (komórki świata) */

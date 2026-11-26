@@ -25,7 +25,10 @@ import { PlayerCombat } from './game/combat';
 import { InventoryController } from './game/inventory';
 import { LootManager } from './game/loot';
 import { rollLoot } from './logic/items';
-import { ICONS2 } from './ui/icons';
+import { ICONS, ICONS2 } from './ui/icons';
+import { ShopWindow, type ShopRow, type ShopState } from './ui/shop';
+import { OFFERS, buy as shopBuy, potionSellPrice, sellBag, sellPotion, sellPrice } from './logic/shop';
+import { RARITY_COLOR } from './logic/items';
 import { itemIcon } from './ui/icons';
 import { deathPenalty, dist, seeded, type MobEvent } from './logic/combat';
 import { World } from './world/world';
@@ -40,7 +43,7 @@ declare global {
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
-      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; sitting(): boolean;
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; sitting(): boolean;
       drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
@@ -206,6 +209,45 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     }
   };
   invc.onMessage = (msg) => hud.float(msg, '#ffb08a');
+
+  // sklep: okno handlu u kupca
+  let shopMsg = '';
+  const shopState = (): ShopState => {
+    const c = combat!;
+    const buy = OFFERS.map((o) => {
+      const wrongCls = !!o.cls && o.cls !== char.cls;
+      return {
+        key: o.id, name: o.name, price: o.price, note: wrongCls ? 'Tylko dla łowcy' : o.desc,
+        icon: o.arrows ? ICONS.arrows : itemIcon(o.item!, assets.icons), color: o.item ? RARITY_COLOR(ITEMS[o.item]) : undefined,
+        disabled: wrongCls || invc.gold < o.price, count: o.arrows && char.cls === 'hunter' ? c.arrows : undefined,
+      };
+    });
+    const sell: ShopRow[] = invc.inv.bag.flatMap((id, i) => (id ? [{ key: `bag:${i}`, name: ITEMS[id].name, price: sellPrice(id), icon: itemIcon(id, assets.icons), color: RARITY_COLOR(ITEMS[id]) }] : []));
+    if (invc.inv.hpPot) sell.push({ key: 'pot:hp', name: 'Mikstura zdrowia', price: potionSellPrice(), icon: assets.icons.icon_hp, color: '#ff8a8a', count: invc.inv.hpPot });
+    if (invc.inv.mpPot) sell.push({ key: 'pot:mp', name: 'Mikstura many', price: potionSellPrice(), icon: assets.icons.icon_mp, color: '#8ab0ff', count: invc.inv.mpPot });
+    return { gold: invc.gold, buy, sell, message: shopMsg };
+  };
+  const trade = (fn: (w: { gold: number; arrows: number; inv: typeof invc.inv; cls: typeof char.cls }) => string | null) => {
+    const w = { gold: invc.gold, arrows: combat!.arrows, inv: invc.inv, cls: char.cls };
+    const err = fn(w);
+    shopMsg = err ?? '';
+    invc.gold = w.gold;
+    combat!.arrows = w.arrows;
+    invc.onChange(false);
+    shop.render(shopState());
+    if (!err) savePos();
+  };
+  const shop = new ShopWindow(document.querySelector<HTMLElement>('#hud')!,
+    (key) => trade((w) => shopBuy(w, key)),
+    (key) => trade((w) => {
+      const [k, v] = key.split(':');
+      const got = k === 'bag' ? sellBag(w, Number(v)) : sellPotion(w, v as 'hp' | 'mp');
+      return got ? null : 'Nie ma czego sprzedać.';
+    }),
+    () => shop.hide());
+  let wantShop = false;
+  const prevChange = invc.onChange;
+  invc.onChange = (g) => { prevChange(g); if (shop.open) shop.render(shopState()); };
   bridge.speed = invc.stats.speed;
   hud.setInventory(invc.view());
   const mobEvents: MobEvent[] = [];
@@ -316,6 +358,14 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const input = new PointerInput(app, (gx, gy, showMark) => {
     if (busy || combat!.dead) return;
     const wx = Math.floor((gx - stage.x) / camera.zoom), wy = Math.floor((gy - stage.y) / camera.zoom);
+    // kupiec we wnętrzu sklepu: podejdź do lady i otwórz handel
+    if (npc && world.inInterior && Math.abs(wx - npc.view.x) <= 14 && wy <= npc.view.y + 2 && wy >= npc.view.y - 44 && showMark) {
+      combat!.stand();
+      wantShop = true;
+      goToWorld(npc.u + 64, npc.v, true);
+      return;
+    }
+    wantShop = false;
     const m = mobs.at(wx, wy);
     if (m) { combat!.setTarget(m); loot.wanted = null; return; }
     const drop = loot.at(wx, wy);
@@ -359,6 +409,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     hurt: (n) => combat!.takeDamage(n),
     peace: (on) => { peaceful = on; },
     dashReady: () => combat!.dashReady,
+    talkToMerchant: () => { if (npc) { wantShop = true; goToWorld(npc.u + 64, npc.v, true); } },
+    shopOpen: () => shop.open,
     sitting: () => combat!.sitting,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
     give: (id) => invc.addItem(id),
@@ -412,7 +464,19 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
         if (!busy && exitPortal.check(hero.u, hero.v)) void jump(info.shop.cx, info.shop.cy, [info.shop.u + 22, info.shop.v + 6]);
       }
     }
-    if (npc && world.inInterior) npc.update(world.grid, at);
+    if (npc && world.inInterior) {
+      npc.update(world.grid, at);
+      const dn = Math.hypot(hero.u - npc.u, hero.v - npc.v);
+      if (wantShop && dn < 96) {
+        wantShop = false;
+        hero.path = [];
+        hero.faceTo(npc.u, npc.v);
+        shopMsg = '';
+        shop.show(shopState());
+        hud.say('<span style="color:#8ae07a">Kupiec Bronek:</span> Witaj, wędrowcze! Czego ci trzeba?');
+      }
+      if (shop.open && dn > 140) shop.hide();
+    } else if (shop.open) shop.hide();
     mobs.render(world.layer);
     loot.update(dt);
     // kontury potworów w pobliżu (czerwone)

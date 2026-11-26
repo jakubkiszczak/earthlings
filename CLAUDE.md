@@ -34,6 +34,9 @@ Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `te
 - Gra: `src/game/inventory.ts` (ekwipunek, punkty, mikstury → widok panelu HUD), `src/game/loot.ts` (łup na ziemi).
 - Widoczny ekwipunek: `Gear` w `chargen.ts` (zbroja, hełm, tarcza, broń, buty, rękawice); po zmianie ekwipunku powstaje nowy `CharSheet`.
 
+## Sklep
+- Logika: `src/logic/shop.ts` (oferta, kupno, skup 25%) – testy `tests/shop.test.ts`; okno: `src/ui/shop.ts`; kupiec: kliknięcie NPC we wnętrzu sklepu (`src/main.ts`).
+
 ## Najbliższe zadania: prototyp v0.1
 Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).
 Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy ją na serwer (Node.js + Colyseus, PostgreSQL, Redis; patrz GDD).

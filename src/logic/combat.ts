@@ -41,6 +41,9 @@ export const DASH_IFRAMES = 0.35;   // s bez obrażeń
 /** zasięg łuku: 8 kafli + 1 kafel za każde 10 Zręczności powyżej 20 */
 export const bowRange = (dex: number) => BOW_RANGE + Math.floor(Math.max(0, dex - 20) / 10) * TILE;
 
+/** siedzenie: dodatkowe +100 HP na minutę (na sekundę) */
+export const SIT_REGEN = 100 / 60;
+
 /** odnawianie zdrowia: +30 HP na minutę za każde pełne 10 Witalności (na sekundę) */
 export const hpRegen = (vit: number) => (Math.floor(vit / 10) * 30) / 60;
 

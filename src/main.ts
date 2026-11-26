@@ -40,7 +40,7 @@ declare global {
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
-      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean;
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; sitting(): boolean;
       drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
@@ -328,7 +328,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     }
     if (!showMark && combat!.target != null) return;      // przytrzymanie po kliknięciu w potwora – zostaje cel
     const target = world.grid.pickAt(wx, wy);
-    if (target) { combat!.setTarget(null); goToWorld(target[0], target[1], showMark); }
+    if (target) { combat!.stand(); combat!.setTarget(null); goToWorld(target[0], target[1], showMark); }
   }, (gx, gy) => {
     // odskok w stronę kursora: wektor ekranowy → kierunek w układzie świata (u, v)
     if (busy) return;
@@ -359,6 +359,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     hurt: (n) => combat!.takeDamage(n),
     peace: (on) => { peaceful = on; },
     dashReady: () => combat!.dashReady,
+    sitting: () => combat!.sitting,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
     give: (id) => invc.addItem(id),
     exp: (n) => combat!.addExp(n),

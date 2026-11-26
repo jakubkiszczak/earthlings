@@ -84,7 +84,8 @@ Postać odradza się w mieście z pełnym HP i maną, traci 10% złota. Exp i pr
 
 - **Auto-atak:** kliknięcie moba → wojownik podchodzi i atakuje wręcz (zasięg 1 kafel), łowca strzela z dystansu (zasięg 8 kafli + 1 kafel za każde 10 Zręczności powyżej 20).
 - **Odskok:** prawy przycisk myszy – 2 kafle w stronę kursora, chwila bez obrażeń, raz na 10 s.
-- **Regeneracja zdrowia:** +30 HP na minutę za każde pełne 10 Witalności. Atak trwa do śmierci celu albo kliknięcia gdzie indziej. Tempo: 1 atak na sekundę *(do strojenia)*.
+- **Regeneracja zdrowia:** +30 HP na minutę za każde pełne 10 Witalności.
+- **Siedzenie (X, dla wszystkich):** +100 HP na minutę; w siadzie brak ataku – wstaje się klawiszem X, kliknięciem w ziemię, odskokiem albo samo po ataku potwora. Atak trwa do śmierci celu albo kliknięcia gdzie indziej. Tempo: 1 atak na sekundę *(do strojenia)*.
 - **Strzały:** łowca zużywa 1 strzałę na strzał. Start z 200 strzałami. Bez strzał łowca nie strzela (komunikat „Brak strzał”).
 - **Pancerz:** otrzymane obrażenia × 100 / (100 + pancerz).
 - Klawisze: 1 i 2 – umiejętności, Q – potion HP, E – potion many (cooldown potionów 1 s).

@@ -79,3 +79,28 @@ test('odskok pod prawym przyciskiem myszy: 2 kafle, potem odnowienie 10 s', asyn
   const again = await page.evaluate(() => window.__game!.hero());
   expect(Math.hypot(again.u - after.u, again.v - after.v)).toBeLessThan(2);
 });
+
+test('siedzenie: szybsza regeneracja, bez ataku, wstawanie po ataku potwora i klawiszem X', async ({ page }) => {
+  test.setTimeout(120_000);
+  await enterGame(page, 'Odpoczywa');
+  await page.evaluate(() => window.__game!.hurt(150));
+  await page.keyboard.press('x');
+  expect(await page.evaluate(() => window.__game!.sitting())).toBe(true);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'test-results/siedzenie.png' });
+  const hp0 = (await page.evaluate(() => window.__game!.player())).hp;
+  await page.waitForTimeout(3000);
+  const hp1 = (await page.evaluate(() => window.__game!.player())).hp;
+  // 100/min w siadzie + regeneracja z Witalności (60/min) ≈ 2,7 HP/s; przy wolnej przeglądarce mniej
+  expect(hp1 - hp0).toBeGreaterThan(2);
+  // umiejętność w siadzie nie działa
+  await page.keyboard.press('1');
+  await expect(page.locator('.floats')).toContainText('Wstań');
+  // X – wstaje
+  await page.keyboard.press('x');
+  expect(await page.evaluate(() => window.__game!.sitting())).toBe(false);
+  // obrażenia stawiają na nogi
+  await page.keyboard.press('x');
+  await page.evaluate(() => window.__game!.hurt(1));
+  expect(await page.evaluate(() => window.__game!.sitting())).toBe(false);
+});

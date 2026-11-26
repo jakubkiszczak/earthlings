@@ -382,6 +382,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
       if (c.textContent !== cs) c.textContent = cs;
       sk.el.classList.toggle('off', off);
     },
+    setSlotActive(i, on) { SK[i]?.el?.classList.toggle('active', on); },
     setVitals(hp, hpMax, mp, mpMax) { st.hp = hp; st.hpMax = hpMax; st.mp = mp; st.mpMax = mpMax; },
     setExp(exp, expMax) { st.xp = exp; st.xpMax = expMax; },
     setGold(g) { st.gold = g; gold.querySelector('b')!.textContent = g.toLocaleString('pl-PL'); },

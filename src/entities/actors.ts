@@ -73,6 +73,8 @@ export class Hero {
   /** czas od początku animacji ataku (s), <0 = brak */
   attackT = -1;
   dead = false;
+  /** siedzi (odpoczynek) – nie chodzi */
+  sitting = false;
 
   /** obrót w stronę punktu (u, v) */
   faceTo(u: number, v: number) {
@@ -93,7 +95,7 @@ export class Hero {
     this.moving = false;
     if (this.attackT >= 0) { this.attackT += dt; if (this.attackT > 0.35) this.attackT = -1; }
     this.glowT = Math.max(0, this.glowT - dt);
-    if (this.dead) this.path = [];
+    if (this.dead || this.sitting) this.path = [];
     if (this.path.length && this.attackT < 0) {
       const [tu, tv] = this.path[0];
       const du = tu - this.u, dv = tv - this.v, dist = Math.hypot(du, dv);
@@ -113,7 +115,7 @@ export class Hero {
     const g = this.glowT > 0 ? 'atkg' : 'atk';
     const fi = this.attackT >= 0 ? (this.attackT < 0.14 ? `${g}0` : `${g}1`)
       : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
-    this.frameName = this.dead ? 'hero_dead' : `hero_${this.dir}_${fi}`;
+    this.frameName = this.dead ? 'hero_dead' : this.sitting ? `hero_${this.dir}_sit${Math.floor(at * 1.2) % 2}` : `hero_${this.dir}_${fi}`;
     this.sheet.setFrame(this.a.s, this.frameName);
     this.a.s.scale.x = this.flip && !this.dead ? -1 : 1;
     this.headMark.visible = !this.dead;

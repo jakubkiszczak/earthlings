@@ -3,14 +3,14 @@ import { Container, Graphics } from 'pixi.js';
 import type { Hero } from '../entities/actors';
 import { EXP_TO_NEXT, MAX_LEVEL, type ClassId } from '../logic/character';
 import {
-  DASH_CD, DASH_DIST, DASH_IFRAMES, DASH_TIME, KNOCKBACK, MELEE_RANGE, MOBS, PLAYER_ATTACK_EVERY, SKILLS, STUN_TIME, bowRange, hpRegen,
+  DASH_CD, DASH_DIST, DASH_IFRAMES, DASH_TIME, SIT_REGEN, KNOCKBACK, MELEE_RANGE, MOBS, PLAYER_ATTACK_EVERY, SKILLS, STUN_TIME, bowRange, hpRegen,
   afterArmor, damageMob, dist, gainExp, playerDamage, seeded, type Mob, type MobEvent, type Progress, type SkillId, type Vec,
 } from '../logic/combat';
 import type { SavedChar } from '../logic/save';
 import type { Effects } from '../render/effects';
 import type { HudApi, SlotDef } from '../types';
 import type { Floaters } from '../ui/floaters';
-import { ICONS } from '../ui/icons';
+import { ICONS, ICON_SIT } from '../ui/icons';
 import type { World } from '../world/world';
 import type { MobManager } from './mobs';
 import type { InventoryController } from './inventory';
@@ -46,6 +46,8 @@ export class PlayerCombat {
   private atkCd = 0;
   private readonly cds: [number, number] = [0, 0];
   private queued: SkillId | null = null;
+  /** siedzenie: szybsza regeneracja, bez ataku */
+  sitting = false;
   private dashCd = 0;
   private invuln = 0;
   private dash: { from: Vec; to: Vec; t: number } | null = null;
@@ -82,7 +84,8 @@ export class PlayerCombat {
     return [
       sk(a, '1'), sk(b, '2'),
       { key: 'PPM', icon: ICONS.dash, name: 'Odskok', desc: 'Prawy przycisk myszy: odskok o 2 kafle w stronę kursora. Przez chwilę nie otrzymujesz obrażeń.', cd: DASH_CD },
-      null, null,
+      { key: 'X', icon: ICON_SIT, name: 'Siedzenie', desc: 'Odpoczynek: +100 zdrowia na minutę. W siadzie nie atakujesz – wstań (X), kliknij w ziemię albo wstaniesz sam, gdy zaatakuje cię potwór.' },
+      null,
       { key: 'Q', icon: ic.icon_hp, name: 'Mikstura zdrowia', desc: 'Przywraca 15% zdrowia. Wypada z potworów.', count: 0 },
       { key: 'E', icon: ic.icon_mp, name: 'Mikstura many', desc: 'Przywraca 15% many. Wypada z potworów.', count: 0 },
       this.cls === 'hunter' ? { key: '·', icon: ICONS.arrows, name: 'Strzały', desc: 'Łowca zużywa 1 strzałę na strzał. Kupisz je w sklepie.', count: this.arrows } : null,
@@ -102,8 +105,33 @@ export class PlayerCombat {
   /** zasięg ataku: wręcz albo łuk (zależny od Zręczności) */
   get range() { return this.cls === 'warrior' ? MELEE_RANGE : bowRange(this.inv.stats.attrs.dex); }
 
+  /** usiądź / wstań */
+  toggleSit() { if (this.sitting) this.stand(); else this.sit(); }
+
+  sit() {
+    if (this.dead || this.dash || this.sitting) return;
+    this.setTarget(null);
+    this.sitting = true;
+    this.d.hero.sitting = true;
+    this.d.hero.path = [];
+    this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 34, 'odpoczynek', '#8ae07a');
+  }
+
+  stand() {
+    if (!this.sitting) return;
+    this.sitting = false;
+    this.d.hero.sitting = false;
+  }
+
+  private sitBlock(): boolean {
+    if (!this.sitting) return false;
+    this.d.hud.float('Wstań, aby atakować (X)', '#c8bca4');
+    return true;
+  }
+
   setTarget(m: Mob | null) {
     if (this.dead) return;
+    if (m && this.sitBlock()) return;
     this.target = m ? m.id : null;
     this.d.mobs.target = this.target;
     if (!m) this.queued = null;
@@ -125,7 +153,9 @@ export class PlayerCombat {
     }
     if (i === 7) { this.d.hud.say(`Strzały: ${this.arrows}.`); return; }
     if (i === 2) { this.d.hud.say('Odskok: prawy przycisk myszy w stronę kursora.'); return; }
+    if (i === 3) { this.toggleSit(); return; }
     if (i > 1) return;
+    if (this.sitBlock()) return;
     const s = SKILLS[this.cls][i];
     if (this.cds[i] > 0) return;
     if (this.mana < s.mana) { this.d.hud.float('Za mało many', '#8ab0ff'); return; }
@@ -142,6 +172,7 @@ export class PlayerCombat {
 
   onMobEvent(e: MobEvent) {
     if (e.type !== 'attack' || this.dead) return;
+    if (this.sitting) { this.stand(); this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 54, 'wstajesz!', '#ffd84a'); }
     if (this.invuln > 0 || this.rng() * 100 < this.inv.stats.dodge) {
       this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, 'unik', '#c8f0ff');
       return;
@@ -153,6 +184,7 @@ export class PlayerCombat {
   /** obrażenia dla gracza (po pancerzu i uniku) */
   takeDamage(dmg: number) {
     if (this.dead) return;
+    this.stand();
     this.hp -= dmg;
     this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, `-${dmg}`, '#ff5a4a', true);
     if (this.hp <= 0) this.die();
@@ -160,6 +192,7 @@ export class PlayerCombat {
 
   private die() {
     this.hp = 0;
+    this.stand();
     this.dead = true;
     this.deadT = 0;
     this.d.hero.dead = true;
@@ -274,7 +307,7 @@ export class PlayerCombat {
       return;
     }
     this.mana = Math.min(this.manaMax, this.mana + this.inv.stats.manaRegen * dt);
-    this.hp = Math.min(this.hpMax, this.hp + hpRegen(this.inv.stats.attrs.vit) * dt);
+    this.hp = Math.min(this.hpMax, this.hp + (hpRegen(this.inv.stats.attrs.vit) + (this.sitting ? SIT_REGEN : 0)) * dt);
     // odskok: szybki ruch po prostej, bez obrażeń
     if (this.dash) {
       const k = Math.min(1, (this.dash.t += dt) / DASH_TIME), e = 1 - (1 - k) * (1 - k);
@@ -330,6 +363,7 @@ export class PlayerCombat {
    */
   dodge(du: number, dv: number, walkable: (u: number, v: number) => boolean): boolean {
     if (this.dead || this.dashCd > 0 || this.dash) return false;
+    this.stand();
     const l = Math.hypot(du, dv);
     if (l < 0.01) return false;
     const h = this.d.hero, from: Vec = [h.u, h.v];
@@ -361,6 +395,8 @@ export class PlayerCombat {
     const sk = SKILLS[this.cls];
     for (let i = 0; i < 2; i++) h.setSlotState(i, this.cds[i], sk[i].cd, undefined, this.mana < sk[i].mana || this.dead);
     h.setSlotState(2, this.dashCd, DASH_CD, undefined, this.dead);
+    h.setSlotState(3, 0, 0, undefined, this.dead);
+    h.setSlotActive(3, this.sitting);
     h.setSlotState(5, this.potCd, 1, this.inv.inv.hpPot, this.inv.inv.hpPot <= 0 || this.dead);
     h.setSlotState(6, this.potCd, 1, this.inv.inv.mpPot, this.inv.inv.mpPot <= 0 || this.dead);
     if (this.cls === 'hunter') h.setSlotState(7, 0, 0, this.arrows, this.arrows <= 0);

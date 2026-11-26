@@ -64,3 +64,13 @@ export const ICON_DASH = icon((px) => {
   px(7, 9, '#3e4460'); px(7, 10, '#3e4460'); px(10, 9, '#3e4460'); px(11, 10, '#3e4460');
   for (const [x, y] of [[1, 4], [2, 4], [3, 4], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [1, 8], [2, 8], [3, 8]]) px(x, y, '#9ad0ff');
 });
+
+/** siedzenie: postać po turecku przy ognisku */
+export const ICON_SIT = icon((px) => {
+  for (const [x, y] of [[5, 2], [6, 2], [5, 3], [6, 3]]) px(x, y, '#f0c49c');
+  for (let y = 4; y <= 7; y++) for (let x = 4; x <= 7; x++) px(x, y, x < 6 ? '#9a6236' : '#6e4224');
+  for (let x = 2; x <= 9; x++) px(x, 8, x < 6 ? '#3e4460' : '#2a2e44');
+  px(2, 9, '#8a5230'); px(9, 9, '#5a3218');
+  // ognisko
+  px(11, 9, '#6a4420'); px(12, 9, '#6a4420'); px(11, 8, '#ff8a2a'); px(12, 7, '#ffd84a'); px(11, 6, '#ffb030'); px(12, 8, '#ff5a2a');
+});

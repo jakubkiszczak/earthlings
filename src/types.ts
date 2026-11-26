@@ -106,6 +106,8 @@ export interface HudApi {
   /** stan miejsca: pozostałe odnowienie, pełny czas, liczba (np. strzał), wyszarzenie */
   setSlotState(i: number, left: number, cd: number, count: number | undefined, off: boolean): void;
   setVitals(hp: number, hpMax: number, mp: number, mpMax: number): void;
+  /** podświetlenie aktywnego miejsca (np. siedzenie) */
+  setSlotActive(i: number, on: boolean): void;
   setExp(exp: number, expMax: number): void;
   setGold(gold: number): void;
   /** krótki napis nad postacią */

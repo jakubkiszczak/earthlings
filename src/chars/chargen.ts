@@ -454,6 +454,42 @@ export function lying(src: FrameData): FrameData {
   return { w, h, ax: Math.floor(w / 2), ay: h - 3, px };
 }
 
+/**
+ * klatka siedzenia z klatki stojącej: tułów i głowa niżej o 7 px, nogi skrzyżowane przed sobą
+ * (kolory spodni i butów brane z klatki stojącej)
+ */
+export function sitting(src: FrameData, d: Dir): FrameData {
+  const { w, h } = src, px = new Uint8ClampedArray(w * h * 4);
+  const DROP = 7, CUT = 30;
+  const get = (x: number, y: number) => { const o = (y * w + x) * 4; return [src.px[o], src.px[o + 1], src.px[o + 2], src.px[o + 3]]; };
+  const put = (x: number, y: number, c: number[]) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const o = (y * w + x) * 4; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = c[3];
+  };
+  const pants = get(11, 33)[3] ? get(11, 33) : [62, 68, 96, 255];
+  const pantsD = get(16, 33)[3] ? get(16, 33) : [42, 46, 68, 255];
+  const boot = get(11, 39)[3] ? get(11, 39) : [138, 82, 48, 255];
+  const bootD = get(16, 39)[3] ? get(16, 39) : [90, 50, 24, 255];
+  const ink = [22, 15, 18, 255];
+  // nogi: skrzyżowane, przed tułowiem (dla widoku od tyłu – schowane)
+  const back = d === 'N' || d === 'NE';
+  if (!back) {
+    const side = d === 'E' ? 1 : 0;
+    for (let y = 35; y <= 39; y++) for (let x = 7 + side * 3; x <= 21 + side * 2; x++) put(x, y, y < 37 ? (x < 14 ? pants : pantsD) : (x < 14 ? pants : pantsD));
+    for (const bx of side ? [21, 22] : [6, 7, 20, 21]) for (let y = 36; y <= 39; y++) put(bx, y, bx < 14 ? boot : bootD);
+  } else {
+    for (let y = 37; y <= 39; y++) for (let x = 8; x <= 20; x++) put(x, y, pantsD);
+  }
+  // tułów i głowa przesunięte w dół
+  for (let y = 0; y < CUT; y++) for (let x = 0; x < w; x++) { const c = get(x, y); if (c[3] && y + DROP < h) put(x, y + DROP, c); }
+  // kontur
+  const al = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && px[(y * w + x) * 4 + 3] > 0;
+  const add: [number, number][] = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!al(x, y) && (al(x - 1, y) || al(x + 1, y) || al(x, y - 1) || al(x, y + 1))) add.push([x, y]);
+  for (const [x, y] of add) put(x, y, ink);
+  return { w, h, ax: src.ax, ay: src.ay, px };
+}
+
 /** wszystkie klatki postaci: <prefix>_<dir>_<frame>, ataki atk0/atk1 i <prefix>_dead */
 export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
   const data = new Map<string, FrameData>();
@@ -465,6 +501,8 @@ export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
     data.set(`${prefix}_${d}_atk1`, std(frame(look, d, 0, 0, false, 'atk1')));
     data.set(`${prefix}_${d}_atkg0`, std(frame(look, d, 0, 0, false, 'atk0', true)));
     data.set(`${prefix}_${d}_atkg1`, std(frame(look, d, 0, 0, false, 'atk1', true)));
+    data.set(`${prefix}_${d}_sit0`, sitting(data.get(`${prefix}_${d}_idle0`)!, d));
+    data.set(`${prefix}_${d}_sit1`, sitting(data.get(`${prefix}_${d}_idle1`)!, d));
   }
   data.set(`${prefix}_dead`, lying(data.get(`${prefix}_E_idle0`)!));
   return { names: [...data.keys()], data };

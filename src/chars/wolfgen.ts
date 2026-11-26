@@ -1,5 +1,5 @@
 // Wilk w pikselach (36×24, profil w prawo; w lewo – lustro). Chód 4 klatki, oddech 2, atak 2, martwy.
-import type { CharFrames, FrameData } from './chargen';
+import { upscale, type CharFrames, type FrameData } from './chargen';
 
 const W = 36, H = 24, AX = 18, AY = 22;
 type RGB = [number, number, number];
@@ -73,12 +73,27 @@ function wolf(phase: number, breath: number, walking: boolean, atk: number): Uin
   cv.px(hx + 1, hy - 4, 'f3'); cv.px(hx + 1, hy - 3, 'f2');
   // otwarta paszcza przy ataku
   if (atk) { cv.rect(hx + 3, hy + 3, hx + 6, hy + 3, 'm'); cv.px(hx + 4, hy + 2, 't'); cv.px(hx + 6, hy + 3, 't'); cv.rect(hx + 2, hy + 4, hx + 5, hy + 4, 'f3'); }
-  cv.outline();
   return cv.a;
 }
 
 
 const fd = (px: Uint8ClampedArray): FrameData => ({ w: W, h: H, ax: AX, ay: AY, px });
+
+/** powiększenie do skali postaci + futro (jaśniejsze/ciemniejsze kosmyki) + cienki kontur */
+function finish(f: FrameData): FrameData {
+  const u = upscale(f), { w, h, px } = u;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = (y * w + x) * 4;
+    if (!px[o + 3]) continue;
+    if ((x * 3 + y * 5) % 9 === 0) { px[o] *= 0.86; px[o + 1] *= 0.86; px[o + 2] *= 0.86; }
+    else if ((x + y * 2) % 13 === 0) { px[o] = Math.min(255, px[o] + 22); px[o + 1] = Math.min(255, px[o + 1] + 22); px[o + 2] = Math.min(255, px[o + 2] + 24); }
+  }
+  const al = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && px[(y * w + x) * 4 + 3] > 0;
+  const add: number[] = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!al(x, y) && (al(x - 1, y) || al(x + 1, y) || al(x, y - 1) || al(x, y + 1))) add.push((y * w + x) * 4);
+  for (const o of add) { px[o] = 22; px[o + 1] = 15; px[o + 2] = 18; px[o + 3] = 255; }
+  return u;
+}
 
 /** martwy wilk: na boku, nogi w bok */
 function deadWolf(): FrameData {
@@ -89,17 +104,16 @@ function deadWolf(): FrameData {
   cv.px(29, 16, 'n');
   for (const x of [9, 12, 21, 24]) cv.rect(x, 20, x + 1, 22, 'f3');
   cv.line(6, 18, 1, 19);
-  cv.outline();
   return fd(cv.a);
 }
 
 export function wolfFrames(): CharFrames {
   const data = new Map<string, FrameData>();
-  for (let k = 0; k < 4; k++) data.set(`wolf_E_walk${k}`, fd(wolf(k, k % 2, true, 0)));
-  data.set('wolf_E_idle0', fd(wolf(0, 0, false, 0)));
-  data.set('wolf_E_idle1', fd(wolf(0, 1, false, 0)));
-  data.set('wolf_E_atk0', fd(wolf(0, 0, false, 1)));
-  data.set('wolf_E_atk1', fd(wolf(0, 0, false, 2)));
-  data.set('wolf_dead', deadWolf());
+  for (let k = 0; k < 4; k++) data.set(`wolf_E_walk${k}`, finish(fd(wolf(k, k % 2, true, 0))));
+  data.set('wolf_E_idle0', finish(fd(wolf(0, 0, false, 0))));
+  data.set('wolf_E_idle1', finish(fd(wolf(0, 1, false, 0))));
+  data.set('wolf_E_atk0', finish(fd(wolf(0, 0, false, 1))));
+  data.set('wolf_E_atk1', finish(fd(wolf(0, 0, false, 2))));
+  data.set('wolf_dead', finish(deadWolf()));
   return { names: [...data.keys()], data };
 }

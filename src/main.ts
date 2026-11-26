@@ -5,6 +5,7 @@ import { CharSheet, type FrameSource } from './chars/sheet';
 import { ITEMS, sanitizeInventory } from './logic/items';
 import { EXP_TO_NEXT } from './logic/character';
 import { SaveStore, type SavedChar } from './logic/save';
+import { loadArtManifest } from './ui/art';
 import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
 import { Dog, Hero, Npc } from './entities/actors';
@@ -93,6 +94,7 @@ async function main() {
   document.body.classList.add('in-menu');
   loadingScreen = new LoadingScreen();
   let started = false;
+  await loadArtManifest();
   const menu = createMenu(store, (c) => {
     if (started) return;
     started = true;
@@ -370,7 +372,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       if (world.inInterior && shopInfo) {
         const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1], shopInfo.floor ?? 48);
         npc = n;
-        npcTarget = { view: n.view, body: n.body, frame: () => n.frameName, kind: 'npc', source: atlas };
+        npcTarget = { view: n.view, body: n.body, frame: () => n.frameName || 'hero_SE_idle0', kind: 'npc', source: n.sheet };
         xray.add(npcTarget);
       }
       townPortal.armed = exitPortal!.armed = false;
@@ -395,7 +397,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     if (busy || combat!.dead) return;
     const wx = Math.floor((gx - stage.x) / camera.zoom), wy = Math.floor((gy - stage.y) / camera.zoom);
     // kupiec we wnętrzu sklepu: podejdź do lady i otwórz handel
-    if (npc && world.inInterior && Math.abs(wx - npc.view.x) <= 14 && wy <= npc.view.y + 2 && wy >= npc.view.y - 44 && showMark) {
+    if (npc && world.inInterior && Math.abs(wx - npc.view.x) <= 18 && wy <= npc.view.y + 2 && wy >= npc.view.y - 64 && showMark) {
       combat!.stand();
       wantShop = true;
       goToWorld(npc.u + 64, npc.v, true);
@@ -420,7 +422,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       combat!.setTarget(null);
       const line = folk.speak(person);
       hud.say(`<span style="color:#8af59a">${person.def.name}:</span> ${line}`);
-      floaters.add(person.c.x, person.c.y - 50, line.length > 34 ? line.slice(0, 32) + '…' : line, '#f4ecd8');
+      floaters.add(person.c.x, person.c.y - 74, line.length > 34 ? line.slice(0, 32) + '…' : line, '#f4ecd8');
       return;
     }
     const m = mobs.at(wx, wy);
@@ -575,7 +577,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     sky.update(t, stage.x, stage.y, camera.zoom);
     minimap.set(world.cx, world.cy, hero.u / world.size, hero.v / world.size, world.name);
     minimap.update(dt);
-    hud.update(stage.x + hero.sx * camera.zoom, stage.y + (hero.sy - 52) * camera.zoom, camera.zoom, dt);
+    hud.update(stage.x + hero.sx * camera.zoom, stage.y + (hero.sy - 78) * camera.zoom, camera.zoom, dt);
   });
 }
 

@@ -67,8 +67,14 @@ test('odskok pod prawym przyciskiem myszy: 2 kafle, potem odnowienie 10 s', asyn
   const before = await page.evaluate(() => window.__game!.hero());
   // kliknięcie prawym przyciskiem na lewo od postaci (na prawo stoi fontanna na placu)
   await page.mouse.click(280, 400, { button: 'right' });
-  await page.waitForTimeout(800);
-  const after = await page.evaluate(() => window.__game!.hero());
+  // poczekaj, aż odskok się skończy (w wolnej przeglądarce trwa dłużej niż 0,4 s)
+  let after = await page.evaluate(() => window.__game!.hero());
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(300);
+    const p = await page.evaluate(() => window.__game!.hero());
+    if (Math.hypot(p.u - after.u, p.v - after.v) < 0.5 && Math.hypot(p.u - before.u, p.v - before.v) > 1) break;
+    after = p;
+  }
   const d = Math.hypot(after.u - before.u, after.v - before.v);
   expect(d).toBeGreaterThan(40);
   expect(d).toBeLessThanOrEqual(66);

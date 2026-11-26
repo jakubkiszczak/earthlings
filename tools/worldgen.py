@@ -206,18 +206,18 @@ GATE = 44                                # połowa szerokości bramy
 #        ściany, ściana z drzwiami ('u' = +u, 'v' = +v), okna na ścianie +v, okna na ścianie +u, znacznik)
 # dach: gable_u – dwuspadowy z kalenicą wzdłuż u, gable_v – wzdłuż v, hip – czterospadowy; palety: 0 dachówka, 1 gont, 2 łupek
 HOUSES = [
-    (-255, -100, 56, 44, 48, 'gable_v', 0, 'stone', 'u', 2, 2, 'shop'),
-    (-420, -300, 40, 56, 40, 'gable_u', 1, 'plaster', 'v', 1, 2, None),
-    (-250, -360, 32, 32, 36, 'hip', 2, 'plaster', 'u', 1, 1, None),
-    (-440, 380, 36, 48, 40, 'gable_v', 1, 'plaster', 'v', 2, 1, None),
-    (-210, 420, 30, 30, 34, 'gable_u', 0, 'plaster', 'u', 1, 1, None),
-    (-410, 110, 36, 28, 38, 'hip', 1, 'plaster', 'u', 1, 1, None),
-    (240, 250, 48, 36, 44, 'gable_u', 2, 'stone', 'v', 2, 1, None),
-    (420, 230, 34, 52, 62, 'gable_v', 0, 'plaster', 'u', 1, 3, None),
-    (300, 430, 56, 30, 40, 'hip', 1, 'plaster', 'v', 3, 1, None),
-    (230, -430, 40, 40, 48, 'hip', 0, 'stone', 'v', 2, 2, None),
-    (440, -230, 30, 44, 38, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
-    (220, 110, 30, 26, 34, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
+    (-255, -100, 56, 44, 67, 'gable_v', 0, 'stone', 'u', 2, 2, 'shop'),
+    (-420, -300, 40, 56, 56, 'gable_u', 1, 'plaster', 'v', 1, 2, None),
+    (-250, -360, 32, 32, 50, 'hip', 2, 'plaster', 'u', 1, 1, None),
+    (-440, 380, 36, 48, 56, 'gable_v', 1, 'plaster', 'v', 2, 1, None),
+    (-210, 420, 30, 30, 48, 'gable_u', 0, 'plaster', 'u', 1, 1, None),
+    (-410, 110, 36, 28, 53, 'hip', 1, 'plaster', 'u', 1, 1, None),
+    (240, 250, 48, 36, 62, 'gable_u', 2, 'stone', 'v', 2, 1, None),
+    (420, 230, 34, 52, 87, 'gable_v', 0, 'plaster', 'u', 1, 3, None),
+    (300, 430, 56, 30, 56, 'hip', 1, 'plaster', 'v', 3, 1, None),
+    (230, -430, 40, 40, 67, 'hip', 0, 'stone', 'v', 2, 2, None),
+    (440, -230, 30, 44, 53, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
+    (220, 110, 30, 26, 48, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
 ]
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
 SPAWN = (CTR - 100, CTR + 92)          # na placu, z dala od fontanny i donic
@@ -228,17 +228,17 @@ def town_buildings():
     for (cu, cv, hu, hv, eave, roof, pal, walls, door, wu, wv, tag) in HOUSES:
         r = rect(cu, cv, hu, hv)
         bs.append(dict(r, base=BASE, eave=BASE + eave, roof=roof, roofpal=pal, walls=walls, door=door,
-                       wins_u=wu, wins_v=wv, winz=12, mat=TR.ROOF, tag=tag))
+                       wins_u=wu, wins_v=wv, winz=18, mat=TR.ROOF, tag=tag))
     # katedra: wysoka nawa z dwuspadowym dachem, duże łukowe drzwi od strony placu, okna z witrażami; wieża z iglicą z tyłu
     nave = rect(-300, 240, 64, 34)
-    bs.append(dict(nave, base=BASE, eave=BASE + 62, roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
-                   winz=10, winw=5, winh=24, stained=True, doorw=14, doorh=34, pitch=1.0, mat=TR.ROOF, tag='church'))
+    bs.append(dict(nave, base=BASE, eave=BASE + 86, roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
+                   winz=14, winw=6, winh=32, stained=True, doorw=18, doorh=46, pitch=1.0, mat=TR.ROOF, tag='church'))
     tw_ = rect(-378, 240, 14, 14)
     bs.append(dict(tw_, base=BASE, eave=BASE + 150, roof='hip', roofpal=2, walls='stone', door=None, wins_u=1, wins_v=1,
                    winz=96, winw=3, winh=14, stained=True, pitch=3.0, mat=TR.ROOF, tag='church_tower'))
     r = rect(TOWER[0], TOWER[1], TOWER[2], TOWER[3])
-    bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 118, eave=BASE + 8 + 118, roof='flat', walls='stone', door='u',
-                   wins_u=1, wins_v=0, winz=46, mat=TR.WALL, tag='tower', plinth=8))
+    bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 150, eave=BASE + 8 + 150, roof='flat', walls='stone', door='u',
+                   wins_u=1, wins_v=0, winz=60, mat=TR.WALL, tag='tower', plinth=8))
     return bs
 
 
@@ -323,15 +323,15 @@ def layout(gu, gv):
     ring |= ((np.abs(gv - a0) < 7) | (np.abs(gv - a1) < 7)) & (gu > a0 - 7) & (gu < a1 + 7)
     gate = (np.abs(gu - CTR) < GATE) | (np.abs(gv - CTR) < GATE)
     tower_merlon = ring & ((((gu + gv) // 10) % 2) == 0)
-    H[ring & ~gate] = BASE + 43
-    H[ring & ~gate & tower_merlon] = BASE + 50
+    H[ring & ~gate] = BASE + 60
+    H[ring & ~gate & tower_merlon] = BASE + 68
     MAT[ring & ~gate] = TR.WALL
     # baszty przy bramach
     for (pu_, pv_) in [(CTR - GATE - 10, a0), (CTR + GATE + 10, a0), (CTR - GATE - 10, a1), (CTR + GATE + 10, a1),
                        (a0, CTR - GATE - 10), (a0, CTR + GATE + 10), (a1, CTR - GATE - 10), (a1, CTR + GATE + 10)]:
         bt = (np.abs(gu - pu_) < 14) & (np.abs(gv - pv_) < 14)
-        H[bt] = BASE + 67
-        H[bt & ((((gu + gv) // 8) % 2) == 0) & ((np.abs(gu - pu_) > 9) | (np.abs(gv - pv_) > 9))] = BASE + 74
+        H[bt] = BASE + 90
+        H[bt & ((((gu + gv) // 8) % 2) == 0) & ((np.abs(gu - pu_) > 9) | (np.abs(gv - pv_) > 9))] = BASE + 98
         MAT[bt] = TR.WALL
     buildings = town_buildings()
     for b in buildings:
@@ -699,7 +699,7 @@ def gen_cell(ci, cj, sizes):
             ents.append(dict(k='prop', s=[f'planter{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M)))
         # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
         lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
-        ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 30) + Y0), z=int(lu + lv - 2 * M) + 2))
+        ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 42) + Y0), z=int(lu + lv - 2 * M) + 2))
     bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)
     if (ci, cj) == (bcx, bcy):
         lu, lv = BRIDGE['u0'] - ou + M, BRIDGE['v0'] - ov + M
@@ -766,7 +766,7 @@ def gen_cell(ci, cj, sizes):
 RU, RV = 320, 256        # pokój 10×8 kafli
 MI = 32                  # margines wokół pokoju
 NI = max(RU, RV) + 2 * MI
-HI_MAX = 120
+HI_MAX = 150
 
 
 def gen_interior():
@@ -778,10 +778,10 @@ def gen_interior():
     MAT = np.full((NI, NI), TR.WOOD, np.int8)
     room = (u >= 0) & (u < RU) & (v >= 0) & (v < RV)
     # ściany tylne (wysokie, z oknami) i przednie (niski cokół, żeby widzieć wnętrze)
-    walls = [dict(u0=-10, u1=-1, v0=-10, v1=RV + 5, base=BASE, eave=BASE + 80, top=BASE + 80, roof='flat', walls='plaster',
-                  door=None, wins_u=0, wins_v=2, winz=30),
-             dict(u0=-10, u1=RU + 5, v0=-10, v1=-1, base=BASE, eave=BASE + 80, top=BASE + 80, roof='flat', walls='plaster',
-                  door=None, wins_u=3, wins_v=0, winz=30)]
+    walls = [dict(u0=-10, u1=-1, v0=-10, v1=RV + 5, base=BASE, eave=BASE + 110, top=BASE + 110, roof='flat', walls='plaster',
+                  door=None, wins_u=0, wins_v=2, winz=42),
+             dict(u0=-10, u1=RU + 5, v0=-10, v1=-1, base=BASE, eave=BASE + 110, top=BASE + 110, roof='flat', walls='plaster',
+                  door=None, wins_u=3, wins_v=0, winz=42)]
     for b in walls:
         m = (u >= b['u0']) & (u <= b['u1']) & (v >= b['v0']) & (v <= b['v1'])
         H[m] = b['top']; MAT[m] = TR.WALL
@@ -790,8 +790,8 @@ def gen_interior():
     # lada (drewno) i regały
     COUNTER = (56, 72, 60, 200)        # lada: niska, kupiec stoi dość daleko za nią, żeby był cały widoczny
     m = (u >= COUNTER[0]) & (u <= COUNTER[1]) & (v >= COUNTER[2]) & (v <= COUNTER[3])
-    H[m] = BASE + 14; MAT[m] = TR.WOOD
-    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 8, 40, 220, 52)]:
+    H[m] = BASE + 20; MAT[m] = TR.WOOD
+    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 64), (0, 8, 40, 220, 72)]:
         m = (u >= a0) & (u <= a1) & (v >= b0) & (v <= b1)
         H[m] = BASE + h; MAT[m] = TR.WOOD
     W_, HS_ = 2 * NI, NI + HI_MAX + 8
@@ -824,7 +824,7 @@ def gen_interior():
         x, y = scr(cu, cv_)
         ents.append(dict(k='prop', s=[nm], x=x, y=y, z=int(cu + cv_)))
     for (cu, cv_) in [(2, 62), (2, 200), (96, 2), (270, 2)]:
-        x, y = scrh(cu, cv_, BASE + 44)
+        x, y = scrh(cu, cv_, BASE + 62)
         ents.append(dict(k='torch', s=['torch0'], x=x, y=y, z=int(cu + cv_)))
     meta = dict(cx=-1, cy=-1, name='Sklep', biome='interior', W=W_, H=HS_, X0=NI, Y0=HI_MAX + MI, OFF=MI, N=NI, CELL=CELLW, NC=NC,
                 size=max(RU, RV), bands=bands, ents=ents)

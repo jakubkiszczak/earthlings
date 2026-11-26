@@ -1,7 +1,7 @@
 // Bohater (ruch po ścieżce, 8 kierunków z odbiciem lustrzanym) i pies idący jego śladem.
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { Atlas } from '../render/atlas';
-import type { FrameSource } from '../chars/sheet';
+import { CharSheet, type FrameSource } from '../chars/sheet';
 import type { WorldGrid } from '../world/grid';
 
 const HERO_SPEED = 51;   // jednostek świata na sekundę
@@ -124,7 +124,7 @@ export class Hero {
     this.sy = Math.round(y);
     this.a.c.position.set(this.sx, this.sy);
     this.a.c.zIndex = actorZ(this.u, this.v);
-    this.headMark.position.set(0, -49 + Math.round(Math.sin(t * 4)));
+    this.headMark.position.set(0, -74 + Math.round(Math.sin(t * 4)));
   }
 }
 
@@ -164,13 +164,14 @@ export class Dog {
   }
 }
 
-/** NPC stojący w miejscu (np. kupiec za ladą): oddech 2 klatki, zwrócony w stronę SE. */
+/** NPC stojący w miejscu (np. kupiec za ladą): oddech 2 klatki, zwrócony w stronę SE; wygląd z generatora postaci. */
 export class Npc {
-  frameName = 'npc_SE_idle0';
+  frameName = '';
   private readonly a: Actor;
+  readonly sheet = new CharSheet({ race: 'human', cls: 'warrior', hair: 'brown', build: 'stocky', beard: 'mustache', gear: { weapon: 0, shield: 0, armor: 0, helm: 0, boots: 0, gloves: 0 } });
 
   /** h – wysokość podłogi (NPC może stać poza siatką chodzenia, np. za ladą) */
-  constructor(private readonly atlas: Atlas, layer: Container, public u: number, public v: number, private readonly h: number) {
+  constructor(atlas: Atlas, layer: Container, public u: number, public v: number, private readonly h: number) {
     this.a = makeActor(atlas, layer, 1);
   }
 
@@ -178,8 +179,8 @@ export class Npc {
   get body(): Sprite { return this.a.s; }
 
   update(grid: WorldGrid, at: number) {
-    this.frameName = `npc_SE_idle${Math.floor(at * 1.4) % 2}`;
-    this.atlas.setFrame(this.a.s, this.frameName);
+    const name = `hero_SE_idle${Math.floor(at * 1.4) % 2}`;
+    if (name !== this.frameName) { this.frameName = name; this.sheet.setFrame(this.a.s, name); }
     const [x, y] = grid.toScreenAt(this.u, this.v, this.h);
     this.a.c.position.set(Math.round(x), Math.round(y));
     this.a.c.zIndex = actorZ(this.u, this.v);

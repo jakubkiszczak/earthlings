@@ -2,7 +2,8 @@
 // DOM nad płótnem z niebem; grafiki ramek z HUD, tekst fontem Jersey 15, skala całkowita (--s).
 import { CharSheet } from '../chars/sheet';
 import { drawPortrait } from '../chars/portrait';
-import type { Gear } from '../chars/chargen';
+import { CH, CW, type Gear } from '../chars/chargen';
+import { portraitArt } from './art';
 import {
   ATTRS, BEARDS, BUILDS, CLASSES, HAIRS, RACES, START_POINTS, addAttrs, baseAttributes, derived, nameError, normalizeLook,
   type AttrId, type Attributes, type ClassId, type Look, type Race,
@@ -24,6 +25,9 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: 
 export const lookOf = (c: Pick<SavedChar, 'race' | 'cls' | 'look'>) => ({ race: c.race, cls: c.cls, ...c.look });
 export const titleOf = (c: Pick<SavedChar, 'race' | 'cls'>) => `${RACES[c.race].name} · ${CLASSES[c.cls].name}`;
 
+/** malowany portret rasy i klasy (gdy jest w assets/art/) */
+const artImg = (src: string) => { const i = el('img', 'pvart'); if (src) i.src = src; else i.hidden = true; i.alt = ''; return i; };
+
 /** animowany podgląd postaci na płótnie (obrót strzałkami / automatycznie) */
 class Preview {
   readonly canvas = el('canvas', 'pv');
@@ -31,8 +35,8 @@ class Preview {
   private dir = 0;
   private t = 0;
   constructor(private readonly scale: number, private readonly walk = false) {
-    this.canvas.width = 28 * scale;
-    this.canvas.height = 42 * scale;
+    this.canvas.width = CW * scale;
+    this.canvas.height = CH * scale;
   }
   set(look: ConstructorParameters<typeof CharSheet>[0]) {
     this.sheet?.destroy();
@@ -57,6 +61,8 @@ class Preview {
 
 /** portret do HUD: głowa z klatki S w powiększeniu, jako obraz (data URL) */
 export function portraitOf(c: Pick<SavedChar, 'race' | 'cls' | 'look'>, gear?: Gear): string {
+  const art = portraitArt(c.race, c.cls);
+  if (art) return art;
   return drawPortrait({ ...lookOf(c), gear }).toDataURL();
 }
 
@@ -122,10 +128,11 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
       const slot = el('button', 'slot' + (c ? '' : ' empty'));
       if (c) {
         slot.dataset.id = c.id;
-        const pv = new Preview(3);
+        const pv = new Preview(2);
         pv.set(lookOf(c));
         previews.push(pv);
-        slot.append(pv.canvas, el('div', 'sname', esc(c.name)), el('div', 'sinfo', `${titleOf(c)}<br>poziom ${c.level}`));
+        const art = portraitArt(c.race, c.cls);
+        slot.append(art ? artImg(art) : pv.canvas, el('div', 'sname', esc(c.name)), el('div', 'sinfo', `${titleOf(c)}<br>poziom ${c.level}`));
         slot.addEventListener('click', () => { sel = c.id; render(); });
         slot.addEventListener('dblclick', () => onPlay(c));
       } else {
@@ -170,7 +177,8 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
     const cols = el('div', 'ccols');
     // podgląd
     const left = el('div', 'cleft');
-    const pv = new Preview(5);
+    const pv = new Preview(3);
+    const art = artImg('');
     previews.push(pv);
     const turnL = el('button', 'mbtn small ghost', '◀'), turnR = el('button', 'mbtn small ghost', '▶');
     turnL.title = 'Obróć'; turnR.title = 'Obróć';
@@ -178,7 +186,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
     turnR.addEventListener('click', () => pv.turn(-1));
     const turn = el('div', 'turn'); turn.append(turnL, turnR);
     const summary = el('div', 'csum');
-    left.append(pv.canvas, turn, summary);
+    left.append(art, pv.canvas, turn, summary);
     // formularz
     const right = el('div', 'cright');
     const nameIn = el('input', 'cname') as HTMLInputElement;
@@ -251,6 +259,9 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
       pointsEl.innerHTML = `Do rozdzielenia: <b>${left_()}</b> z ${START_POINTS}`;
       summary.innerHTML = `<b>${RACES[race].name} · ${CLASSES[cls].name}</b><br>Zdrowie <b>${dv.hp}</b> · Mana <b>${dv.mana}</b>`;
       pv.set({ race, cls, ...look });
+      const au = portraitArt(race, cls);
+      art.hidden = !au;
+      if (au) art.src = au;
       err.textContent = '';
     }
     createBtn.addEventListener('click', () => {

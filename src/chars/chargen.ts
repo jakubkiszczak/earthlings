@@ -1,11 +1,15 @@
-// Generator wyglądu postaci w pikselach (28×42, kotwica w środku stóp 14,41) – przeniesiony z tools/hero9.py
-// i sparametryzowany: rasa, klasa (ubiór i broń), budowa ciała, włosy, broda.
+// Generator wyglądu postaci w pikselach – sparametryzowany: rasa, klasa (ubiór i broń), budowa ciała, włosy, broda, ekwipunek.
+// Kształty opisane są w jednostkach projektu 28×42, a rysowane w skali K = 1,5 (42×63 px), potem przebiegi detali:
+// faktura i fałdy materiału, odblaski metalu, pasma włosów, wewnętrzne kontury.
 // 5 kierunków (S, SE, E, NE, N; zachodnie to lustro), chód 4 klatki, oddech 2.
 import type { Beard, Build, ClassId, Hair, Race } from '../logic/character';
 
-export const CW = 28;
-export const CH = 42;
-export const ANCHOR: [number, number] = [14, 41];
+/** skala rysowania względem siatki projektu */
+export const K = 1.5;
+const DW = 28, DH = 42;                       // siatka projektu
+export const CW = Math.round(DW * K);         // 42
+export const CH = Math.round(DH * K);         // 63
+export const ANCHOR: [number, number] = [Math.round(14 * K), CH - 1];
 export const DIRS = ['S', 'SE', 'E', 'NE', 'N'] as const;
 export type Dir = (typeof DIRS)[number];
 export const FRAMES = ['walk0', 'walk1', 'walk2', 'walk3', 'idle0', 'idle1'] as const;
@@ -107,44 +111,95 @@ function palette(l: CharLook, glow = false): Record<string, RGB> {
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, hex(v)]));
 }
 
+// grupy materiałów do przebiegów detali
+const CLOTH = new Set(['B', 'b', 'D', 'P', 'p', 'q', 'L', 'l', 'n', 'R', 'r', 'x']);
+const METAL = new Set(['V', 'v', 'E1', 'E2', 'T3', 'H1', 'H2', 'M']);
+const HAIRK = new Set(['H', 'h', 'g']);
+const SKINK = new Set(['S', 's', 'z', 'X1', 'X2', 'BL']);
+const group = (k: string) => (SKINK.has(k) ? 1 : HAIRK.has(k) ? 2 : METAL.has(k) ? 3 : CLOTH.has(k) ? 4 : 5);
+
 class Cv {
   readonly a = new Uint8ClampedArray(CW * CH * 4);
+  /** klucz palety każdego piksela (do przebiegów detali) */
+  private readonly keys: string[] = new Array(CW * CH).fill('');
   constructor(private readonly pal: Record<string, RGB>) {}
+  private set(X: number, Y: number, c: string) {
+    if (X < 0 || Y < 0 || X >= CW || Y >= CH || !c) return;
+    const col = this.pal[c], i = Y * CW + X, o = i * 4;
+    this.a[o] = col[0]; this.a[o + 1] = col[1]; this.a[o + 2] = col[2]; this.a[o + 3] = 255;
+    this.keys[i] = c;
+  }
+  /** piksel w wysokiej rozdzielczości (współrzędne docelowe) */
+  hp(X: number, Y: number, c: string) { this.set(Math.round(X), Math.round(Y), c); }
+  /** piksele wysokiej rozdzielczości, których środki leżą w [a·K, b·K) */
+  private span(a: number, b: number): [number, number] { return [Math.ceil(a * K - 0.5), Math.ceil(b * K - 0.5) - 1]; }
+  /** piksel projektu = blok 1–2 px */
   px(x: number, y: number, c: string) {
     const xi = Math.round(x), yi = Math.round(y);
-    if (xi < 0 || yi < 0 || xi >= CW || yi >= CH || !c) return;
-    const col = this.pal[c], o = (yi * CW + xi) * 4;
-    this.a[o] = col[0]; this.a[o + 1] = col[1]; this.a[o + 2] = col[2]; this.a[o + 3] = 255;
+    const [X0, X1] = this.span(xi, xi + 1), [Y0, Y1] = this.span(yi, yi + 1);
+    for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) this.set(X, Y, c);
   }
   rect(x0: number, y0: number, x1: number, y1: number, c: string) {
-    for (let y = Math.round(y0); y <= Math.round(y1); y++) for (let x = Math.round(x0); x <= Math.round(x1); x++) this.px(x, y, c);
+    const [X0, X1] = this.span(Math.round(x0), Math.round(x1) + 1), [Y0, Y1] = this.span(Math.round(y0), Math.round(y1) + 1);
+    for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) this.set(X, Y, c);
   }
   shadeRect(x0: number, y0: number, x1: number, y1: number, lit: string, mid: string, dark: string) {
-    const a = Math.round(x0), b = Math.round(x1), w = Math.max(1, b - a);
-    for (let y = Math.round(y0); y <= Math.round(y1); y++) for (let x = a; x <= b; x++) {
-      const t = (x - a) / w;
-      this.px(x, y, t < 0.3 ? lit : t < 0.75 ? mid : dark);
+    const [X0, X1] = this.span(Math.round(x0), Math.round(x1) + 1), [Y0, Y1] = this.span(Math.round(y0), Math.round(y1) + 1);
+    const w = Math.max(1, X1 - X0);
+    for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) {
+      const t = (X - X0) / w;
+      this.set(X, Y, t < 0.3 ? lit : t < 0.75 ? mid : dark);
     }
   }
+  /** elipsa liczona w wysokiej rozdzielczości (gładsze krawędzie i cieniowanie) */
   disc(cx: number, cy: number, rx: number, ry: number, lit: string, mid: string, dark: string) {
-    for (let y = Math.floor(cy - ry - 1); y <= Math.floor(cy + ry + 1); y++) for (let x = Math.floor(cx - rx - 1); x <= Math.floor(cx + rx + 1); x++) {
-      const dx = (x - cx) / rx, dy = (y - cy) / ry;
+    const [X0, X1] = this.span(cx - rx - 1, cx + rx + 2), [Y0, Y1] = this.span(cy - ry - 1, cy + ry + 2);
+    for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) {
+      const xd = (X + 0.5) / K - 0.5, yd = (Y + 0.5) / K - 0.5;
+      const dx = (xd - cx) / rx, dy = (yd - cy) / ry;
       if (dx * dx + dy * dy <= 1) {
         const l = dx * 0.7 + dy * 0.7;
-        this.px(x, y, l < -0.35 ? lit : l < 0.45 ? mid : dark);
+        this.set(X, Y, l < -0.35 ? lit : l < 0.45 ? mid : dark);
       }
     }
   }
   line(x0: number, y0: number, x1: number, y1: number, c: string, c2?: string) {
-    const n = Math.floor(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))) + 1;
+    const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * K) + 1;
     for (let q = 0; q <= n; q++) {
       const t = q / Math.max(n, 1), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
-      this.px(x, y, c);
-      if (c2) this.px(x + 1, y, c2);
+      const X = Math.round((x + 0.5) * K - 0.5), Y = Math.round((y + 0.5) * K - 0.5);
+      this.set(X, Y, c); this.set(X + 1, Y, c2 ?? c);
+      if (c2) this.set(X + 2, Y, c2);
     }
+  }
+  /** przebiegi detali: faktura materiału, fałdy, odblaski metalu, pasma włosów, wewnętrzne kontury */
+  details() {
+    const k = this.keys, a = this.a;
+    const mul = (i: number, f: number, add = 0) => { const o = i * 4; a[o] = Math.min(255, a[o] * f + add); a[o + 1] = Math.min(255, a[o + 1] * f + add); a[o + 2] = Math.min(255, a[o + 2] * f + add); };
+    const g = (X: number, Y: number) => (X < 0 || Y < 0 || X >= CW || Y >= CH ? 0 : k[Y * CW + X] ? group(k[Y * CW + X]) : 0);
+    const out: [number, number][] = [];
+    for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) {
+      const i = Y * CW + X, key = k[i];
+      if (!key) continue;
+      const gr = group(key);
+      if (gr === 4) {                                   // materiał: splot i pionowe fałdy
+        // uporządkowane fałdy: pionowe zagłębienia co 5 px z jasną krawędzią po lewej (światło z lewej-góry)
+        const f = (X + (Y >> 3)) % 5;
+        if (f === 0) mul(i, 0.84); else if (f === 4 && g(X + 1, Y) === 4) mul(i, 1.08, 6);
+        if (g(X, Y - 1) !== 4) mul(i, 1.1, 8);           // górna krawędź materiału łapie światło
+      } else if (gr === 3) {                            // metal: odblask na górnej-lewej krawędzi, ciemniejszy dół
+        if (g(X - 1, Y) !== 3 || g(X, Y - 1) !== 3) mul(i, 1.12, 18);
+        else if (g(X, Y + 1) !== 3) mul(i, 0.78);
+      }
+      // wewnętrzny kontur: granica z innym materiałem poniżej / po prawej
+      const gb = g(X, Y + 1), gr2 = g(X + 1, Y);
+      if ((gb && gb !== gr && gr !== 1) || (gr2 && gr2 !== gr && gr === 4)) out.push([X, Y]);
+    }
+    for (const [X, Y] of out) mul(Y * CW + X, 0.72);
   }
   /** ciemny kontur 1 px wokół sylwetki */
   outline() {
+    this.details();
     const al = (x: number, y: number) => x >= 0 && y >= 0 && x < CW && y < CH && this.a[(y * CW + x) * 4 + 3] > 0;
     const add: number[] = [];
     for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
@@ -152,6 +207,107 @@ class Cv {
       if (al(x - 1, y) || al(x + 1, y) || al(x, y - 1) || al(x, y + 1)) add.push(y * CW + x);
     }
     for (const i of add) { this.a[i * 4] = 22; this.a[i * 4 + 1] = 15; this.a[i * 4 + 2] = 18; this.a[i * 4 + 3] = 255; }
+  }
+}
+
+
+/** głowa w wysokiej rozdzielczości: włosy z pasmami, twarz z oczami (biel, tęczówka, rzęsy), brwiami, nosem z cieniem,
+ *  ustami, rumieńcami, uszami (elfa – szpiczaste), broda/wąsy i pasma przy twarzy */
+function hiHead(cv: Cv, l: CharLook, d: Dir, hx: number, hy: number, back: boolean, bald: boolean, elf: boolean) {
+  const HX = (hx + 0.5) * K - 0.5, HY = (hy + 0.5) * K - 0.5;
+  const P = (X: number, Y: number, c: string) => cv.hp(X, Y, c);
+  const [h1, h2, h3] = bald ? ['S', 's', 'z'] : ['H', 'h', 'g'];
+  const bc: [string, string] = bald ? ['h', 'g'] : ['h', 'g'];     // broda (przy łysinie – brązowa z palety włosów)
+  // czaszka / włosy: elipsa z cieniowaniem i pasmami
+  const rx = 8.6, ry = 9.2, cy = HY - 1;
+  for (let Y = Math.floor(cy - ry); Y <= Math.ceil(cy + ry); Y++) for (let X = Math.floor(HX - rx); X <= Math.ceil(HX + rx); X++) {
+    const dx = (X - HX) / rx, dy = (Y - cy) / ry;
+    if (dx * dx + dy * dy > 1) continue;
+    const lt = dx * 0.7 + dy * 0.7;
+    let c = lt < -0.45 ? h1 : lt < 0.4 ? h2 : h3;
+    if (!bald && ((X * 3 + (Y >> 2)) % 4 === 0) && lt > -0.6) c = c === h1 ? h2 : h3;    // pasma (pionowe, lekko falujące)
+    P(X, Y, c);
+  }
+  if (bald) { P(HX - 4, cy - 6, 'w'); P(HX - 3, cy - 6, 'w'); P(HX - 4, cy - 5, 'S'); }
+  const earElf = (X: number, Y: number, dir: number) => {
+    for (let t = 0; t < 6; t++) { P(X + dir * t, Y - t * 0.9, t < 4 ? 'S' : 's'); P(X + dir * t, Y - t * 0.9 + 1, t < 3 ? 's' : 'z'); }
+  };
+  if (back) {
+    if (!bald) for (let Y = Math.round(cy + 5); Y <= Math.round(cy + (elf || l.kind === 'woman' ? 14 : 9)); Y++)
+      for (let X = Math.round(HX - 6); X <= Math.round(HX + 6); X++) P(X, Y, (X + Y) % 3 === 0 ? h3 : h2);
+    if (d === 'NE') { for (let Y = 0; Y < 5; Y++) P(HX + 8, HY + Y, Y < 3 ? 's' : 'z'); }
+    if (elf) { if (d === 'N') earElf(HX - 8, HY, -1); earElf(HX + 8, HY, 1); }
+    return;
+  }
+  // twarz
+  const FX = d === 'S' ? HX : d === 'SE' ? HX + 1.5 : HX + 3.5;
+  const hw = d === 'S' ? 6 : d === 'SE' ? 5.5 : 4.5;
+  const top = HY - 3, bot = HY + 9;
+  for (let Y = Math.round(top); Y <= Math.round(bot); Y++) {
+    const taper = Y > HY + 4 ? 1 - ((Y - HY - 4) / 6) * 0.45 : 1;
+    const w = hw * taper;
+    for (let X = Math.round(FX - w); X <= Math.round(FX + w); X++) {
+      const t = (X - (FX - w)) / (2 * w);
+      P(X, Y, Y >= bot - 0.5 ? 'z' : t > 0.78 ? 's' : 'S');
+    }
+  }
+  // grzywka (postrzępiona) i pasma przy twarzy
+  if (!bald) {
+    for (let X = Math.round(FX - hw - 1); X <= Math.round(FX + hw + 1); X++) {
+      const depth = 2 + ((X * 7) % 3 === 0 ? 1 : 0) + ((X * 5) % 4 === 0 ? 1 : 0);
+      for (let Y = Math.round(top - 1); Y < Math.round(top - 1 + depth); Y++) P(X, Y, (X + Y) % 2 ? h1 : h2);
+    }
+    const long = elf || l.kind === 'woman';
+    const sides = d === 'E' ? [FX - hw - 2] : [FX - hw - 1, FX + hw + 1];
+    for (const sx of sides) for (let Y = Math.round(top); Y <= Math.round(HY + (long ? 12 : 4)); Y++) {
+      P(sx, Y, Y % 3 === 0 ? h3 : h2); if (long) P(sx + (sx < FX ? -1 : 1), Y + 1, h3);
+    }
+  }
+  // oczy, brwi
+  const ey = Math.round(HY + 1);
+  const eyes = d === 'S' ? [[Math.round(FX - 3), 1], [Math.round(FX + 3), 1]] : d === 'SE' ? [[Math.round(FX - 2.5), 0], [Math.round(FX + 2.5), 1]] : [[Math.round(FX + 2), 0]];
+  for (const [ex, wide] of eyes) {
+    const xs = wide ? [ex - 1, ex, ex + 1] : [ex, ex + 1];
+    for (const x of xs) P(x, ey - 1, 'o');                                   // rzęsy / powieka
+    if (wide) { P(ex - 1, ey, 'w'); P(ex, ey, 'i'); P(ex + 1, ey, 'w'); P(ex, ey + 1, 'o'); }
+    else { P(ex, ey, 'w'); P(ex + 1, ey, 'i'); P(ex + 1, ey + 1, 'o'); }
+    for (const x of xs) P(x, ey - 3, 'y');                                   // brwi
+    P(xs[xs.length - 1] + (ex > FX ? 1 : 0), ey - 3, 'y');
+  }
+  // nos, usta, rumieńce
+  if (d === 'S') { P(FX, ey + 1, 'S'); P(FX + 1, ey + 2, 's'); P(FX, ey + 3, 'z'); P(FX + 1, ey + 3, 'z'); }
+  else if (d === 'SE') { P(FX + 2, ey + 1, 'S'); P(FX + 3, ey + 2, 's'); P(FX + 3, ey + 3, 'z'); }
+  else { P(FX + hw + 1, ey + 1, 'S'); P(FX + hw + 1, ey + 2, 's'); P(FX + hw, ey + 3, 'z'); }
+  const mx = d === 'S' ? FX : d === 'SE' ? FX + 1.5 : FX + 3;
+  for (let x = Math.round(mx - 1.5); x <= Math.round(mx + 1.5); x++) P(x, ey + 5, 'm');
+  P(mx, ey + 6, 'BL');
+  if (d !== 'E') { P(FX - hw + 1, ey + 3, 'BL'); P(FX - hw + 2, ey + 3, 'BL'); }
+  P(FX + (d === 'E' ? 1 : hw - 2), ey + 3, 'BL');
+  // uszy
+  if (elf) {
+    if (d === 'S') { earElf(FX - hw - 1, ey, -1); earElf(FX + hw + 1, ey, 1); }
+    else if (d === 'SE') earElf(FX - hw - 1, ey, -1);
+    else earElf(FX - hw - 1, ey, -1);
+  } else {
+    const ears = d === 'S' ? [FX - hw - 1, FX + hw + 1] : d === 'SE' ? [FX - hw - 1] : [FX - hw - 1];
+    for (const ex of ears) { P(ex, ey, 's'); P(ex, ey + 1, 'S'); P(ex, ey + 2, 'z'); }
+  }
+  // broda / wąsy
+  if (l.beard !== 'none' && !elf) {
+    const bl = l.beard === 'long' ? 13 : l.beard === 'short' ? 6 : 0;
+    if (l.beard === 'mustache') {
+      for (let x = Math.round(mx - 3); x <= Math.round(mx + 3); x++) if (Math.abs(x - mx) > 0.6) P(x, ey + 4, bc[0]);
+      P(mx - 3, ey + 5, bc[1]); P(mx + 3, ey + 5, bc[1]); P(mx - 3, ey + 6, bc[1]); P(mx + 3, ey + 6, bc[1]);
+    } else {
+      for (let Y = ey + 3; Y <= ey + 4 + bl; Y++) {
+        const w = Y < ey + 6 ? hw : Math.max(1.5, hw - (Y - ey - 6) * (l.beard === 'long' ? 0.45 : 1.2));
+        for (let X = Math.round(FX - w); X <= Math.round(FX + w); X++) {
+          if (Y >= ey + 4 && Y <= ey + 6 && Math.abs(X - mx) <= 1.6) continue;          // usta widoczne
+          if (Y === ey + 3 && Math.abs(X - FX) < hw - 1.5) continue;
+          P(X, Y, (X * 3 + Y) % 4 === 0 ? bc[1] : bc[0]);
+        }
+      }
+    }
   }
 }
 
@@ -334,82 +490,11 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
   cv.rect(cx + tw - 2.5, 16 + by, cx + tw - 0.5, 17 + by, 'r');
   cv.px(cx - 1, 17 + by, 'r'); cv.px(cx + 2, 16 + by, 'x');
 
-  // ---------------- głowa
+  // ---------------- głowa (rysowana bezpośrednio w wysokiej rozdzielczości – twarz to najważniejszy detal)
   const hy = 10 + by;
   const bald = l.hair === 'bald';
-  const [hH, hh, hg] = bald ? ['S', 's', 'z'] : ['H', 'h', 'g'];
-  const beardC: [string, string, string] = bald ? ['h', 'g', 'g'] : ['h', 'g', 'g'];
   const elf = l.race === 'elf';
-  const ear = (x: number, y: number, dirx: number) => {
-    // ucho elfa: szpic do góry na zewnątrz
-    cv.px(x, y + 1, 'S'); cv.px(x, y, 'S'); cv.px(x + dirx, y - 1, 'S'); cv.px(x + 2 * dirx, y - 2, 's'); cv.px(x, y + 2, 's');
-  };
-  if (back) {
-    cv.disc(hx, hy, 5.6, 6.0, hH, hh, hg);
-    if (!bald) {
-      for (let k = -4; k <= 4; k += 2) cv.line(hx + k * 0.8, hy - 4, hx + k, hy + 4, 'h');
-      cv.px(hx - 2, hy - 4, 'H'); cv.px(hx - 3, hy - 3, 'H');
-      cv.rect(hx - 4, hy + 5, hx + 4, hy + 5, 'g');
-      if (elf) cv.rect(hx - 3, hy + 5, hx + 3, hy + 8, 'h');      // dłuższe włosy elfa
-    } else {
-      cv.px(hx - 2, hy - 3, 'w');
-    }
-    if (d === 'NE') { cv.rect(hx + 4.5, hy, hx + 5.5, hy + 3, 's'); cv.px(hx + 5.5, hy + 1, 'z'); }
-    if (elf) { if (d === 'N') { ear(hx - 6, hy, -1); ear(hx + 6, hy, 1); } else ear(hx + 6, hy, 1); }
-  } else {
-    cv.disc(hx, hy - 0.5, 5.6, 6.0, hH, hh, hg);
-    const [fx0, fx1] = d === 'S' ? [hx - 4, hx + 4] : d === 'SE' ? [hx - 3, hx + 4] : [hx, hx + 5];
-    cv.rect(fx0, hy - 1, fx1, hy + 4, 'S');
-    cv.rect(fx1 - 1, hy - 1, fx1, hy + 3, 's');
-    cv.rect(fx0, hy + 4, fx1, hy + 4, 's');
-    if (!bald) {
-      for (let x = Math.floor(fx0); x <= fx1; x++) cv.px(x, hy - 2, x % 2 ? 'H' : 'h');
-      cv.px(fx0 + 1, hy - 1, 'h'); cv.px(fx1 - 1, hy - 1, 'g');
-      cv.px(hx - 3, hy - 4, 'H'); cv.px(hx - 1, hy - 5, 'H'); cv.px(hx + 2, hy - 5, 'h');   // pasma włosów
-      if (elf && d !== 'E') { cv.rect(fx0 - 1, hy - 1, fx0 - 1, hy + 5, 'h'); cv.rect(fx1 + 1, hy - 1, fx1 + 1, hy + 4, 'g'); }
-    } else {
-      cv.px(hx - 2, hy - 4, 'w');
-    }
-    // twarz: brwi, oczy, nos, usta, broda
-    const beard = (rows: [number, number, number][]) => {
-      for (const [y, x0, x1] of rows) cv.rect(x0, y, x1, y, (y - hy) % 2 ? beardC[0] : beardC[1]);
-    };
-    if (d === 'S') {
-      // oczy szerzej rozstawione: biel + tęczówka, brwi nad nimi, rumieńce, nos z cieniem
-      cv.px(hx - 3, hy, 'y'); cv.px(hx - 2, hy, 'y'); cv.px(hx + 2, hy, 'y'); cv.px(hx + 3, hy, 'y');
-      cv.px(hx - 3, hy + 1, 'w'); cv.px(hx - 2, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'i'); cv.px(hx + 3, hy + 1, 'w');
-      cv.px(hx - 2, hy + 2, 's'); cv.px(hx + 2, hy + 2, 's');
-      cv.px(hx, hy + 1, 'S'); cv.px(hx, hy + 2, 'z'); cv.px(hx + 1, hy + 2, 's');
-      cv.px(hx - 3, hy + 3, 'BL'); cv.px(hx + 3, hy + 3, 'BL');
-      if (l.beard === 'short') { beard([[hy + 3, hx - 2, hx + 2], [hy + 4, hx - 2, hx + 2], [hy + 5, hx - 2, hx + 2], [hy + 6, hx - 1, hx + 1]]); cv.px(hx - 3, hy + 3, beardC[2]); cv.px(hx + 3, hy + 3, beardC[2]); cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm'); }
-      else if (l.beard === 'long') { beard([[hy + 3, hx - 3, hx + 3], [hy + 4, hx - 3, hx + 3], [hy + 5, hx - 3, hx + 3], [hy + 6, hx - 2, hx + 2], [hy + 7, hx - 2, hx + 2], [hy + 8, hx - 1, hx + 1], [hy + 9, hx - 1, hx + 1], [hy + 10, hx, hx]]); cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm'); }
-      else if (l.beard === 'mustache') { cv.rect(hx - 2, hy + 3, hx - 1, hy + 3, beardC[0]); cv.rect(hx + 1, hy + 3, hx + 2, hy + 3, beardC[1]); cv.px(hx - 3, hy + 4, beardC[1]); cv.px(hx + 3, hy + 4, beardC[2]); cv.rect(hx - 1, hy + 4, hx + 1, hy + 4, 'm'); }
-      else cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm');
-      if (elf) { ear(hx - 6, hy, -1); ear(hx + 6, hy, 1); }
-    } else if (d === 'SE') {
-      cv.px(hx - 2, hy, 'y'); cv.px(hx - 1, hy, 'y'); cv.px(hx + 2, hy, 'y'); cv.px(hx + 3, hy, 'y');
-      cv.px(hx - 2, hy + 1, 'w'); cv.px(hx - 1, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'w'); cv.px(hx + 3, hy + 1, 'i');
-      cv.px(hx - 1, hy + 2, 's'); cv.px(hx + 3, hy + 2, 's');
-      cv.px(hx + 4, hy + 2, 'z'); cv.px(hx + 4, hy + 1, 'S');
-      cv.px(hx - 2, hy + 3, 'BL'); cv.px(hx + 3, hy + 3, 'BL');
-      if (l.beard === 'short') { beard([[hy + 3, hx - 1, hx + 3], [hy + 4, hx - 1, hx + 3], [hy + 5, hx - 1, hx + 3], [hy + 6, hx, hx + 2]]); cv.px(hx + 4, hy + 3, beardC[2]); cv.rect(hx, hy + 3, hx + 2, hy + 3, 'm'); }
-      else if (l.beard === 'long') { beard([[hy + 3, hx - 2, hx + 4], [hy + 4, hx - 2, hx + 4], [hy + 5, hx - 1, hx + 3], [hy + 6, hx - 1, hx + 3], [hy + 7, hx, hx + 2], [hy + 8, hx, hx + 2], [hy + 9, hx + 1, hx + 1]]); cv.rect(hx, hy + 3, hx + 2, hy + 3, 'm'); }
-      else if (l.beard === 'mustache') { cv.rect(hx - 1, hy + 3, hx + 3, hy + 3, beardC[0]); cv.px(hx - 1, hy + 4, beardC[1]); cv.px(hx + 3, hy + 4, beardC[2]); cv.rect(hx, hy + 4, hx + 2, hy + 4, 'm'); }
-      else cv.rect(hx, hy + 3, hx + 2, hy + 3, 'm');
-      if (elf) ear(hx - 3, hy, -1); else cv.px(hx - 2, hy + 1, 'z');
-    } else {
-      cv.px(hx + 3, hy, 'y'); cv.px(hx + 4, hy, 'y');
-      cv.px(hx + 3, hy + 1, 'w'); cv.px(hx + 4, hy + 1, 'i'); cv.px(hx + 4, hy + 2, 's');
-      cv.px(hx + 3, hy + 3, 'BL');
-      cv.px(hx + 6, hy + 2, 'S'); cv.px(hx + 6, hy + 1, 's');
-      if (l.beard === 'short') { beard([[hy + 3, hx + 2, hx + 5], [hy + 4, hx + 2, hx + 5], [hy + 5, hx + 2, hx + 5]]); cv.px(hx + 5, hy + 3, 'm'); cv.px(hx + 4, hy + 3, 'm'); }
-      else if (l.beard === 'long') { beard([[hy + 3, hx + 1, hx + 6], [hy + 4, hx + 1, hx + 6], [hy + 5, hx + 2, hx + 5], [hy + 6, hx + 2, hx + 5], [hy + 7, hx + 3, hx + 5], [hy + 8, hx + 3, hx + 4]]); cv.px(hx + 5, hy + 3, 'm'); }
-      else if (l.beard === 'mustache') { cv.rect(hx + 3, hy + 3, hx + 6, hy + 3, beardC[0]); cv.px(hx + 5, hy + 4, 'm'); }
-      else cv.px(hx + 5, hy + 3, 'm');
-      if (elf) ear(hx + 1, hy, -1); else { cv.px(hx + 1, hy + 1, 'z'); cv.px(hx + 1, hy + 2, 's'); }
-      if (!bald) { cv.rect(hx - 4, hy - 1, hx - 1, hy + 5, 'h'); cv.rect(hx - 4, hy + 3, hx - 2, hy + 5, 'g'); if (elf) cv.rect(hx - 4, hy + 5, hx - 2, hy + 8, 'h'); }
-    }
-  }
+  hiHead(cv, l, d, hx, hy, back, bald, elf);
 
   // broń z przodu
   if (!back) {
@@ -494,25 +579,27 @@ export function lying(src: FrameData): FrameData {
  */
 export function sitting(src: FrameData, d: Dir): FrameData {
   const { w, h } = src, px = new Uint8ClampedArray(w * h * 4);
-  const DROP = 7, CUT = 30;
+  const DROP = Math.round(7 * K), CUT = Math.round(30 * K);
+  const sc = (v: number) => Math.round(v * K);
   const get = (x: number, y: number) => { const o = (y * w + x) * 4; return [src.px[o], src.px[o + 1], src.px[o + 2], src.px[o + 3]]; };
   const put = (x: number, y: number, c: number[]) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
     const o = (y * w + x) * 4; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = c[3];
   };
-  const pants = get(11, 33)[3] ? get(11, 33) : [62, 68, 96, 255];
-  const pantsD = get(16, 33)[3] ? get(16, 33) : [42, 46, 68, 255];
-  const boot = get(11, 39)[3] ? get(11, 39) : [138, 82, 48, 255];
-  const bootD = get(16, 39)[3] ? get(16, 39) : [90, 50, 24, 255];
+  const pants = get(sc(11), sc(33))[3] ? get(sc(11), sc(33)) : [62, 68, 96, 255];
+  const pantsD = get(sc(16), sc(33))[3] ? get(sc(16), sc(33)) : [42, 46, 68, 255];
+  const boot = get(sc(11), sc(39))[3] ? get(sc(11), sc(39)) : [138, 82, 48, 255];
+  const bootD = get(sc(16), sc(39))[3] ? get(sc(16), sc(39)) : [90, 50, 24, 255];
+  const mid = sc(14);
   const ink = [22, 15, 18, 255];
   // nogi: skrzyżowane, przed tułowiem (dla widoku od tyłu – schowane)
   const back = d === 'N' || d === 'NE';
   if (!back) {
     const side = d === 'E' ? 1 : 0;
-    for (let y = 35; y <= 39; y++) for (let x = 7 + side * 3; x <= 21 + side * 2; x++) put(x, y, y < 37 ? (x < 14 ? pants : pantsD) : (x < 14 ? pants : pantsD));
-    for (const bx of side ? [21, 22] : [6, 7, 20, 21]) for (let y = 36; y <= 39; y++) put(bx, y, bx < 14 ? boot : bootD);
+    for (let y = sc(35); y <= sc(39.6); y++) for (let x = sc(7 + side * 3); x <= sc(21.6 + side * 2); x++) put(x, y, x < mid ? pants : pantsD);
+    for (const bx of side ? [21, 22] : [6, 7, 20, 21]) for (let y = sc(36); y <= sc(39.6); y++) for (let X = sc(bx); X < sc(bx + 1); X++) put(X, y, bx < 14 ? boot : bootD);
   } else {
-    for (let y = 37; y <= 39; y++) for (let x = 8; x <= 20; x++) put(x, y, pantsD);
+    for (let y = sc(37); y <= sc(39.6); y++) for (let x = sc(8); x <= sc(20.6); x++) put(x, y, pantsD);
   }
   // tułów i głowa przesunięte w dół
   for (let y = 0; y < CUT; y++) for (let x = 0; x < w; x++) { const c = get(x, y); if (c[3] && y + DROP < h) put(x, y + DROP, c); }
@@ -522,6 +609,17 @@ export function sitting(src: FrameData, d: Dir): FrameData {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!al(x, y) && (al(x - 1, y) || al(x + 1, y) || al(x, y - 1) || al(x, y + 1))) add.push([x, y]);
   for (const [x, y] of add) put(x, y, ink);
   return { w, h, ax: src.ax, ay: src.ay, px };
+}
+
+/** powiększenie klatki w skali K (najbliższy sąsiad) – dla klatek rysowanych w siatce projektu */
+export function upscale(f: FrameData): FrameData {
+  const w = Math.round(f.w * K), h = Math.round(f.h * K), px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const sx = Math.min(f.w - 1, Math.floor((x + 0.5) / K)), sy = Math.min(f.h - 1, Math.floor((y + 0.5) / K));
+    const o = (y * w + x) * 4, so = (sy * f.w + sx) * 4;
+    px[o] = f.px[so]; px[o + 1] = f.px[so + 1]; px[o + 2] = f.px[so + 2]; px[o + 3] = f.px[so + 3];
+  }
+  return { w, h, ax: Math.round(f.ax * K), ay: Math.round((f.ay + 1) * K) - 1, px };
 }
 
 /** szkielet po śmierci: kupka kości z czaszką i zardzewiałym mieczem (30×16, kotwica pod środkiem) */
@@ -571,6 +669,6 @@ export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
     data.set(`${prefix}_${d}_sit1`, sitting(data.get(`${prefix}_${d}_idle1`)!, d));
   }
   data.set(`${prefix}_dead`, lying(data.get(`${prefix}_E_idle0`)!));
-  if (look.kind === 'skeleton') data.set(`${prefix}_bones`, bonePile());
+  if (look.kind === 'skeleton') data.set(`${prefix}_bones`, upscale(bonePile()));
   return { names: [...data.keys()], data };
 }

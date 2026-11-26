@@ -121,9 +121,9 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     bplaster = np.array([b.get('walls', 'stone') == 'plaster' for b in buildings] + [False])
     bdoorf = np.array([{'u': 1, 'v': 2}.get(b.get('door'), 0) for b in buildings] + [0], np.int8)
     bwu, bwv = barr('wins_u', 0, np.int8), barr('wins_v', 0, np.int8)
-    bwinz = barr('winz', 14)
-    bdw, bdh = barr('doorw', 9), barr('doorh', 26)          # pół-szerokość i wysokość drzwi (do łuku)
-    bww, bwh = barr('winw', 5), barr('winh', 12)            # pół-szerokość i wysokość okna (do łuku)
+    bwinz = barr('winz', 18)
+    bdw, bdh = barr('doorw', 11), barr('doorh', 36)          # pół-szerokość i wysokość drzwi (do łuku)
+    bww, bwh = barr('winw', 6), barr('winh', 16)            # pół-szerokość i wysokość okna (do łuku)
     bst = np.array([b.get('stained', False) for b in buildings] + [False])   # witraże
 
     # dach: rzędy dachówek prostopadle do spadku, połać od światła jaśniejsza
@@ -301,8 +301,8 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         win = np.zeros(n_, bool); wfr = np.zeros(n_, bool); wcol = np.zeros((n_, 3), np.float32)
         for row in (0, 1):
             ww, wh, aw = bww[bid], bwh[bid], alongF - wc
-            zw = zb - bwinz[bid] - row * (wh + 16)
-            ok_row = wface & ((row == 0) | (eaveb >= 58)) & (zw + wh + ww + 2 < eaveb)
+            zw = zb - bwinz[bid] - row * (wh + 20)
+            ok_row = wface & ((row == 0) | (eaveb >= 80)) & (zw + wh + ww + 2 < eaveb)
             arch = (zw < wh) | (aw ** 2 + (zw - wh) ** 2 < ww ** 2)
             w_ = ok_row & (np.abs(aw) < ww) & (zw >= 0) & arch
             f_ = ok_row & (np.abs(aw) < ww + 2) & (zw >= -2) & ((zw < wh) | (aw ** 2 + (zw - wh) ** 2 < (ww + 2) ** 2)) & ~w_

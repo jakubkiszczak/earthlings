@@ -31,7 +31,7 @@ export class LoadingScreen {
   constructor() {
     this.root.className = 'loading-screen';
     this.root.innerHTML =
-      `<div class="ls-art" style="background-image:url(${assetUrl('art/loading.webp')})"></div>` +
+      `<div class="ls-art" style="background-image:url(${assetUrl('art/loading/loading_dragon_480x270.png')})"></div>` +
       `<div class="ls-panel"><h1 class="ls-logo">Glastemia</h1><div class="ls-place"></div>` +
       `<div class="ls-barbox"><i class="ls-bar"></i></div><div class="ls-tip"></div></div>`;
     this.bar = this.root.querySelector('.ls-bar')!;

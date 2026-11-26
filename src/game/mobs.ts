@@ -142,7 +142,7 @@ export class MobManager {
       if (m.stun > 0 && !dead) v.s.tint = 0xb0b0ff; else v.s.tint = 0xffffff;
       // pasek HP i znacznik celu
       const def = MOBS[m.kind];
-      const top = m.kind === 'wolf' ? -26 : -48;
+      const top = m.kind === 'wolf' ? -38 : -70;
       v.bar.clear();
       if (!dead && (m.hp < def.hp || this.target === m.id)) {
         v.bar.rect(-11, top, 22, 4).fill(0x0a0706);

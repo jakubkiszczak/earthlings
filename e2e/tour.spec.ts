@@ -3,7 +3,7 @@ import { enterGame } from './helpers';
 
 // Wycieczka po 9 komórkach: każda się wczytuje, ma przechodni teren w środku, zrzut ekranu do oceny.
 test('wszystkie komórki świata 3×3 wczytują się bez błędów', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const errors: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));

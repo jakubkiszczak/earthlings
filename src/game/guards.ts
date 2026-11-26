@@ -36,7 +36,7 @@ export class GuardManager {
       const label = new Text({ text: `Strażnik · poz. ${GUARD_LEVEL}`, style: { fontFamily: 'Jersey', fontSize: 8, fill: 0x8af59a, stroke: { color: 0x0a0706, width: 2 } } });
       label.resolution = 4;
       label.anchor.set(0.5, 1);
-      label.position.set(0, -50);
+      label.position.set(0, -74);
       c.addChild(sh, s, label);
       layer.addChild(c);
       const post: Vec = [p.cx * C + p.u, p.cy * C + p.v];

@@ -28,7 +28,7 @@ export class Townfolk {
       const label = new Text({ text: def.name, style: { fontFamily: 'Jersey', fontSize: 8, fill: 0x8af59a, stroke: { color: 0x0a0706, width: 2 } } });
       label.resolution = 4;
       label.anchor.set(0.5, 1);
-      label.position.set(0, -46);
+      label.position.set(0, -70);
       c.addChild(sh, s, label);
       layer.addChild(c);
       this.folk.push({ def, pos: [def.cx * C + def.u, def.cy * C + def.v], face: [...def.face] as Vec, c, s, sheet, frame: '', line: 0 });
@@ -60,7 +60,7 @@ export class Townfolk {
   at(wx: number, wy: number): Folk | null {
     for (const f of this.folk) {
       if (!f.c.visible) continue;
-      if (Math.abs(wx - f.c.x) <= 13 && wy <= f.c.y + 2 && wy >= f.c.y - 46) return f;
+      if (Math.abs(wx - f.c.x) <= 18 && wy <= f.c.y + 2 && wy >= f.c.y - 68) return f;
     }
     return null;
   }

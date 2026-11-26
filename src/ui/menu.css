@@ -56,3 +56,7 @@
 .aval.up { color: #8ae07a; }
 .err { color: #ff8a7a; min-height: 1.2em; text-align: center; margin-top: calc(var(--s) * 2px); }
 .loading { color: #c8bca4; font-size: 1.2em; }
+
+.pvart { display: block; width: calc(var(--s) * 56px); height: auto; image-rendering: auto; border-radius: 2px; box-shadow: 0 0 0 calc(var(--s) * 1px) #432914; }
+.cleft .pvart { width: calc(var(--s) * 96px); }
+.pvart[hidden] { display: none; }

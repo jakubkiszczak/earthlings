@@ -1,0 +1,99 @@
+{
+ "version": 1,
+ "project": "Glastemia",
+ "created": "2026-11-26",
+ "assets": [
+  {
+   "path": "assets/art/avatars/elf_warrior_96.png",
+   "role": "avatar",
+   "size": [
+    96,
+    96
+   ],
+   "filter": "nearest",
+   "source": {
+    "kind": "ai-generated",
+    "tool": "CellCog (cellcog.ai)",
+    "post": "downscaled with box filter to the game pixel grid"
+   },
+   "logo_overlay": null,
+   "status": "approved-draft",
+   "sha256": "a5c7935c6d47cd66"
+  },
+  {
+   "path": "assets/art/avatars/elf_hunter_96.png",
+   "role": "avatar",
+   "size": [
+    96,
+    96
+   ],
+   "filter": "nearest",
+   "source": {
+    "kind": "ai-generated",
+    "tool": "CellCog (cellcog.ai)",
+    "post": "downscaled with box filter to the game pixel grid"
+   },
+   "logo_overlay": null,
+   "status": "approved-draft",
+   "sha256": "4074c66375556ced"
+  },
+  {
+   "path": "assets/art/avatars/human_warrior_96.png",
+   "role": "avatar",
+   "size": [
+    96,
+    96
+   ],
+   "filter": "nearest",
+   "source": {
+    "kind": "ai-generated",
+    "tool": "CellCog (cellcog.ai)",
+    "post": "downscaled with box filter to the game pixel grid"
+   },
+   "logo_overlay": null,
+   "status": "approved-draft",
+   "sha256": "f9539955eea781f2"
+  },
+  {
+   "path": "assets/art/avatars/human_hunter_96.png",
+   "role": "avatar",
+   "size": [
+    96,
+    96
+   ],
+   "filter": "nearest",
+   "source": {
+    "kind": "ai-generated",
+    "tool": "CellCog (cellcog.ai)",
+    "post": "downscaled with box filter to the game pixel grid"
+   },
+   "logo_overlay": null,
+   "status": "approved-draft",
+   "sha256": "71d58304b0978ad4"
+  },
+  {
+   "path": "assets/art/loading/loading_dragon_480x270.png",
+   "role": "loading_screen",
+   "size": [
+    480,
+    270
+   ],
+   "filter": "nearest",
+   "source": {
+    "kind": "ai-generated",
+    "tool": "CellCog (cellcog.ai)",
+    "post": "downscaled with box filter to the game pixel grid"
+   },
+   "logo_overlay": "emblem drawn in code (Claude)",
+   "status": "approved-draft",
+   "sha256": "db61174d416622d4"
+  },
+  {
+   "path": "assets/art/loading.webp",
+   "role": "loading-fallback",
+   "source": {
+    "kind": "code-generated"
+   }
+  }
+ ]
+}

@@ -172,7 +172,7 @@ export class PlayerCombat {
 
   onMobEvent(e: MobEvent) {
     if (e.type !== 'attack' || this.dead) return;
-    if (this.sitting) { this.stand(); this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 54, 'wstajesz!', '#ffd84a'); }
+    if (this.sitting) { this.stand(); this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 80, 'wstajesz!', '#ffd84a'); }
     if (this.invuln > 0 || this.rng() * 100 < this.inv.stats.dodge) {
       this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, 'unik', '#c8f0ff');
       return;
@@ -233,7 +233,7 @@ export class PlayerCombat {
     if (ups) {
       this.hp = this.hpMax; this.mana = this.manaMax;
       this.d.effects.ring(0xffe27a);
-      this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 54, `Poziom ${this.progress.level}!`, '#ffe27a', true);
+      this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 80, `Poziom ${this.progress.level}!`, '#ffe27a', true);
       this.d.hud.say(`Awans na poziom <span style="color:#ffe27a">${this.progress.level}</span>. Punkty atrybutów do rozdzielenia: ${this.inv.points} (ekwipunek, klawisz I).`);
       this.d.onLevelUp();
     }
@@ -276,7 +276,7 @@ export class PlayerCombat {
       this.queued = null;
       hero.attack();
       this.atkCd = PLAYER_ATTACK_EVERY;
-      this.d.floaters.add(hero.sx, hero.sy - 52, s.name + '!', '#fff1c4');
+      this.d.floaters.add(hero.sx, hero.sy - 78, s.name + '!', '#fff1c4');
       hero.glow();
       if (q === 'power') this.hit(m, roll() * 2);
       else if (q === 'knockdown') this.hit(m, roll(), { stun: true });
@@ -379,7 +379,7 @@ export class PlayerCombat {
     this.invuln = DASH_IFRAMES;
     h.path = [];
     h.faceTo(to[0], to[1]);
-    this.d.floaters.add(h.sx, h.sy - 46, 'odskok', '#c8f0ff');
+    this.d.floaters.add(h.sx, h.sy - 70, 'odskok', '#c8f0ff');
     return true;
   }
 

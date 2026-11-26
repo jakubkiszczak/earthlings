@@ -6,7 +6,7 @@ test('ekran startowy → kreator → gra; zapis postaci i usuwanie', async ({ pa
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/');
-  await expect(page.locator('.logo')).toHaveText('Earthlings');
+  await expect(page.locator('.logo')).toHaveText('Glastemia');
   await page.screenshot({ path: 'test-results/menu_start.png' });
   await page.getByRole('button', { name: 'Graj' }).click();
   await expect(page.locator('.slot.empty')).toHaveCount(3);

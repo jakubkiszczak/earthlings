@@ -110,6 +110,7 @@ export class InventoryController {
       `<span>Witalność</span><b>${a.vit}${plus('vit')}</b><span>Energia</span><b>${a.ene}${plus('ene')}</b>` +
       `<span>Pancerz</span><b>${s.armor}</b><span>Obrażenia</span><b>${dmin}–${dmax}</b>` +
       `<span>Szczęście</span><b>${s.luck}</b><span>Regeneracja</span><b>${Math.round(hpRegen(a.vit) * 60)}/min</b>` +
+      `<span>Szybkość</span><b>${Math.round(s.speed * 100)}%</b>` +
       (this.cls === 'hunter' ? `<span>Zasięg</span><b>${bowRange(a.dex) / TILE} kafli</b>` : '');
     return { eq, eqNames, bag, statsHtml, gold: this.gold, points: this.points };
   }

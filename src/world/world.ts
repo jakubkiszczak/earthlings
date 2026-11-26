@@ -24,8 +24,10 @@ interface LoadedCell {
   water: ReturnType<typeof createWater>;
   items: Item[];
   sway: { s: Sprite; ph: number; amp: number }[];
-  /** poświata latarni (migotanie) */
+  /** poświata latarni i pochodni (migotanie) */
   glows: { g: Graphics; ph: number }[];
+  /** pochodnie: sprite płomienia (2 klatki) */
+  torches: { s: Sprite; ph: number }[];
   sources: ImageSource[];
   grid?: WorldGrid;
 }
@@ -116,6 +118,12 @@ export class World {
     return !!l && l.g.cellH(...l.g.cellOf(l.u, l.v)) > 0;
   };
 
+  /** punkt globalny o znanej wysokości (np. obiekt poza siatką chodzenia) → piksel widoku */
+  toScreenGlobalH(gu: number, gv: number, h: number): [number, number] {
+    const u = gu - this.cx * this.size, v = gv - this.cy * this.size, M = this.meta;
+    return [u - v + M.X0, Math.floor((u + v) / 2) - h + M.Y0];
+  }
+
   /** punkt globalny → piksel widoku bieżącej komórki */
   toScreenGlobal(gu: number, gv: number): [number, number] {
     const l = this.locate(gu, gv);
@@ -148,6 +156,7 @@ export class World {
       c.water.update(t, dt);
       for (const w of c.sway) w.s.x = Math.round(Math.sin(t * 1.3 + w.ph) * w.amp);
       for (const l of c.glows) l.g.alpha = 0.8 + 0.2 * Math.sin(t * 7.3 + l.ph) * Math.sin(t * 2.1 + l.ph * 2);
+      for (const tc of c.torches) this.atlas.setFrame(tc.s, Math.floor(t * 7 + tc.ph * 7) % 2 ? 'torch1' : 'torch0');
     }
   }
 
@@ -191,6 +200,7 @@ export class World {
     // obiekty tylko z rdzenia komórki (margines pokazują sąsiedzi – bez podwójnych drzew)
     const sway: LoadedCell['sway'] = [];
     const glows: LoadedCell['glows'] = [];
+    const torches: LoadedCell['torches'] = [];
     for (const e of meta.ents) {
       const a = e.x - meta.X0, u = (e.z + a) / 2, v = (e.z - a) / 2;
       if (u < 0 || v < 0 || u >= C || v >= C) continue;
@@ -204,19 +214,22 @@ export class World {
         bx1 = Math.max(bx1, f[2] - f[4] + 2); by1 = Math.max(by1, f[3] - f[5]);
         if (n.endsWith('_c') || e.k === 'bush') sway.push({ s, ph: e.ph ?? 0, amp: e.k === 'bush' ? 0.55 : 0.85 });
       }
-      if (e.k === 'lamp') {
+      if (e.k === 'lamp' || e.k === 'torch') {
+        const lamp = e.k === 'lamp';
         const g = new Graphics();
         g.blendMode = 'add';
-        g.ellipse(1, 0, 20, 9).fill({ color: 0xffb040, alpha: 0.10 });
-        g.circle(1, -32, 12).fill({ color: 0xffc860, alpha: 0.10 });
-        g.circle(1, -32, 7).fill({ color: 0xffe090, alpha: 0.16 });
+        const ly = lamp ? -49 : -20;
+        if (lamp) g.ellipse(1, 0, 28, 12).fill({ color: 0xffb040, alpha: 0.10 });
+        g.circle(1, ly, lamp ? 18 : 14).fill({ color: 0xffc860, alpha: 0.10 });
+        g.circle(1, ly, lamp ? 10 : 7).fill({ color: 0xffe090, alpha: 0.16 });
         c.addChild(g);
         glows.push({ g, ph: (e.x * 0.37 + e.y * 0.11) % 6.28 });
+        if (!lamp) torches.push({ s: c.children[0] as Sprite, ph: (e.x * 0.13) % 1 });
       }
       items.push({ obj: c, x: e.x, y: e.y, z: depthZ(e.z, 5), bx0, by0, bx1, by1 });
     }
     for (const it of items) this.layer.addChild(it.obj);
-    return { info, meta, assets, ground, water, items, sway, glows, sources: [groundSrc, bandsSrc] };
+    return { info, meta, assets, ground, water, items, sway, glows, torches, sources: [groundSrc, bandsSrc] };
   }
 
   /** położenie komórki względem bieżącego środka: przesunięcie obrazu i głębi */

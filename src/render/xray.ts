@@ -79,6 +79,9 @@ export class Xray {
     return t;
   }
 
+  /** czy kontur danej postaci jest widoczny (do testów) */
+  isVisible(t: XrayTarget): boolean { return !!this.entries.find((e) => e.t === t)?.outline.visible; }
+
   /** liczba widocznych konturów (do testów) */
   visibleCount(): number { return this.entries.filter((e) => e.outline.visible).length; }
 

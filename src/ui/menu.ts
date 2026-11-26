@@ -96,7 +96,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
     root.innerHTML = '';
     const box = el('div', 'mstart');
     box.append(
-      el('h1', 'logo', 'Earthlings'),
+      el('h1', 'logo', 'Glastemia'),
       el('div', 'sub', 'prototyp · wersja testowa'),
     );
     const play = el('button', 'mbtn big', 'Graj');

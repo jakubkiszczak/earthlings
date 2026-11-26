@@ -1,4 +1,4 @@
-// Earthlings – punkt wejścia: wczytanie danych, świat 3×3 (bieżąca komórka), pętla gry.
+// Glastemia – punkt wejścia: wczytanie danych, świat 3×3 (bieżąca komórka), pętla gry.
 import { Application, Container, TextureStyle } from 'pixi.js';
 import { loadAssets, type Assets } from './assets';
 import { CharSheet, type FrameSource } from './chars/sheet';
@@ -27,6 +27,10 @@ import { LootManager } from './game/loot';
 import { rollLoot } from './logic/items';
 import { ICONS, ICONS2 } from './ui/icons';
 import { ShopWindow, type ShopRow, type ShopState } from './ui/shop';
+import { StashWindow, type StashState } from './ui/stash';
+import { StashStore, deposit, withdraw } from './logic/stash';
+import { GuardManager } from './game/guards';
+import { Fountain } from './render/fountain';
 import { OFFERS, buy as shopBuy, potionSellPrice, sellBag, sellPotion, sellPrice } from './logic/shop';
 import { RARITY_COLOR } from './logic/items';
 import { itemIcon } from './ui/icons';
@@ -43,7 +47,7 @@ declare global {
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
-      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; sitting(): boolean;
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; openStash(): void; stashOpen(): boolean; moveMob(id: number, u: number, v: number): void; mobState(id: number): string; guards(): { u: number; v: number; target: number | null }[]; sitting(): boolean;
       drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
@@ -246,11 +250,39 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     }),
     () => shop.hide());
   let wantShop = false;
+
+  // skrzynia przy fontannie (wspólna dla postaci z tej przeglądarki)
+  const stashStore = new StashStore();
+  let stashMsg = '';
+  const stashState = (): StashState => {
+    const s = stashStore.load();
+    const rowOf = (id: string, key: string) => ({ key, name: ITEMS[id].name, icon: itemIcon(id, assets.icons), color: RARITY_COLOR(ITEMS[id]) });
+    return {
+      bag: invc.inv.bag.flatMap((id, i) => (id ? [rowOf(id, `bag:${i}`)] : [])),
+      stash: s.items.flatMap((id, i) => (id ? [rowOf(id, `stash:${i}`)] : [])),
+      free: s.items.filter((x) => !x).length, message: stashMsg,
+    };
+  };
+  const stashWin = new StashWindow(document.querySelector<HTMLElement>('#hud')!, (key) => {
+    const s = stashStore.load();
+    const [k, v] = key.split(':');
+    const err = k === 'bag' ? deposit(s, invc.inv, Number(v)) : withdraw(s, invc.inv, Number(v));
+    stashMsg = err ?? '';
+    if (!err) { stashStore.save(s); invc.onChange(false); savePos(); }
+    stashWin.render(stashState());
+  }, () => stashWin.hide());
+  let wantStash = false;
+  const stashPos = info.stash ? [info.stash.cx * world.size + info.stash.u, info.stash.cy * world.size + info.stash.v] as [number, number] : null;
+  const TOWN_FLOOR = 48;
   const prevChange = invc.onChange;
   invc.onChange = (g) => { prevChange(g); if (shop.open) shop.render(shopState()); };
   bridge.speed = invc.stats.speed;
   hud.setInventory(invc.view());
   const mobEvents: MobEvent[] = [];
+  const guards = new GuardManager(world, atlas, world.layer, mobs, floaters, info.guards ?? []);
+  for (const g of guards.guards) xray.add({ view: g.c, body: g.s, frame: () => g.frame || 'hero_S_idle0', kind: 'npc', source: guards.sheet });
+  const fountain = new Fountain(world, 1.5 * world.size, 1.5 * world.size);
+  world.layer.addChild(fountain.g);
   let peaceful = false;   // tylko do testów: potwory nie widzą gracza
   const mobXray = new Map<number, Parameters<Xray['add']>[0]>();
 
@@ -366,6 +398,18 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       return;
     }
     wantShop = false;
+    // skrzynia przy fontannie
+    if (stashPos && !world.inInterior && showMark) {
+      const [sx, sy] = world.toScreenGlobalH(stashPos[0], stashPos[1], TOWN_FLOOR);
+      if (Math.abs(wx - sx) <= 20 && wy <= sy + 4 && wy >= sy - 30) {
+        combat!.stand();
+        combat!.setTarget(null);
+        wantStash = true;
+        goToWorld(stashPos[0] - world.cx * world.size - 30, stashPos[1] - world.cy * world.size, true);
+        return;
+      }
+    }
+    wantStash = false;
     const m = mobs.at(wx, wy);
     if (m) { combat!.setTarget(m); loot.wanted = null; return; }
     const drop = loot.at(wx, wy);
@@ -400,7 +444,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     place: (u, v) => { hero.teleport([u, v]); dog.teleport([u + DOG_OFFSET[0], v + DOG_OFFSET[1]]); snapCamera(); },
     warp: (cx, cy, u, v) => jump(cx, cy, [u, v]),
     busy: () => busy,
-    outlines: () => xray.visibleCount(),
+    outlines: () => (xray.isVisible(heroXray) ? 1 : 0),
     shop: () => ({ u: info.shop.u, v: info.shop.v }),
     mobs: () => mobs.alive().map((m) => ({ id: m.id, kind: m.kind, hp: m.hp, state: m.state, u: m.pos[0] - world.cx * world.size, v: m.pos[1] - world.cy * world.size })),
     attack: (id) => { const m = mobs.mobs.get(id); if (m) combat!.setTarget(m); },
@@ -411,6 +455,11 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     dashReady: () => combat!.dashReady,
     talkToMerchant: () => { if (npc) { wantShop = true; goToWorld(npc.u + 64, npc.v, true); } },
     shopOpen: () => shop.open,
+    openStash: () => { if (stashPos) { wantStash = true; goToWorld(stashPos[0] - world.cx * world.size - 30, stashPos[1] - world.cy * world.size, true); } },
+    stashOpen: () => stashWin.open,
+    moveMob: (id, u, v) => { const m = mobs.mobs.get(id); if (m) { m.pos = [world.cx * world.size + u, world.cy * world.size + v]; m.state = 'idle'; } },
+    mobState: (id) => { const m = mobs.mobs.get(id); return m ? m.state : 'none'; },
+    guards: () => guards.guards.map((g) => ({ u: g.pos[0] - world.cx * world.size, v: g.pos[1] - world.cy * world.size, target: g.target })),
     sitting: () => combat!.sitting,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
     give: (id) => invc.addItem(id),
@@ -477,6 +526,14 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       }
       if (shop.open && dn > 140) shop.hide();
     } else if (shop.open) shop.hide();
+    // skrzynia: otwórz po podejściu, zamknij po odejściu
+    if (stashPos && !world.inInterior) {
+      const C = world.size, ds = Math.hypot(world.cx * C + hero.u - stashPos[0], world.cy * C + hero.v - stashPos[1]);
+      if (wantStash && ds < 56) { wantStash = false; hero.path = []; stashMsg = ''; stashWin.show(stashState()); }
+      if (stashWin.open && ds > 110) stashWin.hide();
+    } else if (stashWin.open) stashWin.hide();
+    guards.update(dt);
+    fountain.update(t);
     mobs.render(world.layer);
     loot.update(dt);
     // kontury potworów w pobliżu (czerwone)

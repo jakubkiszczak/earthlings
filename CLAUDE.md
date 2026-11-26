@@ -1,4 +1,4 @@
-# Instrukcje dla Claude Code – Earthlings (nazwa robocza)
+# Instrukcje dla Claude Code – Glastemia
 
 ## O projekcie
 Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs/GDD_*.docx` (tylko lokalnie, poza repozytorium; wersja online w claude.ai). Rozmawiamy po polsku.

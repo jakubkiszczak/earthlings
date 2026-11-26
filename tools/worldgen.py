@@ -17,6 +17,7 @@ from scipy import ndimage as ndi
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pixelkit as K          # noqa: E402
 import props                  # noqa: E402
+import props2                 # noqa: E402
 import terrain as TR          # noqa: E402
 from pixelkit import hsh, vnoise, fbm, stretch   # noqa: E402
 
@@ -147,6 +148,48 @@ def town_lamps():
     return ok
 
 
+FOUNTAIN_R = 40                          # fontanna na środku placu
+STASH = (CTR + 62, CTR - 58)             # skrzynia gracza przy fontannie
+RING = 64                                # chodnik wokół miasta: odległość od muru
+
+
+def town_guards():
+    """strażnicy: po dwóch przed każdą bramą (na zewnątrz muru), z kierunkiem patrzenia"""
+    a0, a1 = TOWN_WALL
+    g = []
+    for s_ in (-32, 32):
+        g += [((a0 - 26, CTR + s_), (-1, 0)), ((a1 + 26, CTR + s_), (1, 0)), ((CTR + s_, a0 - 26), (0, -1)), ((CTR + s_, a1 + 26), (0, 1))]
+    return [dict(u=float(u), v=float(v), fu=fu, fv=fv) for ((u, v), (fu, fv)) in g]
+
+
+def town_flowers():
+    """rabaty: wokół fontanny i przy wejściach do domów"""
+    bs = town_buildings()
+    pts = []
+    for k in range(12):
+        a = (k + 0.5) / 12 * 2 * np.pi
+        pts.append((CTR + np.cos(a) * 78, CTR + np.sin(a) * 78))
+    for b in bs:
+        if b['tag'] == 'tower':
+            continue
+        if b['door'] == 'u':
+            dc = (b['v0'] + b['v1']) / 2
+            pts += [(b['u1'] + 14, dc - 22), (b['u1'] + 14, dc + 22)]
+        else:
+            dc = (b['u0'] + b['u1']) / 2
+            pts += [(dc - 22, b['v1'] + 14), (dc + 22, b['v1'] + 14)]
+    ok = []
+    for (u, v) in pts:
+        if abs(u - CTR) < 22 or abs(v - CTR) < 22:
+            continue
+        if any(b['u0'] - 10 < u < b['u1'] + 10 and b['v0'] - 10 < v < b['v1'] + 10 for b in bs):
+            continue
+        if np.hypot(u - STASH[0], v - STASH[1]) < 24:
+            continue
+        ok.append((float(u), float(v)))
+    return ok
+
+
 # ------------------------------------------------------------------ miasto (komórka 1,1), współrzędne globalne
 def rect(cu, cv, hu, hv):
     return dict(u0=int(CTR + cu - hu), u1=int(CTR + cu + hu), v0=int(CTR + cv - hv), v1=int(CTR + cv + hv))
@@ -253,6 +296,18 @@ def layout(gu, gv):
     plaza = town & (np.abs(gu - CTR) < 150) & (np.abs(gv - CTR) < 150)
     MAT[plaza] = TR.PAVE
     a0, a1 = TOWN_WALL
+    # chodnik dookoła miasta (wzdłuż muru, od środka) – łączy bramy
+    rjit = (vnoise(gu, gv, 30, 93) - 0.5) * 4
+    ringw = town & (((np.abs(gu - (a0 + RING)) < 7 + rjit) | (np.abs(gu - (a1 - RING)) < 7 + rjit)) & (gv > a0 + RING - 7) & (gv < a1 - RING + 7)
+                    | ((np.abs(gv - (a0 + RING)) < 7 + rjit) | (np.abs(gv - (a1 - RING)) < 7 + rjit)) & (gu > a0 + RING - 7) & (gu < a1 - RING + 7))
+    MAT[ringw & (MAT != TR.PAVE)] = TR.PATH
+    # fontanna: kamienne obramowanie, woda, kolumna
+    fr = np.hypot(gu - CTR, gv - CTR)
+    H[fr < FOUNTAIN_R] = BASE + 10; MAT[fr < FOUNTAIN_R] = TR.WALL
+    H[fr < FOUNTAIN_R - 6] = BASE + 3; MAT[fr < FOUNTAIN_R - 6] = TR.WATER
+    H[fr < 7] = BASE + 24; MAT[fr < 7] = TR.WALL
+    H[fr < 4] = BASE + 30
+    MAT[(fr >= FOUNTAIN_R) & (fr < FOUNTAIN_R + 10) & town] = TR.PAVE
     ring = ((np.abs(gu - a0) < 7) | (np.abs(gu - a1) < 7)) & (gv > a0 - 7) & (gv < a1 + 7)
     ring |= ((np.abs(gv - a0) < 7) | (np.abs(gv - a1) < 7)) & (gu > a0 - 7) & (gu < a1 + 7)
     gate = (np.abs(gu - CTR) < GATE) | (np.abs(gv - CTR) < GATE)
@@ -295,6 +350,19 @@ def layout(gu, gv):
                 dc = (b['u0'] + b['u1']) / 2
                 walk = (gv > b['v1']) & (gv < b['v1'] + 40) & (np.abs(gu - dc) < 10) & town
             MAT[walk & (MAT == TR.GRASS)] = TR.PAVE
+            # dalej chodnik prosto do najbliższej drogi lub chodnika (w kierunku wyjścia z drzwi)
+            lines = [CTR, a0 + RING, a1 - RING]
+            if b['door'] == 'u':
+                p0 = b['u1'] + 40
+                ahead = [x for x in lines if x >= p0] or [max(lines)]
+                tgt = min(ahead, key=lambda x: abs(x - p0))
+                conn = (gu >= p0 - 2) & (gu <= tgt) & (np.abs(gv - dc) < 7)
+            else:
+                p0 = b['v1'] + 40
+                ahead = [x for x in lines if x >= p0] or [max(lines)]
+                tgt = min(ahead, key=lambda x: abs(x - p0))
+                conn = (gv >= p0 - 2) & (gv <= tgt) & (np.abs(gu - dc) < 7)
+            MAT[conn & town & ((MAT == TR.GRASS) | (MAT == TR.DIRT))] = TR.PATH
     # cmentarz: nagrobki
     for (u, v) in cemetery_graves():
         m = (np.abs(gu - u) < 5) & (np.abs(gv - v) < 3)
@@ -350,7 +418,16 @@ def build_sprites():
     col, al, anc = props.chest()
     spr['chest'] = (rgba(col, al), anc)
     spr['bridge'] = bridge_sprite()
-    spr['lamp'] = lamp_sprite()
+    spr['lamp'] = props2.lamp_big()
+    spr['shopsign'] = props2.shop_sign()
+    for i in range(4):
+        spr[f'flowers{i}'] = props2.flowerbed(i)
+    for t in (1, 2, 3):
+        spr[f'mannequin{t}'] = props2.mannequin(t)
+    spr['weaponrack'] = props2.weapon_rack()
+    spr['shelfitems'] = props2.accessory_shelf()
+    spr['torch0'] = props2.torch(0)
+    spr['torch1'] = props2.torch(1)
     import hero9
     frames_h = hero9.all_frames()
     for nm, a_ in frames_h.items():
@@ -581,8 +658,19 @@ def gen_cell(ci, cj, sizes):
         for (u, v) in town_lamps():
             lu, lv = u - ou + M, v - ov + M
             x, y = to_screen(lu, lv)
-            ground_shadow(x + 2, y, 5, 2, 0.7)
+            ground_shadow(x + 2, y, 7, 3, 0.7)
             ents.append(dict(k='lamp', s=['lamp'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for i, (u, v) in enumerate(town_flowers()):
+            lu, lv = u - ou + M, v - ov + M
+            x, y = to_screen(lu, lv)
+            ents.append(dict(k='bush', s=[f'flowers{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M), ph=round(float(rr.random() * 6.28), 3)))
+        lu, lv = STASH[0] - ou + M, STASH[1] - ov + M
+        x, y = to_screen(lu, lv)
+        ground_shadow(x + 4, y, 17, 5, 0.6)
+        ents.append(dict(k='stash', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
+        lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
+        ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 30) + Y0), z=int(lu + lv - 2 * M) + 2))
     bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)
     if (ci, cj) == (bcx, bcy):
         lu, lv = BRIDGE['u0'] - ou + M, BRIDGE['v0'] - ov + M
@@ -608,9 +696,11 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         cic, cjc = int((chest_uv[0] - ou + M) // CELLW), int((chest_uv[1] - ov + M) // CELLW)
         walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
-        for (u, v) in town_lamps():
+        for (u, v) in town_lamps() + town_flowers() + [STASH]:
             cic, cjc = int((u - ou + M) // CELLW), int((v - ov + M) // CELLW)
             walk[cjc - 1:cjc + 2, cic - 1:cic + 2] = False
+        cic, cjc = int((STASH[0] - ou + M) // CELLW), int((STASH[1] - ov + M) // CELLW)
+        walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
     # most: przechodni pomost nad wodą (wysokość pomostu)
     on_bridge = (np.abs(Gc[0] - CTR) < BR_HALF_W - 4) & (Gc[1] > BRIDGE['v0'] + 2) & (Gc[1] < BRIDGE['v1'] - 2)
     walk |= on_bridge
@@ -631,7 +721,9 @@ def gen_cell(ci, cj, sizes):
     Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / f'preview_c{ci}{cj}.png')
     extra = {}
     if (ci, cj) == (1, 1):
-        extra = dict(shop=[float(shop_door[0] - ou), float(shop_door[1] - ov)], spawn=[float(SPAWN[0] - ou), float(SPAWN[1] - ov)])
+        extra = dict(shop=[float(shop_door[0] - ou), float(shop_door[1] - ov)], spawn=[float(SPAWN[0] - ou), float(SPAWN[1] - ov)],
+                     stash=[float(STASH[0] - ou), float(STASH[1] - ov)],
+                     guards=[dict(g, u=g['u'] - ou, v=g['v'] - ov) for g in town_guards()])
     sz = sum(os.path.getsize(d / f) for f in ['ground.webp', 'bands.webp', 'water_a.png', 'water_b.png', 'pick.png', 'walk.png', 'meta.json'])
     print(f'komórka {ci},{cj} {name}: pasma {len(bands)}, atlas pasm {AW}×{AH}, obiekty {len(ents)}, {sz / 1e6:.1f} MB', flush=True)
     return (ci, cj), extra
@@ -666,7 +758,7 @@ def gen_interior():
     COUNTER = (56, 72, 60, 200)        # lada: niska, kupiec stoi dość daleko za nią, żeby był cały widoczny
     m = (u >= COUNTER[0]) & (u <= COUNTER[1]) & (v >= COUNTER[2]) & (v <= COUNTER[3])
     H[m] = BASE + 14; MAT[m] = TR.WOOD
-    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 8, 40, 220, 52), (300, RU - 1, 0, 70, 30)]:
+    for (a0, a1, b0, b1, h) in [(110, 300, 0, 12, 46), (0, 8, 40, 220, 52)]:
         m = (u >= a0) & (u <= a1) & (v >= b0) & (v <= b1)
         H[m] = BASE + h; MAT[m] = TR.WOOD
     W_, HS_ = 2 * NI, NI + HI_MAX + 8
@@ -685,14 +777,22 @@ def gen_interior():
     Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     uc = u[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]; vc = v[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     walk = (Hc == BASE) & (uc >= 4) & (uc < RU - 4) & (vc >= 4) & (vc < RV - 4) & (uc > COUNTER[1] + 6)
+    for (cu, cv_, rr_) in [(140, 28, 14), (190, 28, 14), (240, 28, 14), (296, 46, 18), (296, 112, 18), (120, 236, 18)]:
+        walk &= np.hypot(uc - cu, vc - cv_) > rr_
     wg = np.where(walk, BASE + 1, 0).astype(np.uint8)
     Image.fromarray(wg).save(d / 'walk.png')
     def scr(lu, lv):
         return int(lu - lv + NI), int((lu + lv + 2 * MI) // 2 - BASE + HI_MAX)
+    def scrh(lu, lv, h):
+        return int(lu - lv + NI), int((lu + lv + 2 * MI) // 2 - h + HI_MAX)
     ents = []
-    for (cu, cv_) in [(250, 34), (285, 90)]:
+    for (cu, cv_, nm) in [(140, 28, 'mannequin1'), (190, 28, 'mannequin2'), (240, 28, 'mannequin3'),
+                          (296, 46, 'weaponrack'), (296, 112, 'weaponrack'), (120, 236, 'shelfitems')]:
         x, y = scr(cu, cv_)
-        ents.append(dict(k='prop', s=['chest'], x=x, y=y, z=int(cu + cv_)))
+        ents.append(dict(k='prop', s=[nm], x=x, y=y, z=int(cu + cv_)))
+    for (cu, cv_) in [(2, 62), (2, 200), (96, 2), (270, 2)]:
+        x, y = scrh(cu, cv_, BASE + 44)
+        ents.append(dict(k='torch', s=['torch0'], x=x, y=y, z=int(cu + cv_)))
     meta = dict(cx=-1, cy=-1, name='Sklep', biome='interior', W=W_, H=HS_, X0=NI, Y0=HI_MAX + MI, OFF=MI, N=NI, CELL=CELLW, NC=NC,
                 size=max(RU, RV), bands=bands, ents=ents)
     json.dump(meta, open(d / 'meta.json', 'w'), separators=(',', ':'))
@@ -728,6 +828,8 @@ def main():
     if town:
         world['start'] = dict(cx=1, cy=1, u=town['spawn'][0], v=town['spawn'][1])
         world['shop'] = dict(cx=1, cy=1, u=town['shop'][0], v=town['shop'][1])
+        world['stash'] = dict(cx=1, cy=1, u=town['stash'][0], v=town['stash'][1])
+        world['guards'] = [dict(cx=1, cy=1, **g) for g in town['guards']]
     if shop_int:
         world['interiors'] = {'shop': shop_int}
     json.dump(world, open(wpath, 'w'), separators=(',', ':'))

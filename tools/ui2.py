@@ -409,6 +409,141 @@ for k in range(2):
         lvl = 0 if (x in (1, 5) or y < 2) else (1 if y < 4 else (2 if x != 3 else 3))
         im.c[y + 1, x2] = fl[lvl]; im.a[y + 1, x2] = True
     im.save(f'flame{k}')
+
+# ================================================================== warstwa fantasy: smok, miecz, magia
+MG = hexs(['#0a2a30', '#145a62', '#1e8c90', '#3ac8c0', '#8af4e8', '#e0fff8'])     # magia (turkus)
+DR = hexs(['#1a0606', '#3a0c0e', '#5e1414', '#86201c', '#b0342a', '#d85a3a'])     # błona skrzydła smoka
+RUNES = [
+    ["..#..", ".###.", "#.#.#", "..#..", "..#..", ".#.#.", "#...#"],
+    ["#...#", ".#.#.", "..#..", ".###.", "..#..", "..#..", ".###."],
+    [".###.", "#...#", "...#.", "..#..", ".#...", "#...#", ".###."],
+    ["#.#.#", "#.#.#", ".###.", "..#..", ".###.", "#.#.#", "#.#.#"],
+]
+
+
+def rune(im, x0, y0, k):
+    """świecący znak runiczny 5×7 z poświatą"""
+    g = RUNES[k % len(RUNES)]
+    pts = [(x0 + x, y0 + y) for y, row in enumerate(g) for x, ch in enumerate(row) if ch == '#']
+    for (x, y) in pts:                       # poświata
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            xx, yy = x + dx, y + dy
+            if 0 <= xx < im.w and 0 <= yy < im.h and (xx, yy) not in pts:
+                im.c[yy, xx] = im.c[yy, xx] * 0.55 + MG[1] * 0.45
+    for (x, y) in pts:
+        if 0 <= x < im.w and 0 <= y < im.h:
+            im.c[y, x] = MG[4] if (x + y) % 3 else MG[5]; im.a[y, x] = True
+
+
+def wing(im, bx, by, w, h, flip=False, seed=0):
+    """skrzydło smoka: kości z brązu, błona w kolorze ciemnej czerwieni z ząbkowanym brzegiem"""
+    xx = (bx - im.xx) / w if flip else (im.xx - bx) / w
+    yy = (im.yy - by) / h
+    topc = 0.45 - 0.55 * np.clip(xx, 0, 1) ** 0.8
+    bot = 0.95 - 0.55 * np.clip(xx, 0, 1) + 0.12 * np.abs(np.sin(np.clip(xx, 0, 1) * np.pi * 3))
+    memb = (xx >= 0) & (xx <= 1) & (yy >= topc) & (yy <= bot)
+    f = 2.4 + 1.6 * (1 - yy) - 1.2 * xx + (hsh(im.xx // 2, im.yy // 2, seed) - 0.5) * 0.6
+    im.put(memb, ramp(DR, f, im.yy, im.xx))
+    bone = np.zeros_like(memb)
+    for t in (0.35, 0.62, 0.86):              # palce skrzydła
+        ex, ey = t, 0.95 - 0.55 * t + 0.12 * abs(np.sin(t * np.pi * 3))
+        for q in np.linspace(0, 1, 40):
+            px_ = q * ex; py_ = 0.45 + (ey - 0.45) * q
+            X = int(round(bx - px_ * w if flip else bx + px_ * w)); Y = int(round(by + py_ * h))
+            if 0 <= X < im.w and 0 <= Y < im.h:
+                bone[Y, X] = True
+    top_bone = memb & (yy < topc + 1.6 / h)
+    im.put(bone | top_bone, ramp(BR, np.full(im.c.shape[:2], 4.0) - 1.5 * np.clip(xx, 0, 1), im.yy, im.xx))
+    claw = (np.abs(xx - 1.0) < 0.06) & (np.abs(yy) < 0.08)
+    im.put(claw, BR[6])
+
+
+# herb: smocze skrzydła, pionowy miecz i magiczny kamień (72×26)
+im = Img(72, 26)
+wing(im, 30, 3, 28, 20, flip=True, seed=71)
+wing(im, 42, 3, 28, 20, flip=False, seed=72)
+sh = (np.abs(im.xx - 35.5) / 12 + np.abs(im.yy - 11) / 13) < 1
+stone(im, sh, seed=73, base=3.8)
+bronze_band(im, sh & ~((np.abs(im.xx - 35.5) / 10.5 + np.abs(im.yy - 11) / 11.5) < 1))
+blade = (np.abs(im.xx - 35.5) < 1.6) & (im.yy >= 2) & (im.yy <= 20)
+im.put(blade, ramp(hexs(['#5a6270', '#a8b0bc', '#e8ecf0', '#ffffff']), 2.6 - (im.xx - 34) * 0.9, im.yy, im.xx))
+im.put((np.abs(im.xx - 35.5) < 0.6) & (im.yy >= 4) & (im.yy <= 18), hexs(['#8a929e'])[0])
+im.put((np.abs(im.xx - 35.5) < 6) & (im.yy >= 16) & (im.yy <= 17), ramp(BR, 5 - np.abs(im.xx - 35.5) * 0.4, im.yy, im.xx))
+im.put((np.abs(im.xx - 35.5) < 1.2) & (im.yy >= 18) & (im.yy <= 22), BR[2])
+gem = np.hypot(im.xx - 35.5, im.yy - 23.5) < 2.4
+im.put(gem, ramp(MG, 4.5 - (im.xx - 34 + im.yy - 22) * 0.5, im.yy, im.xx))
+im.put((np.abs(im.xx - 35.5) < 0.6) & (im.yy == 1), hexs(['#ffffff'])[0])
+outline(im)
+im.save('crest')
+meta['crest'] = dict(w=72, h=26)
+
+# prawy-górny narożnik: głowa smoka z okuciem (40×40)
+im = Img(40, 40)
+m = (im.yy < 8) | (im.xx >= 32)
+stone(im, m, seed=5)
+bronze_band(im, (im.yy >= 6) & (im.yy < 8) & (im.xx < 34))
+bronze_band(im, (im.xx >= 32) & (im.xx < 34) & (im.yy > 6), vertical=True)
+# głowa: łeb (elipsa), pysk w lewo, róg, oko świecące magią
+head = (((im.xx - 26) / 8) ** 2 + ((im.yy - 14) / 6) ** 2) < 1
+snout = (im.xx >= 12) & (im.xx <= 24) & (np.abs(im.yy - 16 - (24 - im.xx) * 0.08) < 3 - (24 - im.xx) * 0.08)
+horn = (np.abs(im.yy - (8 - (im.xx - 28) * 0.9)) < 1.2) & (im.xx >= 28) & (im.xx <= 36)
+jaw = (im.xx >= 14) & (im.xx <= 24) & (im.yy >= 19) & (im.yy <= 20)
+f = 4.6 - 2.2 * ((im.yy - 8) / 14) - 0.6 * ((im.xx - 12) / 24)
+im.put(head | snout | horn, ramp(BR, f, im.yy, im.xx))
+im.put(jaw, BR[1])
+for x in range(15, 24, 3):
+    im.put((im.xx == x) & (im.yy == 21), hexs(['#f4f0e8'])[0])        # zęby
+im.put((np.abs(im.xx - 24) <= 1) & (np.abs(im.yy - 12) <= 0), MG[5]); im.put((im.xx == 23) & (im.yy == 12), MG[3])
+im.put((im.xx == 13) & (im.yy == 14), BR[0])                            # nozdrze
+for (x, y) in [(36, 3), (28, 3), (36, 22)]:
+    rivet(im, x, y)
+rune(im, 34, 28, 1)
+outline(im)
+im.save('corner_tr')
+meta['corner_tr'] = dict(w=40, h=40)
+
+# listwy z runami: górna (64×8), boczne (8×64)
+im = Img(64, 8)
+stone(im, im.yy < 6, seed=1, rowh=6, bw=8)
+bronze_band(im, im.yy >= 6)
+for x in (8, 24, 40, 56):
+    rivet(im, x, 6)
+rune(im, 30, -1, 2)
+im.save('edge_top')
+im = Img(8, 64)
+stone(im, im.xx < 6, seed=2, rowh=8, bw=6)
+bronze_band(im, im.xx >= 6, vertical=True)
+rune(im, 0, 28, 3)
+im.save('edge_left')
+Image.open(f'{OUT}/edge_left.png').transpose(Image.FLIP_LEFT_RIGHT).save(f'{OUT}/edge_right.png')
+meta['edge_tile'] = 64
+
+# konsola: kafel 64 z runą i łuską smoka na listwie z brązu
+im = Img(64, CH)
+stone(im, im.yy >= 4, seed=10, rowh=7, bw=9, base=2.8)
+bronze_band(im, (im.yy >= 2) & (im.yy < 5))
+scale = (im.yy >= 2) & (im.yy < 5) & (((im.xx + (im.yy % 2) * 2) % 4) == 0)
+im.put(scale, BR[2])
+im.put(im.yy < 2, ST[0])
+rune(im, 29, 18, 0)
+for x in (8, 56):
+    rivet(im, x, 3)
+im.save('console_fill')
+
+# kule: pierścień run wokół misy (magia) – nakładka na gotowe końcówki konsoli
+for name, flip in (('cap_left', False), ('cap_right', True)):
+    base = np.array(Image.open(f'{OUT}/cap_left.png'))
+    im = Img(OW, OH)
+    im.c = base[..., :3].astype(np.float32); im.a = base[..., 3] > 0
+    o = meta['orb']
+    for k, ang in enumerate(np.linspace(np.pi * 1.05, np.pi * 1.95, 5)):
+        x = int(round(o['ocx'] + np.cos(ang) * (OR + 9))) - 2
+        y = int(round(o['ocy'] + np.sin(ang) * (OR + 9))) - 3
+        rune(im, x, y, k)
+    out = np.zeros((OH, OW, 4), np.uint8); out[..., :3] = np.clip(im.c, 0, 255); out[..., 3] = im.a * 255
+    img = Image.fromarray(out)
+    (img.transpose(Image.FLIP_LEFT_RIGHT) if flip else img).save(f'{OUT}/{name}.png')
+
 json.dump(meta, open(f'{OUT}/ui2.json', 'w'))
 Image.fromarray(hero9.portrait()).save(f'{OUT}/portrait.png')
 print('ok')

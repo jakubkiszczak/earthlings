@@ -24,6 +24,10 @@ export interface WorldInfo {
   /** portal przed drzwiami sklepu (w komórce miasta) */
   shop: CellPos;
   interiors?: Record<string, InteriorInfo>;
+  /** skrzynia gracza przy fontannie */
+  stash?: CellPos;
+  /** posterunki strażników (fu, fv – kierunek patrzenia) */
+  guards?: (CellPos & { fu: number; fv: number })[];
 }
 
 /** wnętrze budynku: osobny mały widok wczytywany przez portal */

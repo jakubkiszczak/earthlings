@@ -151,6 +151,9 @@ export interface Stats {
 
 const FISTS: Weapon = { name: 'Pięści', min: 1, max: 3 };
 
+/** szybkość ruchu ze Zręczności: do 30 bez zmian, potem +3% za każde pełne 10 punktów */
+export const dexSpeed = (dex: number) => Math.floor(Math.max(0, dex - 30) / 10) * 0.03;
+
 export function computeStats(base: Attributes, inv: Inventory): Stats {
   const items = SLOTS.map((s) => inv.eq[s]).filter((x): x is string => !!x).map((id) => ITEMS[id]);
   const attrs = { ...base, dex: base.dex + items.reduce((a, d) => a + (d.dex ?? 0), 0) };
@@ -166,7 +169,7 @@ export function computeStats(base: Attributes, inv: Inventory): Stats {
     manaMax: dv.mana,
     manaRegen: dv.manaRegen,
     dodge: dv.dodge,
-    speed: 1 + items.reduce((a, d) => a + (d.speed ?? 0), 0),
+    speed: 1 + items.reduce((a, d) => a + (d.speed ?? 0), 0) + dexSpeed(attrs.dex),
   };
 }
 

@@ -1,4 +1,4 @@
-# Earthlings (nazwa robocza) – kooperacyjne web MMORPG (prototyp)
+# Glastemia – kooperacyjne web MMORPG (prototyp)
 
 Prototyp przeglądarkowej gry RPG w izometrii pixel art: jedna sekcja świata, postać w 8 kierunkach, ruch kliknięciem lub przytrzymaniem myszy, animowana woda i roślinność, pełny HUD (kule HP i many, umiejętności, ekwipunek, czat).
 

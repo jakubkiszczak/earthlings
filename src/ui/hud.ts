@@ -149,7 +149,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     ['Ogólny', 'Lysa:', '#e8e2d4', 'ktoś widział krakena przy klifach?'],
   ];
   demoLines.forEach((a) => line(...a));
-  sys('Witaj w Earthlings. Przytrzymaj mysz, aby iść. Mapa świata: róg ekranu.');
+  sys('Witaj w Glastemii. Przytrzymaj mysz, aby iść. Mapa świata: róg ekranu.');
   const NPCS: [string, string, string, string][] = [
     ['Ogólny', 'Grom:', '#e8e2d4', 'gdzie jest kowal?'], ['Handel', 'Mira:', '#f0b060', 'kupię skóry wilka'],
     ['Drużyna', 'Eryk:', '#8ecbff', 'idę do ruin, dołączysz?'], ['Ogólny', 'Thrain:', '#e8e2d4', 'piękna pogoda nad wodą'],
@@ -277,17 +277,17 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     hud.style.setProperty('--s', String(s));
     const C = J.console, O = J.orb, T = J.tray;
     eTop.style.height = 8 * s + 'px';
-    eTop.style.backgroundSize = `${16 * s}px ${8 * s}px`;
+    eTop.style.backgroundSize = `${64 * s}px ${8 * s}px`;
     for (const e of [eL, eR]) {
       e.style.width = 8 * s + 'px';
       e.style.bottom = C.h * s + 'px';
-      e.style.backgroundSize = `${8 * s}px ${16 * s}px`;
+      e.style.backgroundSize = `${8 * s}px ${64 * s}px`;
     }
-    for (const [e, w] of [[cTL, 48], [cTR, 24], [crest, 44]] as const) e.style.width = w * s + 'px';
+    for (const [e, w] of [[cTL, 48], [cTR, 40], [crest, 72]] as const) e.style.width = w * s + 'px';
     cTL.style.left = cTL.style.top = '0px';
     cTR.style.right = '0px';
     cTR.style.top = '0px';
-    crest.style.left = `calc(50% - ${22 * s}px)`;
+    crest.style.left = `calc(50% - ${36 * s}px)`;
     crest.style.top = '0px';
     const pr = J.portrait;
     P(portrait, pr.cx - 17, pr.cy - 17, 34, 34);
@@ -297,7 +297,7 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
     buffsEl.style.top = 22 * s + 'px';
     con.style.height = C.oh * s + 'px';
     fill.style.height = C.h * s + 'px';
-    fill.style.backgroundSize = `${16 * s}px ${C.h * s}px`;
+    fill.style.backgroundSize = `${64 * s}px ${C.h * s}px`;
     for (const c of [capL, capR]) {
       c.style.width = C.ow * s + 'px';
       c.style.height = C.oh * s + 'px';

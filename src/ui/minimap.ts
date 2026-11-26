@@ -67,7 +67,7 @@ export function createMinimap(host: HTMLElement, world: WorldInfo) {
     canvas.style.width = w * s + 'px';
     canvas.style.height = h * s + 'px';
     box.style.right = 12 * s + 'px';
-    box.style.top = 12 * s + 'px';
+    box.style.top = 44 * s + 'px';     // pod narożnikiem z głową smoka
   }
   layout();
   addEventListener('resize', layout);

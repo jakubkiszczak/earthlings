@@ -58,6 +58,16 @@ describe('ekwipunek', () => {
     expect(computeStats(base, inv).weapon).toMatchObject({ min: 1, max: 3 });
   });
 
+  it('Zręczność: do 30 bez zmian szybkości, potem +3% za każde 10', () => {
+    const inv = startInventory('hunter');
+    expect(computeStats({ ...base, dex: 30 }, inv).speed).toBeCloseTo(1);
+    expect(computeStats({ ...base, dex: 39 }, inv).speed).toBeCloseTo(1);
+    expect(computeStats({ ...base, dex: 40 }, inv).speed).toBeCloseTo(1.03);
+    expect(computeStats({ ...base, dex: 60 }, inv).speed).toBeCloseTo(1.09);
+    inv.eq.boots = 'boots1';
+    expect(computeStats({ ...base, dex: 40 }, inv).speed).toBeCloseTo(1.08);
+  });
+
   it('zapis: nieznane i błędne przedmioty są pomijane', () => {
     const inv = sanitizeInventory({ eq: { weapon: 'sword2', helm: 'sword1', ring: 'xyz' }, bag: ['armor1', 'zlo', null], hpPot: 3, mpPot: -1 }, 'warrior');
     expect(inv.eq.weapon).toBe('sword2');

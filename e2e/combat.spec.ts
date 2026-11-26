@@ -65,8 +65,8 @@ test('odskok pod prawym przyciskiem myszy: 2 kafle, potem odnowienie 10 s', asyn
   await enterGame(page, 'Skoczek');
   await page.evaluate(() => window.__game!.peace(true));
   const before = await page.evaluate(() => window.__game!.hero());
-  // kliknięcie prawym przyciskiem na prawo od postaci (środek ekranu to postać)
-  await page.mouse.click(1000, 400, { button: 'right' });
+  // kliknięcie prawym przyciskiem na lewo od postaci (na prawo stoi fontanna na placu)
+  await page.mouse.click(280, 400, { button: 'right' });
   await page.waitForTimeout(800);
   const after = await page.evaluate(() => window.__game!.hero());
   const d = Math.hypot(after.u - before.u, after.v - before.v);
@@ -74,7 +74,7 @@ test('odskok pod prawym przyciskiem myszy: 2 kafle, potem odnowienie 10 s', asyn
   expect(d).toBeLessThanOrEqual(66);
   expect(await page.evaluate(() => window.__game!.dashReady())).toBe(false);
   // drugi odskok od razu nie działa
-  await page.mouse.click(300, 400, { button: 'right' });
+  await page.mouse.click(1000, 400, { button: 'right' });
   await page.waitForTimeout(600);
   const again = await page.evaluate(() => window.__game!.hero());
   expect(Math.hypot(again.u - after.u, again.v - after.v)).toBeLessThan(2);

@@ -1,4 +1,4 @@
-# Earthlings – plan budowy prototypu v0.1
+# Glastemia – plan budowy prototypu v0.1
 
 Cel: grywalny prototyp w przeglądarce, udostępniany testerom jednym linkiem (GitHub Pages), bez logowania. Każdy tester gra solo, postać zapisuje się w jego przeglądarce.
 
@@ -26,7 +26,7 @@ Wartości liczbowe oznaczone *(do strojenia)* to propozycje startowe. Wszystkie 
 
 ## 2. Przebieg gracza
 
-1. **Ekran startowy:** logo Earthlings, przycisk „Graj”, ustawienia dźwięku.
+1. **Ekran startowy:** logo Glastemia, przycisk „Graj”, ustawienia dźwięku.
 2. **Wybór postaci:** lista do 3 zapisanych postaci (nazwa, rasa, klasa, poziom). Przyciski „Wejdź do gry”, „Nowa postać”, „Usuń”.
 3. **Kreator postaci** (podgląd postaci na żywo, obracany w 8 kierunkach):
    - nazwa (3–16 znaków, litery, cyfry, spacja),
@@ -45,7 +45,7 @@ Wartości liczbowe oznaczone *(do strojenia)* to propozycje startowe. Wszystkie 
 | Atrybut | Wpływ |
 | --- | --- |
 | Siła | obrażenia wręcz: broń + Siła/2 |
-| Zręczność | obrażenia z łuku: broń + Zręczność/2; szansa uniku 0,5% za punkt (maks. 25%) |
+| Zręczność | obrażenia z łuku: broń + Zręczność/2; szansa uniku 0,5% za punkt (maks. 25%); zasięg łuku; szybkość chodzenia +3% za każde 10 pkt powyżej 30 |
 | Witalność | HP = 100 + 10 × Witalność |
 | Szczęście | tylko z przedmiotów (Pierścień); każdy punkt: +2% złota i +2% szansy na przedmiot *(do strojenia)* |
 | Energia | mana = 20 + 5 × Energia; regeneracja many 1 + Energia/20 na sekundę |
@@ -158,6 +158,8 @@ Jeden kupiec (NPC), okno otwierane kliknięciem. Kupiec skupuje przedmioty i pot
 - Każda komórka: 40 × 40 kafli (kafel 64×32, izometria 2:1), wygenerowana w Pythonie (`tools/worldgen.py`) – osobny zestaw danych na komórkę, ok. 2 MB.
 - Przejście między komórkami na krawędzi jest płynne: w pamięci jest bieżąca komórka i jej sąsiedzi, brakujący sąsiedzi doczytują się w tle (wygaszenie tylko przy skoku, np. zwój powrotu).
 - Miasto (środek): mur lub palisada z bramami na 4 strony, kupiec, kilka budynków dekoracyjnych, punkt odrodzenia.
+- Miasto ma: fontannę na placu, skrzynię gracza przy fontannie (wspólna dla wszystkich postaci z przeglądarki, 24 miejsca), chodniki do drzwi i dookoła miasta, latarnie, rabaty z kwiatami, szyld sklepu (tarcza i miecz), strażników poz. 20 przy bramach (zabijają potwory, które podejdą za blisko).
+- Wnętrze sklepu: manekiny w zbrojach, stojaki z bronią, regał z akcesoriami, pochodnie.
 - Pozostałe komórki: różny charakter – las, polana z rzeką, ruiny, cmentarz.
 - **Minimapa 3×3** w rogu: komórki, obecna komórka podświetlona, pozycja gracza, miasto.
 

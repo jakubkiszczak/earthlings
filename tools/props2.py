@@ -272,3 +272,170 @@ def planter(seed):
             c = cols[int(r.integers(0, 2))]
             p.px(x, y - 2, c); p.px(x + 1, y - 2, c); p.px(x, y - 3, c)
     return p.done(), (cx, top + 2 * hh + wall - 1)
+
+
+# ------------------------------------------------------------------ bryły w rzucie izometrycznym (stragany)
+class Iso:
+    """Płótno do rysowania brył w izometrii 2:1: x = u - v, y = (u + v) / 2 - z (jednostki świata = piksele).
+    Ściany +v (lewa-dolna) jaśniejsze, +u (prawa-dolna) ciemniejsze – światło z lewej-góry."""
+    def __init__(self, w, h, ox, oy):
+        self.p = Px(w, h)
+        self.ox, self.oy = ox, oy
+
+    def P(self, u, v, z):
+        return int(round(u - v + self.ox)), int(round((u + v) / 2 - z + self.oy))
+
+    def dot(self, u, v, z, c):
+        x, y = self.P(u, v, z)
+        self.p.px(x, y, c)
+
+    def box(self, u0, u1, v0, v1, z0, z1, top, left, right, pat=None):
+        """prostopadłościan; pat(face, a, b) -> kolor lub None (np. deski, pasy)"""
+        st = 0.5
+        for u in np.arange(u0, u1 + 1e-6, st):                    # ściana +v
+            for z in np.arange(z0, z1 + 1e-6, st):
+                c = (pat and pat('v', u - u0, z - z0)) or left
+                self.dot(u, v1, z, c)
+        for v in np.arange(v0, v1 + 1e-6, st):                    # ściana +u
+            for z in np.arange(z0, z1 + 1e-6, st):
+                c = (pat and pat('u', v - v0, z - z0)) or right
+                self.dot(u1, v, z, c)
+        for u in np.arange(u0, u1 + 1e-6, st):                    # wierzch
+            for v in np.arange(v0, v1 + 1e-6, st):
+                c = (pat and pat('t', u - u0, v - v0)) or top
+                self.dot(u, v, z1, c)
+
+
+STALL_STRIPES = [('#c83a3a', '#f4f0e8'), ('#3a6ac8', '#f4f0e8'), ('#3a8a4a', '#f2d27a')]
+
+
+def stall_iso(kind):
+    """stragan w prawdziwej izometrii (front wzdłuż u, klienci od strony +v): cztery słupki, tylna półka z towarem,
+    lada-skrzynia z deskami, towar na blacie (kosze z owocami / bele tkanin / garnki), skośna markiza w pasy z falbaną.
+    Wersję z frontem wzdłuż v daje lustrzane odbicie."""
+    L, D, CT = 44, 24, 14                    # długość, głębokość, wysokość lady
+    W, H = L + D + 20, 108
+    g = Iso(W, H, D + 10, 70)
+    wood = ('#ad7034', '#8a5626', '#5a3418')
+    sa, sb = STALL_STRIPES[kind]
+    r = np.random.default_rng(31 + kind)
+    # słupki tylne
+    for u in (1, L - 3):
+        g.box(u, u + 2, 0, 2, 0, 58, '#8a5626', '#6a4420', '#4a2c14')
+    # tylna półka z towarem (deska na wysokości 26) i zawieszone towary
+    g.box(0, L, 0, 5, 24, 26, wood[0], wood[1], wood[2])
+    for i in range(7):
+        u = 3 + i * 6
+        if kind == 0:
+            g.box(u, u + 4, 1, 4, 26, 30, '#c89048', '#a06a30', '#7a4a20')
+            for _ in range(5):
+                g.dot(u + r.uniform(0.5, 3.5), r.uniform(1, 3.5), 31, ['#e03a2a', '#f0b030', '#7ac040'][int(r.integers(0, 3))])
+        elif kind == 1:
+            c = ['#c83a6a', '#3a8ac8', '#e8c040', '#6a3ac8', '#3aa05a'][i % 5]
+            g.box(u, u + 4, 2, 4, 30, 46, c, c, '#2a1e28')                       # tkanina zwisająca z drążka
+        else:
+            g.box(u + 1, u + 4, 1, 4, 26, 31, '#b06a3a', '#d88a50', '#8a4a24')
+            g.dot(u + 2.5, 2.5, 32, '#5a2e14')
+    # lada: skrzynia z pionowymi deskami i jaśniejszym blatem z krawędzią
+    def planks(face, a, b):
+        if face == 'v':
+            if b > CT - 1.5:
+                return '#cc8c46'
+            return '#673e1c' if int(a) % 6 == 0 else ('#9a6230' if int(a) % 6 < 3 else '#8a5626')
+        if face == 'u':
+            if b > CT - 1.5:
+                return '#8a5626'
+            return '#4a2c14' if int(a) % 6 == 0 else '#5a3418'
+        return '#b87a3c' if int(a) % 8 else '#9a6230'
+    g.box(0, L, 10, D, 0, CT, '#b87a3c', '#8a5626', '#5a3418', planks)
+    # towar na blacie
+    if kind == 0:
+        for i, u in enumerate((3, 15, 27, 37)):
+            g.box(u, u + 8, 12, 20, CT, CT + 4, '#c89048', '#b07a38', '#7a4a20',
+                  lambda f, a, b: '#8a5a28' if (int(a) + int(b)) % 3 == 0 else None)
+            col = ['#e03a2a', '#f0b030', '#7ac040', '#ff8a2a'][i]
+            for _ in range(22):
+                g.dot(u + r.uniform(1, 7), r.uniform(13, 19), CT + 5, col if r.random() < 0.8 else '#fff0c0')
+    elif kind == 1:
+        for i, u in enumerate(range(2, L - 6, 7)):
+            c = ['#c83a6a', '#3a8ac8', '#e8c040', '#6a3ac8', '#3aa05a', '#e86a3a'][i % 6]
+            g.box(u, u + 6, 12, 21, CT, CT + 3, c, c, '#3a2a30',
+                  lambda f, a, b, c=c: '#ffffff' if (f == 't' and int(a) == 1) else None)
+    else:
+        for i, u in enumerate(range(3, L - 5, 8)):
+            hh = 5 + (i % 2) * 3
+            g.box(u, u + 5, 14, 19, CT, CT + hh, '#c07a44', '#d88a50', '#8a4a24')
+            g.box(u + 1, u + 4, 15, 18, CT + hh, CT + hh + 2, '#b06a3a', '#c07a44', '#7a3a1a')
+            g.dot(u + 2.5, 16.5, CT + hh + 2.5, '#3a1a0a')
+    # słupki przednie
+    for u in (1, L - 3):
+        g.box(u, u + 2, D + 1, D + 3, 0, 46, '#8a5626', '#7a4a20', '#4a2c14')
+    # markiza: skośna płaszczyzna od tyłu (z=52) do przodu (z=40), pasy wzdłuż u, falbana na przedniej krawędzi
+    for u in np.arange(-3, L + 3 + 1e-6, 0.5):
+        stripe = sa if int((u + 3) // 5) % 2 == 0 else sb
+        for t in np.arange(0, 1 + 1e-6, 0.02):
+            v = -3 + t * (D + 10)
+            z = 60 - t * 14
+            c = stripe
+            if t < 0.15:
+                c = '#6a4420' if t < 0.04 else stripe                      # tylna listwa
+            g.dot(u, v, z, c)
+        # falbana: zwisające języki co drugi pas
+        fv = D + 7
+        drop = 5 if int((u + 3) // 5) % 2 == 0 else 3
+        for dz in np.arange(0, drop + 1e-6, 0.5):
+            g.dot(u, fv, 46 - dz, stripe if dz < drop - 0.5 else '#1e1418')
+    # cień pod markizą na ladzie (ciemniejsze pasy blatu) – drobny akcent głębi
+    a = g.p.done()
+    ax, ay = g.P(L / 2, D / 2 + 4, 0)
+    return a, (ax, ay)
+
+
+def banner(kind):
+    """sztandar na kutym słupie: poprzeczka, długi płat z herbem (tarcza z mieczem), wycięty jaskółczy ogon"""
+    cols = [('#b8282c', '#e04a44', '#7a141a', '#f2d27a'), ('#2a4aa8', '#4a72d8', '#16286a', '#f2d27a'),
+            ('#2e7a3a', '#4a9e52', '#18481e', '#f4f0e8')][kind]
+    p = Px(24, 84)
+    # podstawa i słup
+    p.put(7, 78, 17, 84, '#6c6a72'); p.put(7, 78, 9, 84, '#8a8890'); p.put(15, 78, 17, 84, '#4a4850')
+    p.put(11, 6, 13, 78, '#3a3640'); p.put(11, 6, 12, 78, '#6a6672')
+    p.put(9, 2, 15, 6, '#c8a040'); p.put(10, 0, 14, 2, '#f2d27a')                 # złota gałka
+    p.put(2, 8, 22, 10, '#3a3640'); p.put(2, 8, 22, 9, '#6a6672')                  # poprzeczka
+    # płat
+    c1, c2, c3, gold = cols
+    for y in range(10, 52):
+        for x in range(4, 20):
+            if y > 44 and abs(x - 11.5) < (y - 44) * 0.9:                          # jaskółczy ogon
+                continue
+            c = c1
+            if x < 6:
+                c = c2
+            elif x > 17:
+                c = c3
+            if y in (12, 13) or x in (5, 18) and y < 45:
+                c = gold
+            p.px(x, y, c)
+    # herb: tarcza z mieczem
+    for y in range(18, 34):
+        w = 5 if y < 28 else 5 - (y - 28)
+        for x in range(12 - w, 12 + w):
+            p.px(x, y, gold if (x in (12 - w, 11 + w) or y == 18) else c3)
+    p.put(11, 16, 13, 33, '#e8ecf0'); p.put(9, 21, 15, 22, '#c8a040'); p.px(11, 16, '#ffffff')
+    return p.done(), (12, 83)
+
+
+def flag(kind, frame):
+    """flaga na maszcie (na dach wieży / basztę), 3 klatki falowania"""
+    cols = [('#b8282c', '#e04a44', '#7a141a'), ('#2a4aa8', '#4a72d8', '#16286a'), ('#e8c040', '#fff0a0', '#a07a20')][kind]
+    p = Px(30, 40)
+    p.put(2, 2, 4, 40, '#3a3640'); p.put(2, 2, 3, 40, '#6a6672'); p.put(1, 0, 5, 2, '#f2d27a')
+    for x in range(4, 28):
+        ph = frame * 2.1
+        off = np.sin(x * 0.45 - ph) * 1.6 * (x - 4) / 24
+        top = int(round(4 + off)); bot = int(round(17 + off + (x - 4) * 0.06))
+        sh = np.cos(x * 0.45 - ph)
+        c = cols[1] if sh > 0.5 else cols[2] if sh < -0.5 else cols[0]
+        p.put(x, top, x + 1, bot, c)
+        if x > 24 and frame % 2:
+            p.px(x, bot, c)
+    return p.done(), (3, 39)

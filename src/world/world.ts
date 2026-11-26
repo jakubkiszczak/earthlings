@@ -27,7 +27,7 @@ interface LoadedCell {
   /** poświata latarni i pochodni (migotanie) */
   glows: { g: Graphics; ph: number }[];
   /** pochodnie: sprite płomienia (2 klatki) */
-  torches: { s: Sprite; ph: number }[];
+  torches: { s: Sprite; ph: number; flag?: string }[];   // pochodnie (2 klatki) i flagi (3 klatki, prefiks)
   sources: ImageSource[];
   grid?: WorldGrid;
 }
@@ -156,7 +156,10 @@ export class World {
       c.water.update(t, dt);
       for (const w of c.sway) w.s.x = Math.round(Math.sin(t * 1.3 + w.ph) * w.amp);
       for (const l of c.glows) l.g.alpha = 0.8 + 0.2 * Math.sin(t * 7.3 + l.ph) * Math.sin(t * 2.1 + l.ph * 2);
-      for (const tc of c.torches) this.atlas.setFrame(tc.s, Math.floor(t * 7 + tc.ph * 7) % 2 ? 'torch1' : 'torch0');
+      for (const tc of c.torches) {
+        if (tc.flag) this.atlas.setFrame(tc.s, `${tc.flag}_${Math.floor(t * 5 + tc.ph * 3) % 3}`);
+        else this.atlas.setFrame(tc.s, Math.floor(t * 7 + tc.ph * 7) % 2 ? 'torch1' : 'torch0');
+      }
     }
   }
 
@@ -226,6 +229,7 @@ export class World {
         glows.push({ g, ph: (e.x * 0.37 + e.y * 0.11) % 6.28 });
         if (!lamp) torches.push({ s: c.children[0] as Sprite, ph: (e.x * 0.13) % 1 });
       }
+      if (e.k === 'flag') torches.push({ s: c.children[0] as Sprite, ph: e.ph ?? 0, flag: e.s[0].replace(/_\d+$/, '') });
       items.push({ obj: c, x: e.x, y: e.y, z: depthZ(e.z, 5), bx0, by0, bx1, by1 });
     }
     for (const it of items) this.layer.addChild(it.obj);

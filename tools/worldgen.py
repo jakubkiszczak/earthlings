@@ -161,6 +161,27 @@ TOWNFOLK = [
 RING = 64                                # chodnik wokół miasta: odległość od muru
 
 
+def town_banners():
+    """sztandary: przy wylotach ulic na plac i przy bramach (od środka miasta)"""
+    a0, a1 = TOWN_WALL
+    pts = []
+    for d in (-150, 150):
+        for s_ in (-40, 40):
+            pts += [(CTR + d, CTR + s_), (CTR + s_, CTR + d)]
+    for s_ in (-58, 58):
+        pts += [(a0 + 30, CTR + s_), (a1 - 30, CTR + s_), (CTR + s_, a0 + 30), (CTR + s_, a1 - 30)]
+    return [(float(u), float(v)) for (u, v) in pts]
+
+
+def town_flags():
+    """flagi na dachach: baszty przy bramach, wieża strażnicza, wieża katedry (u, v, wysokość podstawy masztu)"""
+    a0, a1 = TOWN_WALL
+    fl = [(CTR - GATE - 10, a0, BASE + 90), (CTR + GATE + 10, a0, BASE + 90), (CTR - GATE - 10, a1, BASE + 90), (CTR + GATE + 10, a1, BASE + 90),
+          (a0, CTR - GATE - 10, BASE + 90), (a0, CTR + GATE + 10, BASE + 90), (a1, CTR - GATE - 10, BASE + 90), (a1, CTR + GATE + 10, BASE + 90),
+          (CTR + TOWER[0], CTR + TOWER[1], BASE + 8 + 150), (CTR - 378, CTR + 240, BASE + 150 + 40)]
+    return [(float(u), float(v), int(h)) for (u, v, h) in fl]
+
+
 def town_guards():
     """strażnicy: po dwóch przed każdą bramą (na zewnątrz muru), z kierunkiem patrzenia"""
     a0, a1 = TOWN_WALL
@@ -218,6 +239,15 @@ HOUSES = [
     (230, -430, 40, 40, 67, 'hip', 0, 'stone', 'v', 2, 2, None),
     (440, -230, 30, 44, 53, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
     (220, 110, 30, 26, 48, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
+    # pierzeje rynku: kamienice wokół placu z fontanną
+    (-200, -215, 34, 30, 70, 'gable_u', 0, 'plaster', 'v', 2, 1, None),
+    (-110, -210, 28, 26, 62, 'gable_v', 2, 'stone', 'v', 1, 1, None),
+    (110, -210, 34, 28, 74, 'gable_u', 1, 'plaster', 'v', 2, 1, None),
+    (210, -200, 28, 30, 60, 'hip', 0, 'plaster', 'v', 1, 1, None),
+    (210, -95, 30, 34, 66, 'gable_v', 2, 'plaster', 'v', 1, 2, None),
+    (-205, 110, 30, 34, 64, 'gable_v', 0, 'plaster', 'u', 1, 2, None),
+    (-100, 215, 34, 30, 70, 'gable_u', 1, 'stone', 'u', 2, 1, None),
+    (100, 210, 30, 30, 58, 'hip', 2, 'plaster', 'u', 1, 1, None),
 ]
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
 SPAWN = (CTR - 100, CTR + 92)          # na placu, z dala od fontanny i donic
@@ -306,6 +336,8 @@ def layout(gu, gv):
     MAT[town & (MAT == TR.DIRT)] = TR.GRASS
     plaza = town & (np.abs(gu - CTR) < 150) & (np.abs(gv - CTR) < 150)
     MAT[plaza] = TR.PAVE
+    street = town & ((np.abs(gu - CTR) < 26) | (np.abs(gv - CTR) < 26))          # główne ulice brukowane
+    MAT[street] = TR.PAVE
     a0, a1 = TOWN_WALL
     # chodnik dookoła miasta (wzdłuż muru, od środka) – łączy bramy
     rjit = (vnoise(gu, gv, 30, 93) - 0.5) * 4
@@ -441,9 +473,12 @@ def build_sprites():
     spr['shelfitems'] = props2.iso_face(*props2.accessory_shelf(), along='v')    # przy tylnej ścianie u
     spr['shelfitems_u'] = props2.iso_face(*props2.accessory_shelf(), along='u')
     for k in range(3):
-        a_, anc = props2.stall(k)
-        spr[f'stall{k}u'] = props2.iso_face(a_, anc, along='u', depth=12)
-        spr[f'stall{k}v'] = props2.iso_face(a_, anc, along='v', depth=12)
+        a_, anc = props2.stall_iso(k)
+        spr[f'stall{k}u'] = (a_, anc)
+        spr[f'stall{k}v'] = (np.ascontiguousarray(a_[:, ::-1]), (a_.shape[1] - 1 - anc[0], anc[1]))
+        spr[f'banner{k}'] = props2.banner(k)
+        for f_ in range(3):
+            spr[f'flag{k}_{f_}'] = props2.flag(k, f_)
     for k in range(4):
         spr[f'planter{k}'] = props2.planter(k)
     spr['torch0'] = props2.torch(0)
@@ -697,6 +732,15 @@ def gen_cell(ci, cj, sizes):
             lu, lv = u - ou + M, v - ov + M
             x, y = to_screen(lu, lv)
             ents.append(dict(k='prop', s=[f'planter{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for i, (u, v) in enumerate(town_banners()):
+            lu, lv = u - ou + M, v - ov + M
+            x, y = to_screen(lu, lv)
+            ground_shadow(x + 3, y, 6, 2, 0.6)
+            ents.append(dict(k='prop', s=[f'banner{i % 3}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for i, (u, v, h) in enumerate(town_flags()):
+            lu, lv = u - ou + M, v - ov + M
+            ents.append(dict(k='flag', s=[f'flag{i % 3}_0'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - h + Y0),
+                             z=int(lu + lv - 2 * M) + 4, ph=round(float(rr.random()), 3)))
         # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
         lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
         ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 42) + Y0), z=int(lu + lv - 2 * M) + 2))
@@ -725,7 +769,7 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         cic, cjc = int((chest_uv[0] - ou + M) // CELLW), int((chest_uv[1] - ov + M) // CELLW)
         walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
-        for (u, v) in town_lamps() + town_flowers() + [STASH] + PLANTERS + [q[0] for q in STALLS]:
+        for (u, v) in town_lamps() + town_flowers() + town_banners() + [STASH] + PLANTERS + [q[0] for q in STALLS]:
             cic, cjc = int((u - ou + M) // CELLW), int((v - ov + M) // CELLW)
             walk[cjc - 1:cjc + 2, cic - 1:cic + 2] = False
         cic, cjc = int((STASH[0] - ou + M) // CELLW), int((STASH[1] - ov + M) // CELLW)

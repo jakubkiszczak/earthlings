@@ -1,8 +1,8 @@
-// Kamera: wygładzanie wykładnicze, zoom tylko całkowity (pixel art), ograniczenie do granic mapy.
+// Kamera: wygładzanie wykładnicze, zoom całkowity (pixel art) poza najdalszym poziomem 1,25, ograniczenie do granic mapy.
 import type { Container, Rectangle } from 'pixi.js';
 
-const ZOOM_MIN = 1;      // najdalsze oddalenie (scroll)
-const ZOOM_MAX = 6;
+// poziomy przybliżenia (scroll); najdalsze 1,25 = o 20% mniej oddalenia niż ×1 (jedyny poziom ułamkowy)
+const ZOOMS = [1.25, 2, 3, 4, 5, 6];
 
 export class Camera {
   x = 0;
@@ -15,7 +15,8 @@ export class Camera {
   constructor() {
     this.zoom = Math.max(2, Math.min(5, Math.floor(Math.min(innerWidth / 330, innerHeight / 200))));
     addEventListener('wheel', (e) => {
-      this.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.zoom + (e.deltaY < 0 ? 1 : -1)));
+      const i = ZOOMS.indexOf(this.zoom);
+      this.zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? 1 : i) + (e.deltaY < 0 ? 1 : -1)))];
     }, { passive: true });
   }
 

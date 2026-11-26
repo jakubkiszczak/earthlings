@@ -26,13 +26,13 @@ const HAIR: Record<Exclude<Hair, 'bald'>, [string, string, string]> = {
   brown: ['#9a6438', '#704626', '#4a2c16'],
 };
 
-function palette(l: CharLook): Record<string, RGB> {
+function palette(l: CharLook, glow = false): Record<string, RGB> {
   const p: Record<string, string> = {
     w: '#f4f0e8', o: '#1a1414', m: '#a24e40', M: '#f0f0f0', Y: '#ecc460', K: '#3a2214', U: '#8a5a30',
     A: '#8a5230', a: '#5a3218', j: '#3a1e0e',
   };
-  if (l.race === 'elf') Object.assign(p, { S: '#f6dcc0', s: '#dcb494', z: '#ae7e5c', i: '#3a9a5a' });
-  else Object.assign(p, { S: '#f0c49c', s: '#c8906a', z: '#96603e', i: '#3a7aa0' });
+  if (l.race === 'elf') Object.assign(p, { S: '#f6dcc0', s: '#dcb494', z: '#ae7e5c', i: '#3a9a5a', BL: '#f0aa94', o: '#1a2a1a' });
+  else Object.assign(p, { S: '#f0c49c', s: '#c8906a', z: '#96603e', i: '#3a7aa0', BL: '#e8947c' });
   const hc = l.hair === 'bald' ? HAIR.brown : HAIR[l.hair];
   Object.assign(p, { H: hc[0], h: hc[1], g: hc[2], y: l.hair === 'white' ? '#b8bcc8' : hc[2] });
   if (l.cls === 'warrior') {
@@ -48,6 +48,7 @@ function palette(l: CharLook): Record<string, RGB> {
       R: '#3a5a2e', r: '#2a4220', x: '#1a2a14', P: '#5a4a36', p: '#44382a', q: '#2a2218',
     });
   }
+  if (l.kind) Object.assign(p, { BL: l.kind === 'zombie' ? '#7a9060' : '#b8b09a' });
   if (l.kind === 'skeleton') Object.assign(p, {
     S: '#e8e2cc', s: '#b8b09a', z: '#807860', i: '#ff3a2a', w: '#1a1414', m: '#1a1414',
     B: '#5a4a42', b: '#3e322c', D: '#24201c', c: '#8a7a60', L: '#e0dac4', l: '#a8a08a', n: '#6a6450',
@@ -89,6 +90,8 @@ function palette(l: CharLook): Record<string, RGB> {
     T1: sh[0], T2: sh[1], T3: sh[2], T4: sh[3], T5: '#6a4424',
     W1: wood[0], W2: wood[1], W3: '#e8e0d0', F1: '#e04a3a', F2: '#f4f0e8', Q1: '#7a4a24', Q2: '#4e2e14',
   });
+  // podświetlenie broni przy umiejętności: żółta poświata
+  if (glow) Object.assign(p, { E1: '#fffbd0', E2: '#ffe060', E3: '#ffd030', G1: '#fff6a0', G2: '#ffd84a', W1: '#ffe680', W2: '#e8b830', W3: '#fffbd0' });
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, hex(v)]));
 }
 
@@ -146,8 +149,8 @@ const BUILD = {
   stocky: { tw: 6.2, sep: 3.5, leg: 2.0 },
 };
 
-function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: boolean, pose: Pose = 'none'): Uint8ClampedArray {
-  const cv = new Cv(palette(l));
+function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: boolean, pose: Pose = 'none', glow = false): Uint8ClampedArray {
+  const cv = new Cv(palette(l, glow));
   const back = d === 'N' || d === 'NE';
   const side = { S: 0, SE: 0.5, E: 1, NE: 0.5, N: 0 }[d];
   const stride = walking ? [1, 0, -1, 0][phase] : 0;
@@ -236,9 +239,11 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       const lift = (stride > 0 && sgn < 0) || (stride < 0 && sgn > 0) ? 1 : 0;
       const dx = stride * sgn * 0.6 * side;
       cv.shadeRect(lx - B.leg + dx, 30, lx + B.leg + dx, 36 - lift, 'P', 'p', 'q');
+      cv.px(lx - 0.5 + dx, 33 - lift, 'q'); cv.px(lx + 0.5 + dx, 33 - lift, 'p');      // szew na kolanie
       cv.shadeRect(lx - B.leg + dx, 37 - lift, lx + B.leg + dx, 40 - lift, 'A', 'a', 'j');
       cv.rect(lx - B.leg + dx, 37 - lift, lx + B.leg + dx, 37 - lift, 'A');
       cv.px(lx + dx, 38 - lift, 'Y');
+      cv.px(lx - B.leg + dx, 39 - lift, 'A');                                         // odblask na cholewie
       cv.rect(lx - B.leg + dx + (sgn > 0 ? 1 : -1), 41 - lift, lx + B.leg + dx, 41 - lift, 'j');
     }
   } else {
@@ -264,7 +269,9 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
   } else {
     cv.rect(cx - 1, t0 + 1, cx, t1 - 1, 'b');
   }
+  if (!back && side < 1) { cv.px(cx - 1 + side, t0 + 1, 'D'); cv.px(cx + side, t0 + 2, 'D'); cv.px(cx + 1 + side, t0 + 1, 'D'); }   // dekolt w szpic
   cv.rect(cx - tw, 27 + by, cx + tw, 28 + by, 'K');
+  cv.rect(cx - tw, 27 + by, cx + tw, 27 + by, 'c');
   if (!back) {
     const bx = cx + side * 2;
     cv.rect(bx - 1, 27 + by, bx, 28 + by, 'Y'); cv.px(bx - 1, 27 + by, 'w');
@@ -329,13 +336,14 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     if (elf) { if (d === 'N') { ear(hx - 6, hy, -1); ear(hx + 6, hy, 1); } else ear(hx + 6, hy, 1); }
   } else {
     cv.disc(hx, hy - 0.5, 5.6, 6.0, hH, hh, hg);
-    const [fx0, fx1] = d === 'S' ? [hx - 3, hx + 3] : d === 'SE' ? [hx - 2, hx + 4] : [hx, hx + 5];
+    const [fx0, fx1] = d === 'S' ? [hx - 4, hx + 4] : d === 'SE' ? [hx - 3, hx + 4] : [hx, hx + 5];
     cv.rect(fx0, hy - 1, fx1, hy + 4, 'S');
     cv.rect(fx1 - 1, hy - 1, fx1, hy + 3, 's');
     cv.rect(fx0, hy + 4, fx1, hy + 4, 's');
     if (!bald) {
       for (let x = Math.floor(fx0); x <= fx1; x++) cv.px(x, hy - 2, x % 2 ? 'H' : 'h');
       cv.px(fx0 + 1, hy - 1, 'h'); cv.px(fx1 - 1, hy - 1, 'g');
+      cv.px(hx - 3, hy - 4, 'H'); cv.px(hx - 1, hy - 5, 'H'); cv.px(hx + 2, hy - 5, 'h');   // pasma włosów
       if (elf && d !== 'E') { cv.rect(fx0 - 1, hy - 1, fx0 - 1, hy + 5, 'h'); cv.rect(fx1 + 1, hy - 1, fx1 + 1, hy + 4, 'g'); }
     } else {
       cv.px(hx - 2, hy - 4, 'w');
@@ -345,18 +353,23 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       for (const [y, x0, x1] of rows) cv.rect(x0, y, x1, y, (y - hy) % 2 ? beardC[0] : beardC[1]);
     };
     if (d === 'S') {
-      cv.px(hx - 2, hy, 'y'); cv.px(hx - 1, hy, 'y'); cv.px(hx + 1, hy, 'y'); cv.px(hx + 2, hy, 'y');
-      cv.px(hx - 2, hy + 1, 'w'); cv.px(hx - 1, hy + 1, 'i'); cv.px(hx + 1, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'w');
-      cv.px(hx, hy + 2, 's'); cv.px(hx, hy + 1, 'S');
+      // oczy szerzej rozstawione: biel + tęczówka, brwi nad nimi, rumieńce, nos z cieniem
+      cv.px(hx - 3, hy, 'y'); cv.px(hx - 2, hy, 'y'); cv.px(hx + 2, hy, 'y'); cv.px(hx + 3, hy, 'y');
+      cv.px(hx - 3, hy + 1, 'w'); cv.px(hx - 2, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'i'); cv.px(hx + 3, hy + 1, 'w');
+      cv.px(hx - 2, hy + 2, 's'); cv.px(hx + 2, hy + 2, 's');
+      cv.px(hx, hy + 1, 'S'); cv.px(hx, hy + 2, 'z'); cv.px(hx + 1, hy + 2, 's');
+      cv.px(hx - 3, hy + 3, 'BL'); cv.px(hx + 3, hy + 3, 'BL');
       if (l.beard === 'short') { beard([[hy + 3, hx - 2, hx + 2], [hy + 4, hx - 2, hx + 2], [hy + 5, hx - 2, hx + 2], [hy + 6, hx - 1, hx + 1]]); cv.px(hx - 3, hy + 3, beardC[2]); cv.px(hx + 3, hy + 3, beardC[2]); cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm'); }
       else if (l.beard === 'long') { beard([[hy + 3, hx - 3, hx + 3], [hy + 4, hx - 3, hx + 3], [hy + 5, hx - 3, hx + 3], [hy + 6, hx - 2, hx + 2], [hy + 7, hx - 2, hx + 2], [hy + 8, hx - 1, hx + 1], [hy + 9, hx - 1, hx + 1], [hy + 10, hx, hx]]); cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm'); }
       else if (l.beard === 'mustache') { cv.rect(hx - 2, hy + 3, hx - 1, hy + 3, beardC[0]); cv.rect(hx + 1, hy + 3, hx + 2, hy + 3, beardC[1]); cv.px(hx - 3, hy + 4, beardC[1]); cv.px(hx + 3, hy + 4, beardC[2]); cv.rect(hx - 1, hy + 4, hx + 1, hy + 4, 'm'); }
       else cv.rect(hx - 1, hy + 3, hx + 1, hy + 3, 'm');
       if (elf) { ear(hx - 6, hy, -1); ear(hx + 6, hy, 1); }
     } else if (d === 'SE') {
-      cv.px(hx - 1, hy, 'y'); cv.px(hx + 2, hy, 'y'); cv.px(hx + 3, hy, 'y');
-      cv.px(hx - 1, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'w'); cv.px(hx + 3, hy + 1, 'i');
-      cv.px(hx + 4, hy + 2, 's'); cv.px(hx + 1, hy + 2, 's');
+      cv.px(hx - 2, hy, 'y'); cv.px(hx - 1, hy, 'y'); cv.px(hx + 2, hy, 'y'); cv.px(hx + 3, hy, 'y');
+      cv.px(hx - 2, hy + 1, 'w'); cv.px(hx - 1, hy + 1, 'i'); cv.px(hx + 2, hy + 1, 'w'); cv.px(hx + 3, hy + 1, 'i');
+      cv.px(hx - 1, hy + 2, 's'); cv.px(hx + 3, hy + 2, 's');
+      cv.px(hx + 4, hy + 2, 'z'); cv.px(hx + 4, hy + 1, 'S');
+      cv.px(hx - 2, hy + 3, 'BL'); cv.px(hx + 3, hy + 3, 'BL');
       if (l.beard === 'short') { beard([[hy + 3, hx - 1, hx + 3], [hy + 4, hx - 1, hx + 3], [hy + 5, hx - 1, hx + 3], [hy + 6, hx, hx + 2]]); cv.px(hx + 4, hy + 3, beardC[2]); cv.rect(hx, hy + 3, hx + 2, hy + 3, 'm'); }
       else if (l.beard === 'long') { beard([[hy + 3, hx - 2, hx + 4], [hy + 4, hx - 2, hx + 4], [hy + 5, hx - 1, hx + 3], [hy + 6, hx - 1, hx + 3], [hy + 7, hx, hx + 2], [hy + 8, hx, hx + 2], [hy + 9, hx + 1, hx + 1]]); cv.rect(hx, hy + 3, hx + 2, hy + 3, 'm'); }
       else if (l.beard === 'mustache') { cv.rect(hx - 1, hy + 3, hx + 3, hy + 3, beardC[0]); cv.px(hx - 1, hy + 4, beardC[1]); cv.px(hx + 3, hy + 4, beardC[2]); cv.rect(hx, hy + 4, hx + 2, hy + 4, 'm'); }
@@ -364,7 +377,8 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       if (elf) ear(hx - 3, hy, -1); else cv.px(hx - 2, hy + 1, 'z');
     } else {
       cv.px(hx + 3, hy, 'y'); cv.px(hx + 4, hy, 'y');
-      cv.px(hx + 3, hy + 1, 'w'); cv.px(hx + 4, hy + 1, 'i');
+      cv.px(hx + 3, hy + 1, 'w'); cv.px(hx + 4, hy + 1, 'i'); cv.px(hx + 4, hy + 2, 's');
+      cv.px(hx + 3, hy + 3, 'BL');
       cv.px(hx + 6, hy + 2, 'S'); cv.px(hx + 6, hy + 1, 's');
       if (l.beard === 'short') { beard([[hy + 3, hx + 2, hx + 5], [hy + 4, hx + 2, hx + 5], [hy + 5, hx + 2, hx + 5]]); cv.px(hx + 5, hy + 3, 'm'); cv.px(hx + 4, hy + 3, 'm'); }
       else if (l.beard === 'long') { beard([[hy + 3, hx + 1, hx + 6], [hy + 4, hx + 1, hx + 6], [hy + 5, hx + 2, hx + 5], [hy + 6, hx + 2, hx + 5], [hy + 7, hx + 3, hx + 5], [hy + 8, hx + 3, hx + 4]]); cv.px(hx + 5, hy + 3, 'm'); }
@@ -449,6 +463,8 @@ export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
     data.set(`${prefix}_${d}_idle1`, std(frame(look, d, 0, 1, false)));
     data.set(`${prefix}_${d}_atk0`, std(frame(look, d, 0, 0, false, 'atk0')));
     data.set(`${prefix}_${d}_atk1`, std(frame(look, d, 0, 0, false, 'atk1')));
+    data.set(`${prefix}_${d}_atkg0`, std(frame(look, d, 0, 0, false, 'atk0', true)));
+    data.set(`${prefix}_${d}_atkg1`, std(frame(look, d, 0, 0, false, 'atk1', true)));
   }
   data.set(`${prefix}_dead`, lying(data.get(`${prefix}_E_idle0`)!));
   return { names: [...data.keys()], data };

@@ -29,6 +29,7 @@ export const ICONS = {
     px(11, 1, '#fff6c0');
   }),
   arrows: icon((px) => { arrow(px, 2, 11, 9); arrow(px, 4, 12, 8); arrow(px, 1, 9, 8); }),
+  get dash() { return ICON_DASH; },
 };
 
 /** łuk (ikona broni łowcy) i stos monet */
@@ -54,3 +55,12 @@ export function itemIcon(id: string, legacy: Record<string, string>): string {
   const k = Object.keys(map).find((p) => id.startsWith(p));
   return legacy[`icon_${map[k ?? 'sword']}`];
 }
+
+/** odskok: sylwetka z liniami ruchu */
+export const ICON_DASH = icon((px) => {
+  for (const [x, y] of [[8, 2], [9, 2], [8, 3], [9, 3]]) px(x, y, '#f0c49c');
+  for (let y = 4; y <= 8; y++) { px(8, y, '#c8ccd6'); px(9, y, '#8a8e9a'); }
+  px(7, 5, '#c8ccd6'); px(10, 6, '#8a8e9a'); px(6, 6, '#c8ccd6');
+  px(7, 9, '#3e4460'); px(7, 10, '#3e4460'); px(10, 9, '#3e4460'); px(11, 10, '#3e4460');
+  for (const [x, y] of [[1, 4], [2, 4], [3, 4], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [1, 8], [2, 8], [3, 8]]) px(x, y, '#9ad0ff');
+});

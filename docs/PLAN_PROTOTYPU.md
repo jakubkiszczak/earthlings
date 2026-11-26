@@ -82,7 +82,9 @@ Postać odradza się w mieście z pełnym HP i maną, traci 10% złota. Exp i pr
 
 ## 4. Walka
 
-- **Auto-atak:** kliknięcie moba → wojownik podchodzi i atakuje wręcz (zasięg 1 kafel), łowca strzela z dystansu (zasięg 8 kafli). Atak trwa do śmierci celu albo kliknięcia gdzie indziej. Tempo: 1 atak na sekundę *(do strojenia)*.
+- **Auto-atak:** kliknięcie moba → wojownik podchodzi i atakuje wręcz (zasięg 1 kafel), łowca strzela z dystansu (zasięg 8 kafli + 1 kafel za każde 10 Zręczności powyżej 20).
+- **Odskok:** prawy przycisk myszy – 2 kafle w stronę kursora, chwila bez obrażeń, raz na 10 s.
+- **Regeneracja zdrowia:** +30 HP na minutę za każde pełne 10 Witalności. Atak trwa do śmierci celu albo kliknięcia gdzie indziej. Tempo: 1 atak na sekundę *(do strojenia)*.
 - **Strzały:** łowca zużywa 1 strzałę na strzał. Start z 200 strzałami. Bez strzał łowca nie strzela (komunikat „Brak strzał”).
 - **Pancerz:** otrzymane obrażenia × 100 / (100 + pancerz).
 - Klawisze: 1 i 2 – umiejętności, Q – potion HP, E – potion many (cooldown potionów 1 s).
@@ -105,8 +107,8 @@ Postać odradza się w mieście z pełnym HP i maną, traci 10% złota. Exp i pr
 | Zombie | 150 | 70 | 150 | wolny, atak co 2,2 s, zauważa z 4 kafli |
 
 - 30 mobów na każdą z 8 komórek (240 w świecie), żadnych w mieście.
-- Mob ściga gracza najwyżej 12 kafli od swojego punktu, potem wraca i się leczy.
-- Respawn 15 s po zabiciu, w punkcie startowym.
+- Mob ściga gracza po całej mapie (bez smyczy); po śmierci gracza wraca na swoje miejsce.
+- Respawn 30 s po zabiciu, w losowym miejscu swojej komórki (z dala od gracza).
 - **Rozkład trudności:** komórki stykające się bokiem z miastem (N, S, E, W) – głównie wilki z kilkoma szkieletami; komórki narożne – szkielety i zombie.
 
 ---

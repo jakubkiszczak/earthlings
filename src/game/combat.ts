@@ -3,7 +3,7 @@ import { Container, Graphics } from 'pixi.js';
 import type { Hero } from '../entities/actors';
 import { EXP_TO_NEXT, MAX_LEVEL, type ClassId } from '../logic/character';
 import {
-  BOW_RANGE, HP_REGEN, KNOCKBACK, MELEE_RANGE, MOBS, OUT_OF_COMBAT, PLAYER_ATTACK_EVERY, SKILLS, STUN_TIME,
+  DASH_CD, DASH_DIST, DASH_IFRAMES, DASH_TIME, KNOCKBACK, MELEE_RANGE, MOBS, PLAYER_ATTACK_EVERY, SKILLS, STUN_TIME, bowRange, hpRegen,
   afterArmor, damageMob, dist, gainExp, playerDamage, seeded, type Mob, type MobEvent, type Progress, type SkillId, type Vec,
 } from '../logic/combat';
 import type { SavedChar } from '../logic/save';
@@ -46,7 +46,9 @@ export class PlayerCombat {
   private atkCd = 0;
   private readonly cds: [number, number] = [0, 0];
   private queued: SkillId | null = null;
-  private sinceHit = 99;
+  private dashCd = 0;
+  private invuln = 0;
+  private dash: { from: Vec; to: Vec; t: number } | null = null;
   private repath = 0;
   private readonly shots: Projectile[] = [];
   private readonly rng = seeded(Date.now() & 0xffffff);
@@ -78,7 +80,9 @@ export class PlayerCombat {
     const icon = (id: SkillId) => (id === 'power' ? ic.icon_sword : id === 'knockdown' ? ic.icon_bash : id === 'double' ? ICONS.double : ICONS.push);
     const sk = (s: typeof a, key: string): SlotDef => ({ key, icon: icon(s.id), name: s.name, desc: s.desc, mana: s.mana, cd: s.cd });
     return [
-      sk(a, '1'), sk(b, '2'), null, null, null,
+      sk(a, '1'), sk(b, '2'),
+      { key: 'PPM', icon: ICONS.dash, name: 'Odskok', desc: 'Prawy przycisk myszy: odskok o 2 kafle w stronę kursora. Przez chwilę nie otrzymujesz obrażeń.', cd: DASH_CD },
+      null, null,
       { key: 'Q', icon: ic.icon_hp, name: 'Mikstura zdrowia', desc: 'Przywraca 15% zdrowia. Wypada z potworów.', count: 0 },
       { key: 'E', icon: ic.icon_mp, name: 'Mikstura many', desc: 'Przywraca 15% many. Wypada z potworów.', count: 0 },
       this.cls === 'hunter' ? { key: '·', icon: ICONS.arrows, name: 'Strzały', desc: 'Łowca zużywa 1 strzałę na strzał. Kupisz je w sklepie.', count: this.arrows } : null,
@@ -95,7 +99,8 @@ export class PlayerCombat {
     return m && m.state !== 'dead' ? m : null;
   }
 
-  private get range() { return this.cls === 'warrior' ? MELEE_RANGE : BOW_RANGE; }
+  /** zasięg ataku: wręcz albo łuk (zależny od Zręczności) */
+  get range() { return this.cls === 'warrior' ? MELEE_RANGE : bowRange(this.inv.stats.attrs.dex); }
 
   setTarget(m: Mob | null) {
     if (this.dead) return;
@@ -119,6 +124,7 @@ export class PlayerCombat {
       return;
     }
     if (i === 7) { this.d.hud.say(`Strzały: ${this.arrows}.`); return; }
+    if (i === 2) { this.d.hud.say('Odskok: prawy przycisk myszy w stronę kursora.'); return; }
     if (i > 1) return;
     const s = SKILLS[this.cls][i];
     if (this.cds[i] > 0) return;
@@ -136,7 +142,7 @@ export class PlayerCombat {
 
   onMobEvent(e: MobEvent) {
     if (e.type !== 'attack' || this.dead) return;
-    if (this.rng() * 100 < this.inv.stats.dodge) {
+    if (this.invuln > 0 || this.rng() * 100 < this.inv.stats.dodge) {
       this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, 'unik', '#c8f0ff');
       return;
     }
@@ -148,7 +154,6 @@ export class PlayerCombat {
   takeDamage(dmg: number) {
     if (this.dead) return;
     this.hp -= dmg;
-    this.sinceHit = 0;
     this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, `-${dmg}`, '#ff5a4a', true);
     if (this.hp <= 0) this.die();
   }
@@ -169,7 +174,6 @@ export class PlayerCombat {
     this.d.hero.dead = false;
     this.hp = this.hpMax;
     this.mana = this.manaMax;
-    this.sinceHit = 99;
   }
 
   /** doświadczenie spoza walki (np. testy, nagrody) */
@@ -240,6 +244,7 @@ export class PlayerCombat {
       hero.attack();
       this.atkCd = PLAYER_ATTACK_EVERY;
       this.d.floaters.add(hero.sx, hero.sy - 52, s.name + '!', '#fff1c4');
+      hero.glow();
       if (q === 'power') this.hit(m, roll() * 2);
       else if (q === 'knockdown') this.hit(m, roll(), { stun: true });
       else if (q === 'double') { this.shoot(m, roll(), false); this.shoot(m, roll(), false, 0.12); }
@@ -258,6 +263,8 @@ export class PlayerCombat {
   update(dt: number) {
     this.atkCd = Math.max(0, this.atkCd - dt);
     this.potCd = Math.max(0, this.potCd - dt);
+    this.dashCd = Math.max(0, this.dashCd - dt);
+    this.invuln = Math.max(0, this.invuln - dt);
     this.cds[0] = Math.max(0, this.cds[0] - dt);
     this.cds[1] = Math.max(0, this.cds[1] - dt);
     this.updateShots(dt);
@@ -266,9 +273,16 @@ export class PlayerCombat {
       if (this.deadT > DEATH_DELAY) { this.deadT = -1e9; this.d.onDeath(); }
       return;
     }
-    this.sinceHit += dt;
     this.mana = Math.min(this.manaMax, this.mana + this.inv.stats.manaRegen * dt);
-    if (this.sinceHit > OUT_OF_COMBAT) this.hp = Math.min(this.hpMax, this.hp + this.hpMax * HP_REGEN * dt);
+    this.hp = Math.min(this.hpMax, this.hp + hpRegen(this.inv.stats.attrs.vit) * dt);
+    // odskok: szybki ruch po prostej, bez obrażeń
+    if (this.dash) {
+      const k = Math.min(1, (this.dash.t += dt) / DASH_TIME), e = 1 - (1 - k) * (1 - k);
+      this.d.hero.u = this.dash.from[0] + (this.dash.to[0] - this.dash.from[0]) * e;
+      this.d.hero.v = this.dash.from[1] + (this.dash.to[1] - this.dash.from[1]) * e;
+      if (k >= 1) this.dash = null;
+      return;
+    }
 
     const m = this.mob();
     if (!m) { if (this.target != null) this.setTarget(null); return; }
@@ -310,6 +324,34 @@ export class PlayerCombat {
     }
   }
 
+  /**
+   * odskok o 2 kafle w kierunku (du, dv) w układzie świata; raz na 10 s, chwilowo bez obrażeń.
+   * walkable(u, v) – czy lokalny punkt bieżącej komórki jest przechodni.
+   */
+  dodge(du: number, dv: number, walkable: (u: number, v: number) => boolean): boolean {
+    if (this.dead || this.dashCd > 0 || this.dash) return false;
+    const l = Math.hypot(du, dv);
+    if (l < 0.01) return false;
+    const h = this.d.hero, from: Vec = [h.u, h.v];
+    let to: Vec = from;
+    for (let s = 8; s <= DASH_DIST; s += 8) {
+      const p: Vec = [from[0] + (du / l) * s, from[1] + (dv / l) * s];
+      if (!walkable(p[0], p[1])) break;
+      to = p;
+    }
+    if (to === from) { this.d.hud.float('Nie ma miejsca', '#c8bca4'); return false; }
+    this.dash = { from, to, t: 0 };
+    this.dashCd = DASH_CD;
+    this.invuln = DASH_IFRAMES;
+    h.path = [];
+    h.faceTo(to[0], to[1]);
+    this.d.floaters.add(h.sx, h.sy - 46, 'odskok', '#c8f0ff');
+    return true;
+  }
+
+  get dashing() { return !!this.dash; }
+  get dashReady() { return this.dashCd <= 0 && !this.dash; }
+
   clearShots() { for (const s of this.shots) s.g.destroy(); this.shots.length = 0; }
 
   /** stan tacy i kul do HUD (co klatkę) */
@@ -318,6 +360,7 @@ export class PlayerCombat {
     h.setVitals(this.hp, this.hpMax, this.mana, this.manaMax);
     const sk = SKILLS[this.cls];
     for (let i = 0; i < 2; i++) h.setSlotState(i, this.cds[i], sk[i].cd, undefined, this.mana < sk[i].mana || this.dead);
+    h.setSlotState(2, this.dashCd, DASH_CD, undefined, this.dead);
     h.setSlotState(5, this.potCd, 1, this.inv.inv.hpPot, this.inv.inv.hpPot <= 0 || this.dead);
     h.setSlotState(6, this.potCd, 1, this.inv.inv.mpPot, this.inv.inv.mpPot <= 0 || this.dead);
     if (this.cls === 'hunter') h.setSlotState(7, 0, 0, this.arrows, this.arrows <= 0);

@@ -4,7 +4,7 @@ import {
   ITEMS, POTION_PCT, RARITY_COLOR, SLOTS, SLOT_NAMES, addToBag, computeStats, describe, equipFromBag, equipError, sanitizeInventory, unequip,
   type Inventory, type Slot, type Stats,
 } from '../logic/items';
-import { damageRange } from '../logic/combat';
+import { TILE, bowRange, damageRange, hpRegen } from '../logic/combat';
 import type { InvCell, InvView } from '../types';
 import { itemIcon } from '../ui/icons';
 
@@ -109,7 +109,8 @@ export class InventoryController {
       `<span>Siła</span><b>${a.str}${plus('str')}</b><span>Zręczność</span><b>${a.dex}${plus('dex')}</b>` +
       `<span>Witalność</span><b>${a.vit}${plus('vit')}</b><span>Energia</span><b>${a.ene}${plus('ene')}</b>` +
       `<span>Pancerz</span><b>${s.armor}</b><span>Obrażenia</span><b>${dmin}–${dmax}</b>` +
-      `<span>Szczęście</span><b>${s.luck}</b><span>Mikstury</span><b>${this.inv.hpPot} / ${this.inv.mpPot}</b>`;
+      `<span>Szczęście</span><b>${s.luck}</b><span>Regeneracja</span><b>${Math.round(hpRegen(a.vit) * 60)}/min</b>` +
+      (this.cls === 'hunter' ? `<span>Zasięg</span><b>${bowRange(a.dex) / TILE} kafli</b>` : '');
     return { eq, eqNames, bag, statsHtml, gold: this.gold, points: this.points };
   }
 }

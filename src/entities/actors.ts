@@ -85,9 +85,14 @@ export class Hero {
 
   attack() { this.attackT = 0; this.path = []; }
 
+  /** czas żółtej poświaty broni (umiejętność) */
+  glowT = 0;
+  glow() { this.glowT = 0.45; }
+
   update(grid: WorldGrid, t: number, at: number, dt: number, speed: number) {
     this.moving = false;
     if (this.attackT >= 0) { this.attackT += dt; if (this.attackT > 0.35) this.attackT = -1; }
+    this.glowT = Math.max(0, this.glowT - dt);
     if (this.dead) this.path = [];
     if (this.path.length && this.attackT < 0) {
       const [tu, tv] = this.path[0];
@@ -105,7 +110,8 @@ export class Hero {
       this.trail.push([this.u, this.v]);
       if (this.trail.length > TRAIL_MAX) this.trail.shift();
     }
-    const fi = this.attackT >= 0 ? (this.attackT < 0.14 ? 'atk0' : 'atk1')
+    const g = this.glowT > 0 ? 'atkg' : 'atk';
+    const fi = this.attackT >= 0 ? (this.attackT < 0.14 ? `${g}0` : `${g}1`)
       : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
     this.frameName = this.dead ? 'hero_dead' : `hero_${this.dir}_${fi}`;
     this.sheet.setFrame(this.a.s, this.frameName);

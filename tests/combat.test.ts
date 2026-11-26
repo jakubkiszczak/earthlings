@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  LEASH, MOBS, RESPAWN, afterArmor, damageMob, damageRange, deathPenalty, gainExp, makeMob, pickKind, playerDamage,
+  MOBS, RESPAWN, afterArmor, bowRange, hpRegen, damageMob, damageRange, deathPenalty, gainExp, makeMob, pickKind, playerDamage,
   seeded, spawnPoints, stepToward, updateMob, type MobEvent, type Vec,
 } from '../src/logic/combat';
 
@@ -33,15 +33,18 @@ describe('AI potwora', () => {
     expect(ev.filter((e) => e.type === 'attack').length - n0).toBeLessThanOrEqual(1);
   });
 
-  it('wraca do domu po przekroczeniu smyczy i się leczy', () => {
+  it('goni gracza bez ograniczenia odległości, wraca i leczy się dopiero po jego śmierci', () => {
     const m = makeMob(1, 'skeleton', [0, 0], [0, 0]);
     m.state = 'chase';
-    m.pos = [LEASH + 10, 0];
+    m.pos = [3000, 0];
     m.hp = 20;
     const ev: MobEvent[] = [];
-    updateMob(m, 0.1, { pos: [LEASH + 40, 0], alive: true }, open, fixed(0.5), ev);
+    updateMob(m, 0.1, { pos: [3200, 0], alive: true }, open, fixed(0.5), ev);
+    expect(m.state).toBe('chase');
+    expect(m.pos[0]).toBeGreaterThan(3000);
+    updateMob(m, 0.1, { pos: [3200, 0], alive: false }, open, fixed(0.5), ev);
     expect(m.state).toBe('return');
-    for (let i = 0; i < 400; i++) updateMob(m, 0.1, { pos: [LEASH + 40, 0], alive: true }, open, fixed(0.5), ev);
+    for (let i = 0; i < 2000; i++) updateMob(m, 0.1, { pos: [3200, 0], alive: false }, open, fixed(0.5), ev);
     expect(m.state).toBe('idle');
     expect(m.hp).toBe(MOBS.skeleton.hp);
   });
@@ -109,6 +112,20 @@ describe('gracz', () => {
     expect(p.level).toBe(5);
     expect(p.exp).toBe(0);
     expect(gainExp(p, 100)).toBe(0);
+  });
+
+  it('zasięg łuku: 8 kafli, +1 kafel za każde 10 Zręczności powyżej 20', () => {
+    expect(bowRange(20)).toBe(256);
+    expect(bowRange(29)).toBe(256);
+    expect(bowRange(30)).toBe(288);
+    expect(bowRange(45)).toBe(320);
+    expect(bowRange(10)).toBe(256);
+  });
+
+  it('odnawianie zdrowia: 30 HP/min za każde pełne 10 Witalności', () => {
+    expect(hpRegen(9) * 60).toBe(0);
+    expect(hpRegen(22) * 60).toBe(60);
+    expect(hpRegen(30) * 60).toBe(90);
   });
 
   it('kara za śmierć: 10% złota', () => {

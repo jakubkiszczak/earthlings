@@ -54,15 +54,40 @@ export class MobManager {
     }
   }
 
-  private active(m: Mob) { return this.world.isLoaded(m.cell[0], m.cell[1]) && !this.world.inInterior; }
+  /** aktywny = komórka, w której potwór teraz jest, jest wczytana (potwory gonią przez całą mapę) */
+  private active(m: Mob) {
+    const C = this.world.size;
+    return !this.world.inInterior && this.world.isLoaded(Math.floor(m.pos[0] / C), Math.floor(m.pos[1] / C));
+  }
+
+  /** losowe przechodnie miejsce w komórce domowej, z dala od gracza */
+  private randomSpot(m: Mob, player: Vec): Vec | null {
+    const C = this.world.size, [cx, cy] = m.cell;
+    const g = this.world.gridAt(cx, cy);
+    if (!g) return null;
+    for (let i = 0; i < 80; i++) {
+      const u = 48 + this.rng() * (C - 96), v = 48 + this.rng() * (C - 96);
+      const p: Vec = [cx * C + u, cy * C + v];
+      if (g.cellH(...g.cellOf(u, v)) > 0 && Math.hypot(p[0] - player[0], p[1] - player[1]) > 256) return p;
+    }
+    return null;
+  }
 
   /** AI wszystkich aktywnych potworów; zdarzenia (ataki, odrodzenia) trafiają do out */
   update(dt: number, player: { pos: Vec; alive: boolean }, out: MobEvent[]) {
     this.t += dt;
     this.seedLoaded();
+    const n0 = out.length;
     for (const m of this.mobs.values()) {
       if (!this.active(m)) continue;
       updateMob(m, dt, player, this.world.walkableGlobal, this.rng, out);
+    }
+    // odrodzenie po 30 s w losowym miejscu swojej komórki
+    for (let i = n0; i < out.length; i++) {
+      const e = out[i];
+      if (e.type !== 'respawn') continue;
+      const p = this.randomSpot(e.mob, player.pos);
+      if (p) { e.mob.home = [p[0], p[1]]; e.mob.pos = [p[0], p[1]]; }
     }
   }
 
@@ -145,6 +170,11 @@ export class MobManager {
   /** wszyscy aktywni (żywi) – do testów i podpowiedzi */
   alive(): Mob[] { return [...this.mobs.values()].filter((m) => this.active(m) && m.state !== 'dead'); }
 
-  /** po śmierci gracza: wszystkie wracają */
-  calmDown() { for (const m of this.mobs.values()) if (m.state === 'chase') m.state = 'return'; }
+  /** po śmierci gracza: ścigające potwory wracają na swoje miejsca (od razu – mogły odejść daleko) */
+  calmDown() {
+    for (const m of this.mobs.values()) {
+      if (m.state !== 'chase' && m.state !== 'return') continue;
+      m.state = 'idle'; m.pos = [m.home[0], m.home[1]]; m.hp = MOBS[m.kind].hp; m.atkT = -1;
+    }
+  }
 }

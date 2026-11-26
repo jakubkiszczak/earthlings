@@ -40,7 +40,7 @@ declare global {
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
-      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void;
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean;
       drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
@@ -329,6 +329,13 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     if (!showMark && combat!.target != null) return;      // przytrzymanie po kliknięciu w potwora – zostaje cel
     const target = world.grid.pickAt(wx, wy);
     if (target) { combat!.setTarget(null); goToWorld(target[0], target[1], showMark); }
+  }, (gx, gy) => {
+    // odskok w stronę kursora: wektor ekranowy → kierunek w układzie świata (u, v)
+    if (busy) return;
+    const hx = stage.x + hero.sx * camera.zoom, hy = stage.y + (hero.sy - 16) * camera.zoom;
+    const dx = gx - hx, dy = gy - hy;
+    const g = world.grid, h0 = g.heightAt(hero.u, hero.v);
+    combat!.dodge(dy + dx / 2, dy - dx / 2, (u, v) => { const c = g.cellH(...g.cellOf(u, v)); return c > 0 && Math.abs(c - 1 - h0) <= 8; });
   });
   // kursor nad potworem
   app.stage.on('globalpointermove', (e) => {
@@ -351,6 +358,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     skill: (i) => combat!.useSlot(i),
     hurt: (n) => combat!.takeDamage(n),
     peace: (on) => { peaceful = on; },
+    dashReady: () => combat!.dashReady,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
     give: (id) => invc.addItem(id),
     exp: (n) => combat!.addExp(n),

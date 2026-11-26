@@ -23,17 +23,26 @@ export const MOBS: Record<MobKind, MobDef> = {
   zombie: { name: 'Zombie', hp: 150, dmg: 70, exp: 150, speed: 30, aggro: 128, atkEvery: 2.2, range: 28 },
 };
 
-export const LEASH = 384;           // 12 kafli od punktu startu
-export const RESPAWN = 15;          // s od zabicia
+export const RESPAWN = 30;          // s od zabicia (w losowym miejscu komórki)
 export const CORPSE_TIME = 3;       // s widoczności ciała
 export const ATTACK_ANIM = 0.35;    // s animacji ataku
 export const MELEE_RANGE = 34;
-export const BOW_RANGE = 256;       // 8 kafli
+export const BOW_RANGE = 256;       // 8 kafli na start
+export const TILE = 32;
 export const PLAYER_ATTACK_EVERY = 1.0;
 export const KNOCKBACK = 320;       // 10 kafli
 export const STUN_TIME = 3;
-export const OUT_OF_COMBAT = 6;     // s bez obrażeń → odnawianie zdrowia
-export const HP_REGEN = 0.01;       // 1% maks. HP na sekundę poza walką
+/** odskok (prawy przycisk myszy) */
+export const DASH_DIST = 64;        // 2 kafle
+export const DASH_TIME = 0.18;
+export const DASH_CD = 10;
+export const DASH_IFRAMES = 0.35;   // s bez obrażeń
+
+/** zasięg łuku: 8 kafli + 1 kafel za każde 10 Zręczności powyżej 20 */
+export const bowRange = (dex: number) => BOW_RANGE + Math.floor(Math.max(0, dex - 20) / 10) * TILE;
+
+/** odnawianie zdrowia: +30 HP na minutę za każde pełne 10 Witalności (na sekundę) */
+export const hpRegen = (vit: number) => (Math.floor(vit / 10) * 30) / 60;
 
 export type Rng = () => number;
 
@@ -119,7 +128,7 @@ export function updateMob(m: Mob, dt: number, player: PlayerSense, walk: (gu: nu
     return;
   }
   if (m.state === 'chase') {
-    if (!player.alive || dh > LEASH) { m.state = 'return'; return; }
+    if (!player.alive) { m.state = 'return'; return; }      // bez smyczy: goni po całej mapie
     faceTo(m, player.pos);
     if (dp > def.range) {
       m.moving = stepToward(m.pos, player.pos, def.speed * dt, walk);
@@ -131,7 +140,7 @@ export function updateMob(m: Mob, dt: number, player: PlayerSense, walk: (gu: nu
     return;
   }
   // idle: zauważa gracza albo krąży przy domu
-  if (player.alive && dp < def.aggro && dh < LEASH) { m.state = 'chase'; return; }
+  if (player.alive && dp < def.aggro) { m.state = 'chase'; return; }
   m.wanderT -= dt;
   if (m.wander) {
     m.moving = stepToward(m.pos, m.wander, def.speed * 0.4 * dt, walk);

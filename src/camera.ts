@@ -1,7 +1,7 @@
 // Kamera: wygładzanie wykładnicze, zoom tylko całkowity (pixel art), ograniczenie do granic mapy.
 import type { Container, Rectangle } from 'pixi.js';
 
-const ZOOM_MIN = 2;
+const ZOOM_MIN = 1;      // najdalsze oddalenie (scroll)
 const ZOOM_MAX = 6;
 
 export class Camera {
@@ -13,7 +13,7 @@ export class Camera {
   private bounds: { w: number; h: number } | null = null;
 
   constructor() {
-    this.zoom = Math.max(ZOOM_MIN, Math.min(5, Math.floor(Math.min(innerWidth / 330, innerHeight / 200))));
+    this.zoom = Math.max(2, Math.min(5, Math.floor(Math.min(innerWidth / 330, innerHeight / 200))));
     addEventListener('wheel', (e) => {
       this.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.zoom + (e.deltaY < 0 ? 1 : -1)));
     }, { passive: true });

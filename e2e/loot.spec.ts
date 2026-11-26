@@ -17,6 +17,15 @@ test('łup z wilka, podniesienie złota; ekwipunek: zakładanie, punkty atrybut�
   const drops = await page.evaluate(() => window.__game!.drops());
   const gold = drops.find((d) => d.kind === 'gold');
   expect(gold, 'zawsze wypada złoto').toBeTruthy();
+  // ikony łupu są wczytane (wcześniej złoto było niewidoczne – pusta tekstura) i powiększone o 50%
+  await page.waitForTimeout(600);
+  for (const [tw, w] of await page.evaluate(() => window.__game!.dropSizes())) {
+    expect(tw).toBeGreaterThan(1);
+    expect(w).toBeCloseTo(tw * 1.5, 0);
+  }
+  await page.evaluate(() => window.__game!.peace(true));
+  await page.evaluate(([u, v]) => { window.__game!.place(u - 40, v - 40); }, [gold!.u, gold!.v]);
+  await page.waitForTimeout(700);
   await page.screenshot({ path: 'test-results/lup.png' });
   await page.evaluate(() => window.__game!.peace(true));
   await page.evaluate(([u, v]) => window.__game!.goTo(u, v), [gold!.u, gold!.v]);

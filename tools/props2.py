@@ -38,19 +38,28 @@ class Px:
 
 
 def lamp_big():
-    """latarnia o 50% większa (16×58), kotwica w podstawie"""
-    p = Px(17, 60)
-    p.put(6, 13, 11, 54, '#3a3640'); p.put(6, 13, 7, 54, '#5a5662'); p.put(10, 13, 11, 54, '#24222a')
-    for y in (22, 34, 46):
-        p.put(5, y, 12, y + 2, '#4a4652')                         # pierścienie na słupie
-    p.put(3, 52, 14, 58, '#6c6a72'); p.put(3, 52, 6, 58, '#8a8890'); p.put(11, 52, 14, 58, '#4a4850')
-    p.put(2, 56, 15, 58, '#5c5a62')
-    p.put(3, 3, 14, 14, '#24222a')                               # klatka latarni
-    p.put(4, 4, 13, 13, '#ffd060'); p.put(4, 4, 7, 13, '#fff0a8'); p.put(11, 4, 13, 13, '#e8a030')
-    p.put(8, 4, 9, 13, '#3a3640'); p.put(4, 8, 13, 9, '#3a3640')
-    p.put(4, 0, 13, 3, '#3a3640'); p.put(7, 0, 10, 1, '#5a5662'); p.px(8, 0, '#8a8890')
-    p.put(5, 14, 12, 15, '#3a3640')
-    return p.done(), (8, 57)
+    """latarnia o 50% większa (17×60): kuty słup z pierścieniami, ozdobny wspornik, klatka z szybkami, grzybek z kulką"""
+    p = Px(19, 62)
+    # podstawa: dwa stopnie kamienia
+    p.put(3, 55, 16, 61, '#6c6a72'); p.put(3, 55, 6, 61, '#8a8890'); p.put(13, 55, 16, 61, '#4a4850'); p.put(3, 55, 16, 56, '#9a98a0')
+    p.put(5, 51, 14, 55, '#5c5a62'); p.put(5, 51, 7, 55, '#7a7880')
+    # słup z kanelurami
+    p.put(7, 17, 12, 51, '#3a3640'); p.put(7, 17, 8, 51, '#6a6672'); p.put(11, 17, 12, 51, '#24222a')
+    for y in range(20, 50, 4):
+        p.px(9, y, '#4e4a56')
+    for y in (24, 36, 48):
+        p.put(6, y, 13, y + 2, '#4a4652'); p.put(6, y, 13, y + 1, '#6a6672')
+    # ozdobne wąsy wspornika
+    p.line(5, 18, 2, 14, '#3a3640'); p.line(13, 18, 16, 14, '#3a3640'); p.px(2, 13, '#6a6672'); p.px(16, 13, '#6a6672')
+    # klatka latarni z szybkami
+    p.put(4, 5, 15, 17, '#24222a')
+    p.put(5, 6, 14, 16, '#ffd060'); p.put(5, 6, 8, 16, '#fff0a8'); p.put(12, 6, 14, 16, '#e8a030')
+    p.put(9, 6, 10, 16, '#3a3640'); p.put(5, 11, 14, 12, '#3a3640')
+    p.px(6, 7, '#ffffff'); p.px(6, 8, '#fffbe0')
+    p.put(3, 16, 16, 18, '#3a3640'); p.put(3, 16, 16, 17, '#5a5662')
+    # daszek-grzybek z kulką
+    p.put(3, 3, 16, 5, '#3a3640'); p.put(5, 1, 14, 3, '#4a4652'); p.put(8, 0, 11, 1, '#6a6672'); p.px(9, 0, '#9a98a0')
+    return p.done(), (9, 60)
 
 
 def shop_sign():

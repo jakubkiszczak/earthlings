@@ -77,14 +77,30 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
             top[gp] = ramp(pal, gi[gp], True, SX[gp], SY[gp])
     m = MAT == DIRT
     di = 1.6 + 2.2 * n2 - 1.5 * ao - 1.6 * shadow
+    # kamyki i grudki w ziemi
+    peb = hsh(u, v, 141)
+    di = np.where(peb > 0.94, di + 1.6, np.where(peb < 0.05, di - 1.2, di))
     top[m] = ramp(K.DR, di[m], True, SX[m], SY[m])
     # bruk (Voronoi)
     F1, F2, CID, DX, DY = vor(u, v, 7.0, 0)
     mortar = (F2 - F1) < 1.3
     m = (MAT == PATH) | (MAT == PAVE)
     ci = 2.2 + 1.6 * CID - 0.35 * (DX + DY) / 7.0 * 2 - 2.0 * shadow - 1.2 * ao
+    # każdy kamień: jasna krawędź od światła, ciemna od cienia, drobne pęknięcia i zabrudzenia
+    rim = ((F2 - F1) < 2.4) & ~mortar
+    ci = np.where(rim & ((DX + DY) < 0), ci + 0.9, ci)
+    ci = np.where(rim & ((DX + DY) >= 0), ci - 0.7, ci)
+    crack = (np.abs(DX - DY * 0.6 - (CID - 0.5) * 3) < 0.45) & (CID > 0.75) & ~mortar
+    ci = np.where(crack, ci - 1.4, ci)
+    ci = np.where(hsh(u, v, 131) > 0.97, ci - 1.0, ci)
     ci = np.where(mortar, 0.6 - shadow, ci)
     top[m] = ramp(K.CB, ci[m], True, SX[m], SY[m])
+    # mech w fugach (wilgotne miejsca) i krawężnik przy trawie
+    mossy_m = m & mortar & (vnoise(u, v, 24, 133) > 0.5) & (hsh(u, v, 134) > 0.35)
+    top[mossy_m] = ramp(grass_pal, (1.8 + 1.2 * hsh(u, v, 135) - shadow)[mossy_m], True, SX[mossy_m], SY[mossy_m])
+    edge_d = ndi.distance_transform_edt(m)
+    curb = m & (edge_d < 2.6)
+    top[curb] = ramp(K.CB, (1.4 + 1.6 * (edge_d < 1.5) + 0.6 * hsh(np.floor(u / 3), np.floor(v / 3), 136) - 1.4 * shadow)[curb], True, SX[curb], SY[curb])
     # mur (wierzch)
     m = MAT == WALL
     tF1, tF2, tC, tDX, tDY = vor(u, v, 9.0, 50)
@@ -341,15 +357,28 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     R = np.random.default_rng(4 + seed)
     gm = kind == GRASS
     ys_, xs_ = np.nonzero(gm)
-    sel = R.random(len(ys_)) < 0.075
+    # źdźbła: gęściej, 2–3 px wysokości, jaśniejsze czubki, ciemna szczelina u podstawy
+    sel = R.random(len(ys_)) < 0.19
     yA, xA = ys_[sel], xs_[sel]
-    ok = (yA > 1) & gm[np.maximum(yA - 1, 0), xA]
+    ok = (yA > 2) & gm[np.maximum(yA - 1, 0), xA] & gm[np.maximum(yA - 2, 0), xA]
     yA, xA = yA[ok], xA[ok]
     base = img[yA, xA].copy()
-    img[yA - 1, xA] = np.clip(base * 1.28 + 12, 0, 255)
-    img[yA, xA] = np.clip(base * 1.12 + 6, 0, 255)
+    tall = R.random(len(yA)) < 0.4
+    img[yA - 1, xA] = np.clip(base * 1.22 + 10, 0, 255)
+    img[yA[tall] - 2, xA[tall]] = np.clip(base[tall] * 1.38 + 18, 0, 255)
+    img[yA, xA] = np.clip(base * 1.08 + 4, 0, 255)
     below = (yA + 1 < Hs) & gm[np.minimum(yA + 1, Hs - 1), xA]
-    img[yA[below] + 1, xA[below]] = base[below] * 0.72
+    img[yA[below] + 1, xA[below]] = base[below] * 0.68
+    # koniczyna (jaśniejsze plamki) i drobne kamyki w trawie
+    cl = (R.random(len(ys_)) < 0.012) & (vnoise(xs_.astype(np.float32), ys_.astype(np.float32), 16, 81 + seed) > 0.6)
+    for y, x in zip(ys_[cl], xs_[cl]):
+        for dy_, dx_ in ((0, 0), (0, 1), (-1, 0), (0, -1)):
+            if 0 <= y + dy_ < Hs and 0 <= x + dx_ < W and gm[y + dy_, x + dx_]:
+                img[y + dy_, x + dx_] = np.clip(img[y + dy_, x + dx_] * 1.25 + 14, 0, 255)
+    st_ = R.random(len(ys_)) < 0.0025
+    for y, x in zip(ys_[st_], xs_[st_]):
+        if 1 <= y < Hs - 1 and 1 <= x < W - 2:
+            img[y, x:x + 2] = (150, 144, 136); img[y - 1, x] = (196, 190, 180); img[y + 1, x:x + 2] = (70, 72, 60)
     FC = K.hexs(['#ffb02e', '#ffd84a', '#ff8a2a', '#f6f2e8', '#ff9a3a', '#9ab0ff', '#ff6a3a'])
     flc = vnoise(xs_.astype(np.float32), ys_.astype(np.float32), 24, 71 + seed)
     cand = R.random(len(ys_))

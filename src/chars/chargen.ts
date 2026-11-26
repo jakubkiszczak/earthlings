@@ -524,6 +524,38 @@ export function sitting(src: FrameData, d: Dir): FrameData {
   return { w, h, ax: src.ax, ay: src.ay, px };
 }
 
+/** szkielet po śmierci: kupka kości z czaszką i zardzewiałym mieczem (30×16, kotwica pod środkiem) */
+export function bonePile(): FrameData {
+  const w = 32, h = 16, px = new Uint8ClampedArray(w * h * 4);
+  const C: Record<string, RGB> = { a: hex('#e8e2cc'), b: hex('#b8b09a'), c: hex('#807860'), k: hex('#1a1414'), r: hex('#8a6a4a'), s: hex('#5a4430') };
+  const put = (x: number, y: number, k: string) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const o = (y * w + x) * 4, c = C[k]; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+  };
+  const bone = (x0: number, y0: number, x1: number, y1: number) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) { const x = Math.round(x0 + ((x1 - x0) * i) / n), y = Math.round(y0 + ((y1 - y0) * i) / n); put(x, y, i % 3 ? 'a' : 'b'); put(x, y + 1, 'c'); }
+    put(x0 - 1, y0, 'a'); put(x0, y0 - 1, 'a'); put(x1 + 1, y1, 'a'); put(x1, y1 - 1, 'a');   // główki kości
+  };
+  // miecz pod spodem
+  for (let x = 3; x <= 24; x++) put(x, 13 - Math.floor((x - 3) / 8), x < 8 ? 's' : 'r');
+  bone(6, 10, 15, 8); bone(17, 11, 26, 12); bone(9, 12, 18, 13); bone(20, 8, 27, 9); bone(4, 7, 10, 9);
+  // żebra
+  for (let i = 0; i < 4; i++) { put(13 + i * 2, 10, 'b'); put(13 + i * 2, 11, 'a'); put(14 + i * 2, 12, 'c'); }
+  // czaszka
+  for (let y = 3; y <= 8; y++) for (let x = 20; x <= 26; x++) {
+    const dx = (x - 23) / 3.4, dy = (y - 5.6) / 2.9;
+    if (dx * dx + dy * dy <= 1) put(x, y, dx + dy < -0.3 ? 'a' : dx + dy < 0.5 ? 'b' : 'c');
+  }
+  put(21, 5, 'k'); put(22, 5, 'k'); put(24, 5, 'k'); put(23, 7, 'k'); put(22, 8, 'a'); put(24, 8, 'a');
+  // kontur
+  const al = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && px[(y * w + x) * 4 + 3] > 0;
+  const add: [number, number][] = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!al(x, y) && (al(x - 1, y) || al(x + 1, y) || al(x, y - 1) || al(x, y + 1))) add.push([x, y]);
+  for (const [x, y] of add) { const o = (y * w + x) * 4; px[o] = 22; px[o + 1] = 15; px[o + 2] = 18; px[o + 3] = 255; }
+  return { w, h, ax: 16, ay: 13, px };
+}
+
 /** wszystkie klatki postaci: <prefix>_<dir>_<frame>, ataki atk0/atk1 i <prefix>_dead */
 export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
   const data = new Map<string, FrameData>();
@@ -539,5 +571,6 @@ export function generateFrames(look: CharLook, prefix = 'hero'): CharFrames {
     data.set(`${prefix}_${d}_sit1`, sitting(data.get(`${prefix}_${d}_idle1`)!, d));
   }
   data.set(`${prefix}_dead`, lying(data.get(`${prefix}_E_idle0`)!));
+  if (look.kind === 'skeleton') data.set(`${prefix}_bones`, bonePile());
   return { names: [...data.keys()], data };
 }

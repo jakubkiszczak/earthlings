@@ -1,6 +1,8 @@
 // Menu: ekran startowy → wybór postaci (do 3) → kreator (nazwa, rasa, klasa, wygląd, atrybuty).
 // DOM nad płótnem z niebem; grafiki ramek z HUD, tekst fontem Jersey 15, skala całkowita (--s).
 import { CharSheet } from '../chars/sheet';
+import { drawPortrait } from '../chars/portrait';
+import type { Gear } from '../chars/chargen';
 import {
   ATTRS, BEARDS, BUILDS, CLASSES, HAIRS, RACES, START_POINTS, addAttrs, baseAttributes, derived, nameError, normalizeLook,
   type AttrId, type Attributes, type ClassId, type Look, type Race,
@@ -54,16 +56,8 @@ class Preview {
 }
 
 /** portret do HUD: głowa z klatki S w powiększeniu, jako obraz (data URL) */
-export function portraitOf(c: Pick<SavedChar, 'race' | 'cls' | 'look'>): string {
-  const sheet = new CharSheet(lookOf(c));
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = 34;
-  const ctx = cv.getContext('2d')!;
-  ctx.fillStyle = '#2a2030';
-  ctx.fillRect(0, 0, 34, 34);
-  sheet.drawTo(ctx, 'hero_S_idle0', -11, 1, 2, [3, 1, 22, 17]);
-  sheet.destroy();
-  return cv.toDataURL();
+export function portraitOf(c: Pick<SavedChar, 'race' | 'cls' | 'look'>, gear?: Gear): string {
+  return drawPortrait({ ...lookOf(c), gear }).toDataURL();
 }
 
 export interface MenuApi {

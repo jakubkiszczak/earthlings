@@ -6,7 +6,9 @@ import type { Vec } from '../logic/combat';
 import type { World } from '../world/world';
 
 export type DropKind = 'gold' | 'hp' | 'mp' | 'item';
-export interface Drop { id: number; kind: DropKind; amount: number; item: string | null; pos: Vec; t: number; view: Container; icon: Sprite; glow: Graphics }
+export interface Drop { id: number; kind: DropKind; amount: number; item: string | null; pos: Vec; from: Vec; pop: number; t: number; view: Container; icon: Sprite; glow: Graphics }
+
+const POP_TIME = 0.45;   // s – łup wylatuje z potwora łukiem
 
 const LIFETIME = 120;
 export const PICK_RADIUS = 16;
@@ -20,16 +22,24 @@ export class LootManager {
 
   constructor(private readonly world: World, private readonly layer: Container, private readonly iconUrl: (kind: DropKind, item: string | null) => string) {}
 
-  private texture(url: string): Texture {
-    let t = this.tex.get(url);
-    if (!t) {
+  /** tekstury ikon trzeba wczytać przed użyciem – obraz utworzony w locie (data URL) nie zdążyłby się wczytać
+   *  i sprite zostałby pusty (to był powód niewidocznego złota) */
+  async preload(urls: string[]) {
+    await Promise.all([...new Set(urls)].map((url) => new Promise<void>((res) => {
+      if (this.tex.has(url)) { res(); return; }
       const img = new Image();
+      img.onload = () => { const t = Texture.from(img); t.source.scaleMode = 'nearest'; this.tex.set(url, t); res(); };
+      img.onerror = () => res();
       img.src = url;
-      t = Texture.from(img);
-      t.source.scaleMode = 'nearest';
-      this.tex.set(url, t);
-    }
-    return t;
+    })));
+  }
+
+  private texture(url: string, onReady: (t: Texture) => void): Texture {
+    const t = this.tex.get(url);
+    if (t) return t;
+    // awaryjnie: wczytaj i podmień, gdy gotowe
+    void this.preload([url]).then(() => { const r = this.tex.get(url); if (r) onReady(r); });
+    return Texture.EMPTY;
   }
 
   /** rozrzuć łup z potwora wokół punktu */
@@ -51,7 +61,8 @@ export class LootManager {
       glow.circle(0, -11, 11).fill({ color, alpha: 0.16 });
       glow.rect(-3, -34, 6, 34).fill({ color, alpha: 0.10 });
       glow.blendMode = 'add';
-      const icon = new Sprite(this.texture(this.iconUrl(kind, item)));
+      const icon = new Sprite();
+      icon.texture = this.texture(this.iconUrl(kind, item), (t) => { if (!icon.destroyed) icon.texture = t; });
       icon.anchor.set(0.5, 1);
       icon.scale.set(1.5);                      // przedmioty o 50% większe
       view.addChild(glow, icon);
@@ -63,7 +74,7 @@ export class LootManager {
         view.addChild(label);
       }
       this.layer.addChild(view);
-      this.drops.push({ id: this.nextId++, kind, amount, item, pos, t: Math.random() * 6, view, icon, glow });
+      this.drops.push({ id: this.nextId++, kind, amount, item, pos, from: [at[0], at[1]], pop: 0, t: Math.random() * 6, view, icon, glow });
     });
   }
 
@@ -79,7 +90,15 @@ export class LootManager {
       d.view.visible = vis;
       if (!vis) continue;
       const [x, y] = this.world.toScreenGlobal(d.pos[0], d.pos[1]);
-      d.view.position.set(Math.round(x), Math.round(y));
+      // wylot z potwora: łuk od miejsca śmierci do miejsca leżenia
+      let lift = 0;
+      if (d.pop < 1) {
+        d.pop = Math.min(1, d.pop + dt / POP_TIME);
+        const k = d.pop, e = 1 - (1 - k) * (1 - k);
+        const [fx, fy] = this.world.toScreenGlobal(d.from[0], d.from[1]);
+        lift = Math.sin(k * Math.PI) * 18;
+        d.view.position.set(Math.round(fx + (x - fx) * e), Math.round(fy + (y - fy) * e - lift));
+      } else d.view.position.set(Math.round(x), Math.round(y));
       d.icon.y = -Math.round(1 + Math.abs(Math.sin(d.t * 2.4)) * 2);
       d.glow.alpha = 0.7 + 0.3 * Math.sin(d.t * 3.1);
       const lu = d.pos[0] - this.world.cx * C, lv = d.pos[1] - this.world.cy * C;

@@ -126,7 +126,11 @@ export class MobManager {
       const sdx = m.face[0] - m.face[1], sdy = (m.face[0] + m.face[1]) / 2;
       let name: string, flip: boolean;
       const act = m.atkT >= 0 ? (m.atkT < 0.15 ? 'atk0' : 'atk1') : m.moving ? `walk${Math.floor(this.t * 9 + m.id) % 4}` : `idle${Math.floor(this.t * 1.5 + m.id * 0.37) % 2}`;
-      if (dead) { name = `${m.kind}_dead`; flip = sdx < 0; }
+      if (dead) {
+        // szkielet: przewraca się i rozpada na kupkę kości
+        name = m.kind === 'skeleton' && m.deadT > 0.3 ? 'skeleton_bones' : `${m.kind}_dead`;
+        flip = sdx < 0;
+      }
       else if (m.kind === 'wolf') { name = `wolf_E_${act}`; flip = sdx < 0; }
       else {
         const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;

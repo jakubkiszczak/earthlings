@@ -19,8 +19,8 @@ export interface MobDef {
 
 export const MOBS: Record<MobKind, MobDef> = {
   wolf: { name: 'Wilk', hp: 80, dmg: 30, exp: 50, speed: 66, aggro: 192, atkEvery: 1.2, range: 26 },
-  skeleton: { name: 'Szkielet', hp: 100, dmg: 50, exp: 100, speed: 44, aggro: 160, atkEvery: 1.8, range: 28 },
-  zombie: { name: 'Zombie', hp: 150, dmg: 70, exp: 150, speed: 30, aggro: 128, atkEvery: 2.2, range: 28 },
+  skeleton: { name: 'Szkielet', hp: 100, dmg: 50, exp: 100, speed: 31, aggro: 160, atkEvery: 1.8, range: 28 },
+  zombie: { name: 'Zombie', hp: 150, dmg: 70, exp: 150, speed: 21, aggro: 128, atkEvery: 2.2, range: 28 },
 };
 
 export const RESPAWN = 30;          // s od zabicia (w losowym miejscu komórki)

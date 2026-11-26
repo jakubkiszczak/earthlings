@@ -50,7 +50,7 @@ declare global {
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
       mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; openStash(): void; stashOpen(): boolean; moveMob(id: number, u: number, v: number): void; mobState(id: number): string; guards(): { u: number; v: number; target: number | null }[]; folk(): { name: string; u: number; v: number }[]; sitting(): boolean;
-      drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
+      drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; dropSizes(): number[][]; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
     };
@@ -163,7 +163,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     addPoint(a) { invc.addPoint(a); },
   };
   const hud = createHud(assets, bridge);
-  const portrait = portraitOf(char);
+  let portrait = portraitOf(char, invGear(char));
   let combat: PlayerCombat | null = null;
   const invc = new InventoryController(
     { race: char.race, cls: char.cls, alloc: char.alloc, level: char.level, points: char.points ?? 0, gold: char.gold, inv: char.inv },
@@ -197,6 +197,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const lootRng = seeded(Date.now() & 0xfffff);
   const loot = new LootManager(world, world.layer, (kind, item) =>
     kind === 'gold' ? ICONS2.gold : kind === 'hp' ? assets.icons.icon_hp : kind === 'mp' ? assets.icons.icon_mp : itemIcon(item!, assets.icons));
+  await loot.preload([ICONS2.gold, assets.icons.icon_hp, assets.icons.icon_mp, ...Object.keys(ITEMS).map((id) => itemIcon(id, assets.icons))]);
   // zmiany ekwipunku i punktów: statystyki, panel, wygląd postaci
   const gearKey = () => JSON.stringify(invc.gear());
   let lastGear = gearKey();
@@ -213,6 +214,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       hero.sheet = ns;
       heroXray.source = ns;
       old.destroy();
+      portrait = portraitOf(char, invc.gear());          // hełm widać też na portrecie
+      showChar();
     }
   };
   invc.onMessage = (msg) => hud.float(msg, '#ffb08a');
@@ -474,6 +477,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     sitting: () => combat!.sitting,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
     give: (id) => invc.addItem(id),
+    dropSizes: () => loot.drops.map((d) => [d.icon.texture.width, d.icon.width]),
     exp: (n) => combat!.addExp(n),
     inv: () => ({ ...invc.inv, points: invc.points, armor: invc.stats.armor, str: invc.stats.attrs.str }),
   };

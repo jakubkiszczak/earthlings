@@ -29,6 +29,11 @@ Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `te
 - Współrzędne potworów są globalne (teksele świata); `World.toScreenGlobal/walkableGlobal` przeliczają na bieżącą komórkę.
 - Grafika potworów: szkielet i zombie z `chargen.ts` (`kind`), wilk z `wolfgen.ts`.
 
+## Przedmioty i ekwipunek
+- Logika: `src/logic/items.ts` (20 przedmiotów, łup, statystyki z ekwipunku) – testy `tests/items.test.ts`.
+- Gra: `src/game/inventory.ts` (ekwipunek, punkty, mikstury → widok panelu HUD), `src/game/loot.ts` (łup na ziemi).
+- Widoczny ekwipunek: `Gear` w `chargen.ts` (zbroja, hełm, tarcza, broń, buty, rękawice); po zmianie ekwipunku powstaje nowy `CharSheet`.
+
 ## Najbliższe zadania: prototyp v0.1
 Zakres, liczby i etapy: `docs/PLAN_PROTOTYPU.md` (gra solo, zapis w `localStorage`, link na GitHub Pages).
 Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy ją na serwer (Node.js + Colyseus, PostgreSQL, Redis; patrz GDD).

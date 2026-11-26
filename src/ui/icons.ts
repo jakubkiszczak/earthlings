@@ -30,3 +30,27 @@ export const ICONS = {
   }),
   arrows: icon((px) => { arrow(px, 2, 11, 9); arrow(px, 4, 12, 8); arrow(px, 1, 9, 8); }),
 };
+
+/** łuk (ikona broni łowcy) i stos monet */
+export const ICONS2 = {
+  bow: icon((px) => {
+    for (let y = 1; y <= 12; y++) {
+      const t = (y - 6.5) / 5.5, x = Math.round(9 - (1 - t * t) * 5);
+      px(x, y, Math.abs(t) > 0.8 ? '#6a4420' : '#a06a34'); px(x + 1, y, '#6a4420');
+    }
+    for (let y = 1; y <= 12; y++) px(10, y, '#e8e0d0');
+    px(4, 6, '#3a2214'); px(4, 7, '#3a2214');
+  }),
+  gold: icon((px) => {
+    const coin = (x: number, y: number) => { for (let i = 0; i < 4; i++) px(x + i, y, i === 0 ? '#fff0a0' : i === 3 ? '#a87820' : '#ecc460'); px(x + 1, y - 1, '#ffe080'); px(x + 2, y - 1, '#e8b840'); px(x + 1, y + 1, '#a87820'); px(x + 2, y + 1, '#8a6018'); };
+    coin(3, 10); coin(7, 10); coin(5, 8); coin(4, 6); coin(8, 7);
+  }),
+};
+
+/** ikona przedmiotu: z zestawu HUD (legacy) albo rysowana */
+export function itemIcon(id: string, legacy: Record<string, string>): string {
+  if (id.startsWith('bow')) return ICONS2.bow;
+  const map: Record<string, string> = { sword: 'sword', shield: 'shield', helm: 'helm', armor: 'chest', boots: 'boots', ring: 'ring', gloves: 'gloves', amulet: 'amulet' };
+  const k = Object.keys(map).find((p) => id.startsWith(p));
+  return legacy[`icon_${map[k ?? 'sword']}`];
+}

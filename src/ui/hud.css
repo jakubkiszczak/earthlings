@@ -79,3 +79,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .wfloat { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 1.15em; }
 .wfloat.big { font-size: 1.5em; }
 .skill.off { filter: grayscale(.8) brightness(.6); }
+.islot { cursor: pointer; }
+.islot.locked { cursor: default; background: rgba(0, 0, 0, .35); }
+.islot.dim img { opacity: .45; filter: grayscale(.6); }
+.istats { grid-template-columns: auto auto auto auto; column-gap: calc(var(--s) * 3px); }
+.istats b { display: inline-flex; align-items: center; gap: calc(var(--s) * 1px); }
+.istats .ip { pointer-events: auto; color: #8ae07a; background: #1d3a1a; border: 0; padding: 0 calc(var(--s) * 1px); line-height: 1; font-size: .9em; cursor: pointer; }
+.istats .ip:hover { background: #2e6a28; }
+.istats .pts { grid-column: 1 / -1; color: #8ae07a; }
+.inv .istats { pointer-events: auto; }
+.ititle .tpts { color: #8ae07a; letter-spacing: 0; text-transform: none; }

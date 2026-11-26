@@ -24,6 +24,8 @@ export interface SavedChar {
   points?: number;
   /** strzały łowcy */
   arrows?: number;
+  /** ekwipunek (sprawdzany przy wczytaniu przez sanitizeInventory) */
+  inv?: unknown;
   created: number;
   played: number;
 }

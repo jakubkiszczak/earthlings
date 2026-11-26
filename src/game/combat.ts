@@ -1,11 +1,9 @@
 // Walka gracza: cel i auto-atak (wręcz / łuk), umiejętności, pociski, obrażenia od potworów, exp, śmierć.
 import { Container, Graphics } from 'pixi.js';
 import type { Hero } from '../entities/actors';
+import { EXP_TO_NEXT, MAX_LEVEL, type ClassId } from '../logic/character';
 import {
-  addAttrs, baseAttributes, derived, EXP_TO_NEXT, MAX_LEVEL, type Attributes, type ClassId,
-} from '../logic/character';
-import {
-  BOW_RANGE, HP_REGEN, KNOCKBACK, MELEE_RANGE, MOBS, OUT_OF_COMBAT, PLAYER_ATTACK_EVERY, SKILLS, START_WEAPON, STUN_TIME,
+  BOW_RANGE, HP_REGEN, KNOCKBACK, MELEE_RANGE, MOBS, OUT_OF_COMBAT, PLAYER_ATTACK_EVERY, SKILLS, STUN_TIME,
   afterArmor, damageMob, dist, gainExp, playerDamage, seeded, type Mob, type MobEvent, type Progress, type SkillId, type Vec,
 } from '../logic/combat';
 import type { SavedChar } from '../logic/save';
@@ -15,6 +13,7 @@ import type { Floaters } from '../ui/floaters';
 import { ICONS } from '../ui/icons';
 import type { World } from '../world/world';
 import type { MobManager } from './mobs';
+import type { InventoryController } from './inventory';
 
 export const START_ARROWS = 200;
 const ARROW_SPEED = 420;
@@ -30,20 +29,17 @@ export interface CombatDeps {
   /** po śmierci: przeniesienie do miasta */
   onDeath(): void;
   onLevelUp(): void;
+  /** zabity potwór (łup) */
+  onKill(m: Mob): void;
 }
 
 export class PlayerCombat {
   readonly cls: ClassId;
-  attrs: Attributes;
   hp: number;
-  hpMax: number;
   mana: number;
-  manaMax: number;
-  private manaRegen: number;
-  private dodge: number;
   arrows: number;
-  gold: number;
   readonly progress: Progress;
+  private potCd = 0;
   target: number | null = null;
   dead = false;
   private deadT = 0;
@@ -56,20 +52,23 @@ export class PlayerCombat {
   private readonly rng = seeded(Date.now() & 0xffffff);
   kills = 0;
 
-  constructor(char: SavedChar, private readonly d: CombatDeps) {
+  constructor(char: SavedChar, private readonly d: CombatDeps, readonly inv: InventoryController) {
     this.cls = char.cls;
-    this.attrs = addAttrs(baseAttributes(char.race, char.cls), char.alloc);
-    const dv = derived(this.attrs);
-    this.hpMax = dv.hp; this.hp = dv.hp;
-    this.manaMax = dv.mana; this.mana = dv.mana;
-    this.manaRegen = dv.manaRegen; this.dodge = dv.dodge;
+    this.hp = inv.stats.hpMax;
+    this.mana = inv.stats.manaMax;
     this.arrows = char.arrows ?? START_ARROWS;
-    this.gold = char.gold;
-    this.progress = { level: char.level, exp: char.exp, points: char.points ?? 0 };
+    this.progress = { level: char.level, exp: char.exp, points: 0 };
     d.hud.setSlots(this.slots());
     d.hud.setExp(this.progress.exp, this.expMax());
-    d.hud.setGold(this.gold);
   }
+
+  get hpMax() { return this.inv.stats.hpMax; }
+  get manaMax() { return this.inv.stats.manaMax; }
+  get gold() { return this.inv.gold; }
+  set gold(g: number) { this.inv.gold = g; }
+
+  /** po zmianie statystyk (ekwipunek, punkty): przytnij zdrowie i manę do nowych maksimów */
+  clampVitals() { this.hp = Math.min(this.hp, this.hpMax); this.mana = Math.min(this.mana, this.manaMax); }
 
   expMax() { return this.progress.level >= MAX_LEVEL ? 1 : EXP_TO_NEXT[this.progress.level]; }
 
@@ -80,8 +79,8 @@ export class PlayerCombat {
     const sk = (s: typeof a, key: string): SlotDef => ({ key, icon: icon(s.id), name: s.name, desc: s.desc, mana: s.mana, cd: s.cd });
     return [
       sk(a, '1'), sk(b, '2'), null, null, null,
-      { key: 'Q', icon: ic.icon_hp, name: 'Mikstura zdrowia', desc: 'Przywraca 15% zdrowia. Wypada z potworów (wkrótce).', count: 0 },
-      { key: 'E', icon: ic.icon_mp, name: 'Mikstura many', desc: 'Przywraca 15% many. Wypada z potworów (wkrótce).', count: 0 },
+      { key: 'Q', icon: ic.icon_hp, name: 'Mikstura zdrowia', desc: 'Przywraca 15% zdrowia. Wypada z potworów.', count: 0 },
+      { key: 'E', icon: ic.icon_mp, name: 'Mikstura many', desc: 'Przywraca 15% many. Wypada z potworów.', count: 0 },
       this.cls === 'hunter' ? { key: '·', icon: ICONS.arrows, name: 'Strzały', desc: 'Łowca zużywa 1 strzałę na strzał. Kupisz je w sklepie.', count: this.arrows } : null,
     ];
   }
@@ -109,7 +108,16 @@ export class PlayerCombat {
   /** użycie miejsca tacy: 0–1 umiejętności, 5–6 mikstury */
   useSlot(i: number) {
     if (this.dead) return;
-    if (i === 5 || i === 6) { this.d.hud.float('Brak mikstur', '#c8bca4'); return; }
+    if (i === 5 || i === 6) {
+      if (this.potCd > 0) return;
+      const kind = i === 5 ? 'hp' : 'mp';
+      const n = this.inv.drink(kind);
+      if (!n) { this.d.hud.float('Brak mikstur', '#c8bca4'); return; }
+      this.potCd = 1;
+      if (kind === 'hp') { this.hp = Math.min(this.hpMax, this.hp + n); this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, `+${n}`, '#8ae07a'); }
+      else { this.mana = Math.min(this.manaMax, this.mana + n); this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, `+${n}`, '#8ab0ff'); }
+      return;
+    }
     if (i === 7) { this.d.hud.say(`Strzały: ${this.arrows}.`); return; }
     if (i > 1) return;
     const s = SKILLS[this.cls][i];
@@ -128,11 +136,11 @@ export class PlayerCombat {
 
   onMobEvent(e: MobEvent) {
     if (e.type !== 'attack' || this.dead) return;
-    if (this.rng() * 100 < this.dodge) {
+    if (this.rng() * 100 < this.inv.stats.dodge) {
       this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 40, 'unik', '#c8f0ff');
       return;
     }
-    this.takeDamage(afterArmor(e.dmg, 0));
+    this.takeDamage(afterArmor(e.dmg, this.inv.stats.armor));
     if (this.target == null) this.setTarget(e.mob);
   }
 
@@ -164,12 +172,24 @@ export class PlayerCombat {
     this.sinceHit = 99;
   }
 
+  /** doświadczenie spoza walki (np. testy, nagrody) */
+  addExp(n: number) {
+    const ups = gainExp(this.progress, n);
+    this.inv.points += this.progress.points;
+    this.progress.points = 0;
+    this.d.hud.setExp(this.progress.exp, this.expMax());
+    if (ups) { this.hp = this.hpMax; this.mana = this.manaMax; this.d.onLevelUp(); }
+  }
+
   private kill(m: Mob) {
     this.kills++;
     const def = MOBS[m.kind];
     const [x, y] = this.d.world.toScreenGlobal(m.pos[0], m.pos[1]);
     const before = this.progress.level;
     const ups = gainExp(this.progress, before >= MAX_LEVEL ? 0 : def.exp);
+    this.inv.points += this.progress.points;
+    this.progress.points = 0;
+    this.d.onKill(m);
     if (before < MAX_LEVEL) this.d.floaters.add(x, y - 30, `+${def.exp} PD`, '#ffe48a');
     this.d.hud.setExp(this.progress.exp, this.expMax());
     if (this.target === m.id) this.setTarget(null);
@@ -177,7 +197,7 @@ export class PlayerCombat {
       this.hp = this.hpMax; this.mana = this.manaMax;
       this.d.effects.ring(0xffe27a);
       this.d.floaters.add(this.d.hero.sx, this.d.hero.sy - 54, `Poziom ${this.progress.level}!`, '#ffe27a', true);
-      this.d.hud.say(`Awans na poziom <span style="color:#ffe27a">${this.progress.level}</span>. Masz ${this.progress.points} punktów atrybutów do rozdzielenia (wkrótce).`);
+      this.d.hud.say(`Awans na poziom <span style="color:#ffe27a">${this.progress.level}</span>. Punkty atrybutów do rozdzielenia: ${this.inv.points} (ekwipunek, klawisz I).`);
       this.d.onLevelUp();
     }
   }
@@ -207,8 +227,8 @@ export class PlayerCombat {
     const hero = this.d.hero;
     const [mu, mv] = [m.pos[0] - this.d.world.cx * this.d.world.size, m.pos[1] - this.d.world.cy * this.d.world.size];
     hero.faceTo(mu, mv);
-    const w = START_WEAPON[this.cls];
-    const roll = () => playerDamage(this.cls, this.attrs, w, this.rng);
+    const st = this.inv.stats;
+    const roll = () => playerDamage(this.cls, st.attrs, st.weapon, this.rng);
     const q = this.queued;
     const idx = q ? SKILLS[this.cls].findIndex((s) => s.id === q) : -1;
     if (q && idx >= 0) {
@@ -227,6 +247,7 @@ export class PlayerCombat {
       return;
     }
     if (this.atkCd > 0) return;
+    if (this.cls === 'hunter' && !st.bow) { this.d.hud.float('Załóż łuk', '#ffb08a'); this.setTarget(null); return; }
     if (this.cls === 'hunter' && this.arrows <= 0) { this.d.hud.float('Brak strzał', '#ffb08a'); this.setTarget(null); return; }
     hero.attack();
     this.atkCd = PLAYER_ATTACK_EVERY;
@@ -236,6 +257,7 @@ export class PlayerCombat {
 
   update(dt: number) {
     this.atkCd = Math.max(0, this.atkCd - dt);
+    this.potCd = Math.max(0, this.potCd - dt);
     this.cds[0] = Math.max(0, this.cds[0] - dt);
     this.cds[1] = Math.max(0, this.cds[1] - dt);
     this.updateShots(dt);
@@ -245,7 +267,7 @@ export class PlayerCombat {
       return;
     }
     this.sinceHit += dt;
-    this.mana = Math.min(this.manaMax, this.mana + this.manaRegen * dt);
+    this.mana = Math.min(this.manaMax, this.mana + this.inv.stats.manaRegen * dt);
     if (this.sinceHit > OUT_OF_COMBAT) this.hp = Math.min(this.hpMax, this.hp + this.hpMax * HP_REGEN * dt);
 
     const m = this.mob();
@@ -296,8 +318,8 @@ export class PlayerCombat {
     h.setVitals(this.hp, this.hpMax, this.mana, this.manaMax);
     const sk = SKILLS[this.cls];
     for (let i = 0; i < 2; i++) h.setSlotState(i, this.cds[i], sk[i].cd, undefined, this.mana < sk[i].mana || this.dead);
-    h.setSlotState(5, 0, 0, 0, true);
-    h.setSlotState(6, 0, 0, 0, true);
+    h.setSlotState(5, this.potCd, 1, this.inv.inv.hpPot, this.inv.inv.hpPot <= 0 || this.dead);
+    h.setSlotState(6, this.potCd, 1, this.inv.inv.mpPot, this.inv.inv.mpPot <= 0 || this.dead);
     if (this.cls === 'hunter') h.setSlotState(7, 0, 0, this.arrows, this.arrows <= 0);
   }
 }

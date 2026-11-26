@@ -10,7 +10,10 @@ export const DIRS = ['S', 'SE', 'E', 'NE', 'N'] as const;
 export type Dir = (typeof DIRS)[number];
 export const FRAMES = ['walk0', 'walk1', 'walk2', 'walk3', 'idle0', 'idle1'] as const;
 
-export interface CharLook { race: Race; cls: ClassId; hair: Hair; build: Build; beard: Beard; kind?: 'skeleton' | 'zombie' }
+/** widoczny ekwipunek: poziom przedmiotu (0 = brak) */
+export interface Gear { weapon: number; shield: number; armor: number; helm: number; boots: number; gloves: number }
+export const START_GEAR: Gear = { weapon: 1, shield: 0, armor: 0, helm: 0, boots: 0, gloves: 0 };
+export interface CharLook { race: Race; cls: ClassId; hair: Hair; build: Build; beard: Beard; kind?: 'skeleton' | 'zombie'; gear?: Gear }
 export type Pose = 'none' | 'atk0' | 'atk1';
 
 type RGB = [number, number, number];
@@ -57,11 +60,34 @@ function palette(l: CharLook): Record<string, RGB> {
     V: '#6e8a56', v: '#4a6038', R: '#5a4a36', r: '#40342a', x: '#2a221a', P: '#4a4a5a', p: '#36364a', q: '#242434',
     A: '#4e402e', a: '#36301e', j: '#221c12', Y: '#6a5a44', M: '#8aa06e',
   });
+  const g = l.gear ?? START_GEAR;
+  // zbroja: skórznia, kolczuga, płyta
+  if (!l.kind && g.armor === 1) Object.assign(p, { B: '#8a5a30', b: '#6a4222', D: '#3e2410', c: '#c8a060' });
+  if (!l.kind && g.armor === 2) Object.assign(p, { B: '#9aa0aa', b: '#6e747e', D: '#40444c', c: '#d8dce4', L: '#8a909a', l: '#62686e', n: '#3a3e44' });
+  if (!l.kind && g.armor === 3) Object.assign(p, { B: '#c8ccd6', b: '#8e94a0', D: '#555a66', c: '#e8c050', L: '#b0b6c0', l: '#7e848e', n: '#4a4e58', V: '#e8c050', v: '#a8842c' });
+  if (!l.kind && g.boots === 1) Object.assign(p, { A: '#a0703c', a: '#704a24', j: '#40280e' });
+  if (!l.kind && g.boots === 2) Object.assign(p, { A: '#6a7a44', a: '#4a5630', j: '#28301a' });
+  // dłonie: skóra albo rękawice
+  Object.assign(p, g.gloves && !l.kind ? { X1: '#8a5a2a', X2: '#5a3818' } : { X1: p.S, X2: p.s });
+  // hełm: kaptur, żelazny, Świtu
+  const HELM: Record<number, string[]> = {
+    1: ['#9a6a3a', '#7a4e28', '#4e3018', '#5e3a1c'], 2: ['#b0b4be', '#80848e', '#50545e', '#3a3e46'], 3: ['#e0e4ec', '#a8aeb8', '#6a707c', '#e8c050'],
+  };
+  const hm = HELM[g.helm] ?? HELM[1];
+  Object.assign(p, { H1: hm[0], H2: hm[1], H3: hm[2], H4: hm[3] });
+  // tarcza: drewniana, okuta, Wieży
+  const SH: Record<number, string[]> = {
+    1: ['#a06a34', '#6a4420', '#4a3018', '#c8a060'], 2: ['#a8382a', '#7a2418', '#c8ccd6', '#e8d070'], 3: ['#3a6ac8', '#2a4a96', '#e8c050', '#fff0a0'],
+  };
+  const sh = SH[g.shield] ?? SH[2];
+  // broń: kolor ostrza / drewna łuku wg poziomu
+  const blade = l.kind === 'skeleton' ? ['#c8b898', '#8a7858'] : g.weapon === 3 ? ['#fff0a0', '#e8c050'] : g.weapon === 2 ? ['#ffffff', '#b8c0cc'] : ['#eef2f6', '#a8b0bc'];
+  const wood = g.weapon === 3 ? ['#e8d8a0', '#a89060'] : g.weapon === 2 ? ['#8a3a2a', '#5a2418'] : ['#a06a34', '#6a4420'];
   Object.assign(p, {
     // broń i tarcza
-    E1: l.kind === 'skeleton' ? '#c8b898' : '#eef2f6', E2: l.kind === 'skeleton' ? '#8a7858' : '#a8b0bc', E3: '#6a7280', G1: '#e0b850', G2: '#9a7430',
-    T1: '#a8382a', T2: '#7a2418', T3: '#c8ccd6', T4: '#e8d070', T5: '#6a4424',
-    W1: '#a06a34', W2: '#6a4420', W3: '#e8e0d0', F1: '#e04a3a', F2: '#f4f0e8', Q1: '#7a4a24', Q2: '#4e2e14',
+    E1: blade[0], E2: blade[1], E3: '#6a7280', G1: g.weapon === 3 ? '#8af0ff' : '#e0b850', G2: '#9a7430',
+    T1: sh[0], T2: sh[1], T3: sh[2], T4: sh[3], T5: '#6a4424',
+    W1: wood[0], W2: wood[1], W3: '#e8e0d0', F1: '#e04a3a', F2: '#f4f0e8', Q1: '#7a4a24', Q2: '#4e2e14',
   });
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, hex(v)]));
 }
@@ -133,9 +159,12 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
   const t0 = 18 + by, t1 = 29;
   const sw = -stride;
   const zombie = l.kind === 'zombie';
-  const warrior = l.cls === 'warrior' && !zombie;
-  const shield = warrior && !l.kind;
-  const hunter = l.cls === 'hunter' && !l.kind;
+  const gear = l.gear ?? START_GEAR;
+  const warrior = l.cls === 'warrior' && !zombie && (gear.weapon > 0 || !!l.kind);
+  const shield = l.cls === 'warrior' && !l.kind && gear.shield > 0;
+  const hunter = l.cls === 'hunter' && !l.kind && gear.weapon > 0;
+  const quiver = l.cls === 'hunter' && !l.kind;
+  const blen = gear.weapon >= 2 ? 2 : 0;          // dłuższe ostrze lepszej broni
 
   // dłonie (pozycje do broni)
   const rightHand = side < 1 ? { x: cx + (tw + 1.3), y: t0 + 10 + sw * 0.9 } : { x: cx + 1 + sw * 1.6, y: t0 + 10 };
@@ -160,8 +189,8 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       cv.line(h.x + 1, h.y - 1, h.x + 6, h.y - 11, 'E1', 'E2');
       cv.rect(h.x - 1, h.y - 1, h.x + 2, h.y - 1, 'G1'); cv.px(h.x, h.y + 1, 'G2');
     } else {
-      cv.line(h.x + 1, h.y - 1, h.x + 3, h.y - 13, 'E1', 'E2');
-      cv.px(h.x + 3, h.y - 14, 'E3');
+      cv.line(h.x + 1, h.y - 1, h.x + 3, h.y - 13 - blen, 'E1', 'E2');
+      cv.px(h.x + 3, h.y - 14 - blen, 'E3');
       cv.rect(h.x - 1, h.y - 1, h.x + 3, h.y - 1, 'G1'); cv.px(h.x + 1, h.y + 1, 'G2');
     }
   };
@@ -231,7 +260,7 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     if (side < 1) {
       for (let k = 0, y = t0 + 3; y < t1 - 2; y++, k++) cv.px(cx + (k % 2) - 0.5 + side, y, 'c');
     }
-    if (hunter) cv.line(cx - tw + 1, t0, cx + tw - 1, t1 - 3, 'Q2');   // pas kołczanu przez pierś
+    if (quiver) cv.line(cx - tw + 1, t0, cx + tw - 1, t1 - 3, 'Q2');   // pas kołczanu przez pierś
   } else {
     cv.rect(cx - 1, t0 + 1, cx, t1 - 1, 'b');
   }
@@ -244,7 +273,7 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     cv.rect(cx - tw, 28 + by, cx - tw + 2, 31 + by, 'U');
   }
   // kołczan na plecach
-  if (hunter) {
+  if (quiver) {
     if (d === 'N') quiverBack(cx + 1);
     else if (d === 'NE') quiverBack(cx - 2);
     else if (d === 'E') quiverBack(cx - tw - 2);
@@ -258,7 +287,7 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       cv.px(ax + (lit ? 1 : -1), t0 + 3 + ay * 0.4, 'n');
       cv.rect(ax - 1, t0 + 7 + ay * 0.8, ax + 1, t0 + 9 + ay, lit ? 'V' : 'v');
       cv.px(ax, t0 + 8 + ay, 'M');
-      cv.rect(ax - 1, t0 + 10 + ay, ax + 1, t0 + 11 + ay, lit ? 'S' : 's');
+      cv.rect(ax - 1, t0 + 10 + ay, ax + 1, t0 + 11 + ay, lit ? 'X1' : 'X2');
       cv.rect(ax - 1.5, t0, ax + 1.5, t0 + 1, lit ? 'V' : 'v');
       cv.px(ax, t0, 'M');
       if (shield && sgn < 0) cv.rect(ax - 2, t0 - 1, ax + 2, t0 + 1, 'V');   // naramiennik
@@ -267,7 +296,7 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     const ax = cx + 1 + sw * 1.6;
     cv.rect(ax - 1, t0 + 2, ax + 1, t0 + 6, 'L'); cv.px(ax + 1, t0 + 4, 'l');
     cv.rect(ax - 1, t0 + 7, ax + 1, t0 + 9, 'V'); cv.px(ax, t0 + 8, 'M');
-    cv.rect(ax - 1, t0 + 10, ax + 1, t0 + 11, 'S'); cv.px(ax + 1, t0 + 11, 's');
+    cv.rect(ax - 1, t0 + 10, ax + 1, t0 + 11, 'X1'); cv.px(ax + 1, t0 + 11, 'X2');
     cv.rect(ax - 2, t0, ax + 2, t0 + 1, 'V'); cv.px(ax, t0, 'M');
   }
 
@@ -361,7 +390,6 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
         if (pose === 'atk0') { cv.line(bx - pull, t0 + 6, bx + 6, t0 + 6, 'Q1'); cv.px(bx + 7, t0 + 6, 'E2'); }
       } else if (d === 'E') bow(cx + 6 + sw, t0 - 3, t0 + 15, 1);
       else bow(leftHand.x - 1, t0 - 4, t0 + 14, -1);
-      if (d === 'S' || d === 'SE') { cv.px(cx + tw - 1, t0 - 2, 'F1'); cv.px(cx + tw, t0 - 3, 'F2'); cv.px(cx + tw + 1, t0 - 2, 'F1'); }
     } else if (zombie && pose !== 'none') {
       // zombie: wyciągnięte ręce
       const reach = pose === 'atk1' ? 5 : 2;
@@ -374,6 +402,24 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     }
   } else if (shield) {
     shieldBack(leftHand.x - 1, leftHand.y - 3);
+  }
+  if (quiver && !back && (d === 'S' || d === 'SE')) { cv.px(cx + tw - 1, t0 - 2, 'F1'); cv.px(cx + tw, t0 - 3, 'F2'); cv.px(cx + tw + 1, t0 - 2, 'F1'); }
+  // hełm (po głowie i broni z tyłu)
+  if (gear.helm > 0 && !l.kind) {
+    const t = gear.helm;
+    for (let y = Math.floor(hy - 7); y <= hy - 2; y++) for (let x = Math.floor(hx - 6); x <= hx + 6; x++) {
+      const dx = (x - hx) / 6, dy = (y - (hy - 1)) / 6.4;
+      if (dx * dx + dy * dy > 1) continue;
+      const k = dx * 0.7 + dy * 0.7;
+      cv.px(x, y, y === hy - 2 ? 'H4' : k < -0.35 ? 'H1' : k < 0.45 ? 'H2' : 'H3');
+    }
+    if (t === 1) {   // kaptur schodzi po bokach
+      for (const sx of back ? [-6, 6] : d === 'E' ? [-5] : [-6, 6]) cv.rect(hx + sx - (sx < 0 ? 0 : 0), hy - 2, hx + sx, hy + 3, sx < 0 ? 'H2' : 'H3');
+    } else if (!back) {
+      const nx = d === 'S' ? hx : d === 'SE' ? hx + 1 : hx + 4;
+      cv.rect(nx, hy - 1, nx, hy + 1, 'H3');                     // nosal
+      if (t === 3) cv.rect(hx - 1, hy - 8, hx + 1, hy - 8, 'H4'); // grzebień
+    } else if (t === 3) cv.rect(hx - 1, hy - 8, hx + 1, hy - 8, 'H4');
   }
   cv.outline();
   return cv.a;

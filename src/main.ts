@@ -1,8 +1,9 @@
 // Earthlings – punkt wejścia: wczytanie danych, świat 3×3 (bieżąca komórka), pętla gry.
 import { Application, Container, TextureStyle } from 'pixi.js';
 import { loadAssets, type Assets } from './assets';
-import { CharSheet } from './chars/sheet';
-import { EXP_TO_NEXT, addAttrs, baseAttributes, derived } from './logic/character';
+import { CharSheet, type FrameSource } from './chars/sheet';
+import { ITEMS, sanitizeInventory } from './logic/items';
+import { EXP_TO_NEXT } from './logic/character';
 import { SaveStore, type SavedChar } from './logic/save';
 import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
@@ -21,7 +22,12 @@ import { createMinimap } from './ui/minimap';
 import { Floaters } from './ui/floaters';
 import { MobManager } from './game/mobs';
 import { PlayerCombat } from './game/combat';
-import { deathPenalty, dist, type MobEvent } from './logic/combat';
+import { InventoryController } from './game/inventory';
+import { LootManager } from './game/loot';
+import { rollLoot } from './logic/items';
+import { ICONS2 } from './ui/icons';
+import { itemIcon } from './ui/icons';
+import { deathPenalty, dist, seeded, type MobEvent } from './logic/combat';
 import { World } from './world/world';
 import './style.css';
 
@@ -35,6 +41,8 @@ declare global {
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
       mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void;
+      drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
+      inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
     };
   }
@@ -44,6 +52,14 @@ const FADE = 0.25;   // s – wygaszenie przy przejściu między komórkami
 const DOG_OFFSET: [number, number] = [-22, 6];
 
 const AUTOSAVE = 10;  // s
+
+const itemName = (id: string) => ITEMS[id]?.name ?? id;
+/** poziomy widocznego ekwipunku z zapisu (przed utworzeniem kontrolera) */
+function invGear(c: SavedChar) {
+  const inv = sanitizeInventory(c.inv, c.cls);
+  const t = (s: keyof typeof inv.eq) => (inv.eq[s] ? ITEMS[inv.eq[s]!].tier : 0);
+  return { weapon: t('weapon'), shield: t('shield'), armor: t('armor'), helm: t('helm'), boots: t('boots'), gloves: inv.eq.gloves ? 1 : 0 };
+}
 
 async function main() {
   TextureStyle.defaultOptions.scaleMode = 'nearest';
@@ -107,7 +123,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const start = info.start;
   const pos = char.pos ?? start;
   await world.center(pos.cx, pos.cy);
-  const sheet = new CharSheet(lookOf(char));
+  const sheet = new CharSheet({ ...lookOf(char), gear: invGear(char) });
   const hero = new Hero(atlas, world.layer, [pos.u, pos.v], sheet);
   const dog = new Dog(atlas, world.layer, [pos.u + DOG_OFFSET[0], pos.v + DOG_OFFSET[1]]);
   const effects = new Effects(world.layer);
@@ -115,7 +131,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   // kontury zasłoniętych postaci (nad światem, pod chmurami nie – widoczne zawsze)
   const xray = new Xray(app.renderer, world);
   stage.addChild(xray.overlay);
-  xray.add({ view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero', source: sheet });
+  const heroXray = { view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero' as const, source: sheet as FrameSource };
+  xray.add(heroXray);
 
   // portale: przed drzwiami sklepu (miasto) i wyjście ze sklepu (wnętrze)
   const shopInfo = info.interiors?.shop;
@@ -132,17 +149,21 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     },
     ring(color) { effects.ring(color); },
     useSlot(i) { combat?.useSlot(i); },
+    invClick(kind, key) { invc.click(kind, key); },
+    addPoint(a) { invc.addPoint(a); },
   };
   const hud = createHud(assets, bridge);
   const portrait = portraitOf(char);
-  const attrs = addAttrs(baseAttributes(char.race, char.cls), char.alloc);
-  const dv = derived(attrs);
-  const showChar = () => hud.setCharacter({
-    name: char.name, title: titleOf(char), level: combat ? combat.progress.level : char.level, hpMax: dv.hp, mpMax: dv.mana,
-    exp: combat ? combat.progress.exp : char.exp, expMax: combat ? combat.expMax() : EXP_TO_NEXT[char.level] || 1,
-    gold: combat ? combat.gold : char.gold, portrait,
-  });
   let combat: PlayerCombat | null = null;
+  const invc = new InventoryController(
+    { race: char.race, cls: char.cls, alloc: char.alloc, level: char.level, points: char.points ?? 0, gold: char.gold, inv: char.inv },
+    assets.icons, () => (combat ? combat.progress.level : char.level),
+  );
+  const showChar = () => hud.setCharacter({
+    name: char.name, title: titleOf(char), level: combat ? combat.progress.level : char.level, hpMax: invc.stats.hpMax, mpMax: invc.stats.manaMax,
+    exp: combat ? combat.progress.exp : char.exp, expMax: combat ? combat.expMax() : EXP_TO_NEXT[char.level] || 1,
+    gold: invc.gold, portrait,
+  });
   showChar();
 
   // walka: potwory, liczby obrażeń, gracz
@@ -160,8 +181,33 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
         hud.say(lost ? `Odradzasz się w mieście. Tracisz ${lost} złota.` : 'Odradzasz się w mieście.');
       });
     },
-    onLevelUp: () => { showChar(); savePos(); },
-  });
+    onLevelUp: () => { showChar(); hud.setInventory(invc.view()); savePos(); },
+    onKill: (m) => loot.spawn(m.pos, rollLoot(m.kind, invc.stats.luck, lootRng)),
+  }, invc);
+  const lootRng = seeded(Date.now() & 0xfffff);
+  const loot = new LootManager(world, world.layer, (kind, item) =>
+    kind === 'gold' ? ICONS2.gold : kind === 'hp' ? assets.icons.icon_hp : kind === 'mp' ? assets.icons.icon_mp : itemIcon(item!, assets.icons));
+  // zmiany ekwipunku i punktów: statystyki, panel, wygląd postaci
+  const gearKey = () => JSON.stringify(invc.gear());
+  let lastGear = gearKey();
+  invc.onChange = () => {
+    combat!.clampVitals();
+    bridge.speed = invc.stats.speed;
+    hud.setInventory(invc.view());
+    showChar();
+    const g = gearKey();
+    if (g !== lastGear) {
+      lastGear = g;
+      const old = hero.sheet as CharSheet;
+      const ns = new CharSheet({ ...lookOf(char), gear: invc.gear() });
+      hero.sheet = ns;
+      heroXray.source = ns;
+      old.destroy();
+    }
+  };
+  invc.onMessage = (msg) => hud.float(msg, '#ffb08a');
+  bridge.speed = invc.stats.speed;
+  hud.setInventory(invc.view());
   const mobEvents: MobEvent[] = [];
   let peaceful = false;   // tylko do testów: potwory nie widzą gracza
   const mobXray = new Map<number, Parameters<Xray['add']>[0]>();
@@ -170,7 +216,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const savePos = () => {
     const p = world.inInterior ? { cx: info.shop.cx, cy: info.shop.cy, u: info.shop.u + 22, v: info.shop.v + 6 } : { cx: world.cx, cy: world.cy, u: hero.u, v: hero.v };
     const c = combat!;
-    store.upsert({ ...char, pos: p, played: Date.now(), level: c.progress.level, exp: c.progress.exp, points: c.progress.points, gold: c.gold, arrows: c.arrows });
+    store.upsert({ ...char, pos: p, played: Date.now(), level: c.progress.level, exp: c.progress.exp, points: invc.points, alloc: invc.alloc, gold: invc.gold, arrows: c.arrows, inv: invc.inv });
   };
   addEventListener('beforeunload', savePos);
   addEventListener('pagehide', savePos);
@@ -271,7 +317,15 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     if (busy || combat!.dead) return;
     const wx = Math.floor((gx - stage.x) / camera.zoom), wy = Math.floor((gy - stage.y) / camera.zoom);
     const m = mobs.at(wx, wy);
-    if (m) { combat!.setTarget(m); return; }
+    if (m) { combat!.setTarget(m); loot.wanted = null; return; }
+    const drop = loot.at(wx, wy);
+    if (drop && showMark) {
+      combat!.setTarget(null);
+      loot.wanted = drop.id;
+      const C = world.size;
+      goToWorld(drop.pos[0] - world.cx * C, drop.pos[1] - world.cy * C, true);
+      return;
+    }
     if (!showMark && combat!.target != null) return;      // przytrzymanie po kliknięciu w potwora – zostaje cel
     const target = world.grid.pickAt(wx, wy);
     if (target) { combat!.setTarget(null); goToWorld(target[0], target[1], showMark); }
@@ -285,7 +339,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   window.__game = {
     cell: () => ({ cx: world.cx, cy: world.cy, name: world.name }),
     hero: () => ({ u: hero.u, v: hero.v }),
-    goTo: (u, v) => goToWorld(u, v, true),
+    goTo: (u, v) => { combat?.setTarget(null); return goToWorld(u, v, true); },
     place: (u, v) => { hero.teleport([u, v]); dog.teleport([u + DOG_OFFSET[0], v + DOG_OFFSET[1]]); snapCamera(); },
     warp: (cx, cy, u, v) => jump(cx, cy, [u, v]),
     busy: () => busy,
@@ -297,6 +351,10 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     skill: (i) => combat!.useSlot(i),
     hurt: (n) => combat!.takeDamage(n),
     peace: (on) => { peaceful = on; },
+    drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
+    give: (id) => invc.addItem(id),
+    exp: (n) => combat!.addExp(n),
+    inv: () => ({ ...invc.inv, points: invc.points, armor: invc.stats.armor, str: invc.stats.attrs.str }),
   };
 
   let t = 0, at = 0;
@@ -318,6 +376,13 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       for (const e of mobEvents) combat.onMobEvent(e);
       combat.update(dt);
       hero.update(grid, t, at, dt, bridge.speed);
+      // podnoszenie łupu
+      if (!combat.dead) for (const d of loot.inReach([world.cx * C + hero.u, world.cy * C + hero.v])) {
+        if (d.kind === 'gold') { invc.gold += d.amount; floaters.add(hero.sx, hero.sy - 44, `+${d.amount} zł`, '#ffd84a'); invc.onChange(false); }
+        else if (d.kind === 'hp' || d.kind === 'mp') { invc.addPotion(d.kind); floaters.add(hero.sx, hero.sy - 44, d.kind === 'hp' ? '+ mikstura zdrowia' : '+ mikstura many', d.kind === 'hp' ? '#ff8a8a' : '#8ab0ff'); }
+        else if (d.item) { if (!invc.addItem(d.item)) { loot.wanted = null; continue; } hud.say(`Zdobyto: <span style="color:#a8e0ff">${d.item ? itemName(d.item) : ''}</span>`); }
+        loot.take(d);
+      }
       dog.update(grid, hero.trail, at, dt, bridge.speed);
       const step = world.inInterior ? null : cellStep(world.cx, world.cy, hero.u, hero.v, world.size, world.gridSize);
       if (step) void cross(step.dx, step.dy);
@@ -340,6 +405,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     }
     if (npc && world.inInterior) npc.update(world.grid, at);
     mobs.render(world.layer);
+    loot.update(dt);
     // kontury potworów w pobliżu (czerwone)
     {
       const C = world.size, hp: [number, number] = [world.cx * C + hero.u, world.cy * C + hero.v];

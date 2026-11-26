@@ -42,7 +42,7 @@ export class Hero {
   private readonly headMark: Graphics;
 
   /** atlas – cień (wspólny atlas świata), sheet – klatki tej postaci */
-  constructor(atlas: Atlas, layer: Container, start: [number, number], readonly sheet: FrameSource) {
+  constructor(atlas: Atlas, layer: Container, start: [number, number], public sheet: FrameSource) {
     [this.u, this.v] = start;
     this.a = makeActor(atlas, layer, 1);
     this.headMark = new Graphics().poly([-3, 0, 3, 0, 0, 4]).fill(0xffd84a).stroke({ width: 1, color: 0x1a1210 });

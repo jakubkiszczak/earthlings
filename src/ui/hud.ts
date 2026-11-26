@@ -2,7 +2,7 @@
 // Grafiki w pikselach natywnych, skalowane całkowicie przez --s (2 lub 3), tekst pisany kodem (Jersey 15).
 // Uwaga: dane postaci, umiejętności i przedmiotów to na razie atrapa – zastąpią je systemy z etapów 2–4.
 import type { Assets } from '../assets';
-import type { GameBridge, HudApi } from '../types';
+import type { GameBridge, HudApi, InvCell } from '../types';
 import './hud.css';
 
 type RGB = [number, number, number];
@@ -13,8 +13,6 @@ interface Skill {
   el?: HTMLButtonElement; num?: HTMLElement; left: number;
 }
 
-/** [ikona, rzadkość, nazwa, opis, akcja (indeks umiejętności lub 'tp'), liczba] */
-type Item = [string, string | null, string, string, (number | 'tp' | null)?, number?];
 
 interface Orb {
   w: HTMLElement; c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; id: ImageData | null; pal: RGB[]; t: HTMLElement;
@@ -37,7 +35,6 @@ const img = (src: string, cls?: string) => {
 const RED: RGB[] = [[24, 4, 6], [58, 10, 14], [100, 18, 26], [150, 30, 40], [204, 48, 56], [240, 96, 90]];
 const BLUE: RGB[] = [[4, 8, 30], [10, 26, 80], [18, 50, 140], [36, 90, 200], [70, 136, 236], [130, 190, 255]];
 const BAY = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-const RAR: Record<string, string> = { epic: '#a86af0', rare: '#4a8af0', unc: '#4ac04a', leg: '#f09a2a', set: '#3ae05a', com: '#8a8a8a' };
 
 export function createHud(assets: Assets, game: GameBridge): HudApi {
   const U = assets.ui2, J = assets.ui2meta, IC = assets.icons;
@@ -197,43 +194,38 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   const inv = el('div', 'inv');
   const invBg = img(U.inv_bg, 'bg');
   inv.append(invBg);
-  const EQ: Record<string, Item> = {
-    helm: ['helm', 'epic', 'Hełm Świtu', 'Pancerz 64 · +6 Wytrzymałość'], amulet: ['amulet', 'leg', 'Amulet Wieży', '+12 Inteligencja · +5% leczenia'],
-    cape: ['cape', 'rare', 'Peleryna wędrowca', 'Pancerz 18 · +4 Zręczność'],
-    chest: ['chest', 'set', 'Napierśnik Świtu', 'Pancerz 142 · +10 Wytrzymałość<br><span style="color:#3ae05a">Komplet Świtu (2/4)</span>'],
-    belt: ['belt', 'unc', 'Pas podróżnika', 'Pancerz 12'],
-    legs: ['legs', 'set', 'Nagolenniki Świtu', 'Pancerz 48 · +4 Siła<br><span style="color:#3ae05a">Komplet Świtu (2/4)</span>'],
-    boots: ['boots', 'rare', 'Buty zwiadowcy', 'Pancerz 26 · +5% szybkości'], gloves: ['gloves', 'rare', 'Rękawice kowala', 'Pancerz 22 · +3 Siła'],
-    shoulders: ['shield', 'unc', 'Naramienniki', 'Pancerz 30'], ring: ['ring', 'epic', 'Pierścień przypływu', '+15 many co 5 s'],
-    ring2: ['ring2', 'rare', 'Srebrny pierścień', '+6 Siła'],
-    sword: ['sword', 'leg', 'Ostrze Świtu', 'Obrażenia 38–52 · +12 Siła<br><span style="color:#f09a2a">Przy trafieniu: Święty płomień</span>'],
-    shield: ['shield', 'epic', 'Tarcza Wieży', 'Pancerz 96 · Blok 18%'],
-  };
-  const BAG: Item[] = [
-    ['hp', null, 'Mikstura zdrowia', 'Przywraca 400 HP', 5, 12], ['mp', null, 'Mikstura many', 'Przywraca 250 many', 6, 8],
-    ['ring', 'unc', 'Miedziany pierścień', '+2 Zręczność'], ['helm', 'com', 'Stary hełm', 'Pancerz 20'],
-    ['scroll', null, 'Zwój powrotu', 'Teleport do punktu startu', 'tp', 3], ['boots', 'com', 'Znoszone buty', 'Pancerz 8'],
-    ['amulet', 'rare', 'Amulet mgły', '+6 Inteligencja'], ['gloves', 'unc', 'Rękawice skórzane', 'Pancerz 10'],
-    ['light', 'leg', 'Kryształ Świtu', 'Materiał rzemieślniczy', null, 18],
-  ];
+  // miejsca panelu: 8 używanych przez grę, pozostałe (peleryna, pas, nogawice, naramienniki, drugi pierścień) zablokowane
   const invSlots: { d: HTMLElement; r: [number, number, number, number] }[] = [];
-  const addSlot = (r: [number, number, number, number], it: Item | undefined) => {
+  const eqCells: Record<string, HTMLElement> = {};
+  const bagCells: HTMLElement[] = [];
+  const cellTip = new Map<HTMLElement, string>();
+  const addSlot = (r: [number, number, number, number], onClick: (() => void) | null) => {
     const d = el('div', 'islot');
-    if (it) {
-      const [ic, rar, name, desc, action, count] = it;
-      d.innerHTML = `<img class="px ic" src="${IC['icon_' + ic]}">` + (count != null ? `<span class="cnt">${count}</span>` : '');
-      if (rar) { d.style.setProperty('--rc', RAR[rar]); d.classList.add('rar'); }
-      tip(d, () => `<b style="color:${rar ? RAR[rar] : '#e8e2d4'}">${name}</b><br>${desc}${action != null ? '<br><span class="t-dim">Kliknij, aby użyć</span>' : ''}`);
-      if (action === 'tp') d.addEventListener('click', () => { game.teleport(); sys('Użyto: Zwój powrotu'); game.ring(0xc88aff); });
-      else if (action != null) d.addEventListener('click', () => use(action));
-    }
     inv.append(d);
     invSlots.push({ d, r });
+    tip(d, () => cellTip.get(d) ?? '');
+    if (onClick) d.addEventListener('click', onClick);
+    return d;
   };
-  for (const k in J.eq) addSlot(J.eq[k], EQ[k]);
-  J.bag.forEach((r, i) => addSlot([r[0], r[1], r[2], r[2]], BAG[i]));
+  const USED = ['sword', 'shield', 'helm', 'chest', 'gloves', 'boots', 'ring', 'amulet'];
+  for (const k in J.eq) {
+    const d = addSlot(J.eq[k], USED.includes(k) ? () => game.invClick('eq', k) : null);
+    if (USED.includes(k)) eqCells[k] = d; else { d.classList.add('locked'); cellTip.set(d, '<span class="t-dim">Miejsce niedostępne w prototypie</span>'); }
+  }
+  J.bag.forEach((r, i) => { bagCells.push(addSlot([r[0], r[1], r[2], r[2]], () => game.invClick('bag', i))); });
+  const fillCell = (d: HTMLElement, c: InvCell | null, empty: string) => {
+    d.innerHTML = c ? `<img class="px ic" src="${c.icon}">` : '';
+    d.classList.toggle('rar', !!c);
+    d.classList.toggle('dim', !!c?.dim);
+    if (c) d.style.setProperty('--rc', c.color);
+    cellTip.set(d, c ? c.tip : `<span class="t-dim">${empty}</span>`);
+  };
   const ttl = el('div', 'ititle', 'Ekwipunek'), close = el('button', 'iclose', '×');
-  const stats = el('div', 'istats', `<span>Siła</span><b>48</b><span>Zręczność</span><b>22</b><span>Inteligencja</span><b>14</b><span>Wytrzymałość</span><b>61</b><span>Pancerz</span><b>412</b><span>Obrażenia</span><b>86–112</b>`);
+  const stats = el('div', 'istats', '');
+  stats.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null;
+    if (a) game.addPoint(a.dataset.a!);
+  });
   const gold = el('div', 'igold', `<span>Złoto</span><b>${st.gold.toLocaleString('pl-PL')}</b>`);
   inv.append(ttl, close, stats, gold);
   hud.append(inv);
@@ -359,6 +351,15 @@ export function createHud(assets: Assets, game: GameBridge): HudApi {
   // ---------------- pętla HUD
   let T_ = 0, orbT = 0, flameF = 0;
   return {
+    setInventory(v) {
+      for (const k of USED) fillCell(eqCells[k], v.eq[k] ?? null, v.eqNames[k] ?? '');
+      v.bag.forEach((c, i) => bagCells[i] && fillCell(bagCells[i], c, 'Puste miejsce w plecaku'));
+      stats.innerHTML = v.statsHtml;
+      ttl.innerHTML = v.points > 0 ? `Ekwipunek <span class="tpts">+${v.points} pkt</span>` : 'Ekwipunek';
+      st.gold = v.gold;
+      gold.querySelector('b')!.textContent = v.gold.toLocaleString('pl-PL');
+    },
+    toggleInventory() { toggleInv(); },
     setSlots(defs) {
       SK.forEach((sk, i) => {
         const d = defs[i];

@@ -76,13 +76,32 @@ export interface GameBridge {
   ring(color: number): void;
   /** użycie miejsca z tacy (umiejętność, mikstura) */
   useSlot(i: number): void;
+  /** kliknięcie w panelu ekwipunku: założony przedmiot (klucz miejsca) albo plecak (indeks) */
+  invClick(kind: 'eq' | 'bag', key: string | number): void;
+  /** dodanie punktu atrybutu */
+  addPoint(attr: string): void;
 }
 
 export interface HudCharacter { name: string; title: string; level: number; hpMax: number; mpMax: number; exp: number; expMax: number; gold: number; portrait: string }
 
+/** komórka panelu ekwipunku */
+export interface InvCell { icon: string; color: string; tip: string; dim?: boolean }
+export interface InvView {
+  /** klucze miejsc panelu: sword, shield, helm, chest, gloves, boots, ring, amulet */
+  eq: Record<string, InvCell | null>;
+  eqNames: Record<string, string>;
+  bag: (InvCell | null)[];
+  statsHtml: string;
+  gold: number;
+  /** nierozdzielone punkty atrybutów */
+  points: number;
+}
+
 export interface SlotDef { key: string; icon: string; name: string; desc: string; mana?: number; cd?: number; count?: number }
 
 export interface HudApi {
+  setInventory(v: InvView): void;
+  toggleInventory(): void;
   setSlots(defs: (SlotDef | null)[]): void;
   /** stan miejsca: pozostałe odnowienie, pełny czas, liczba (np. strzał), wyszarzenie */
   setSlotState(i: number, left: number, cd: number, count: number | undefined, off: boolean): void;

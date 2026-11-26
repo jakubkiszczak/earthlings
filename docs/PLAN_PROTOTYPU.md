@@ -140,7 +140,7 @@ Razem 20 przedmiotów.
 - Start: wojownik ma Krótki miecz, łowca Krótki łuk i 200 strzał.
 - Wojownik: miecz + tarcza. Łowca: łuk (oburęczny, bez tarczy). Hełmy, zbroje i buty dla obu klas.
 - Statystyki przedmiotów *(do strojenia)*: broń 8–12 / 14–20 / 22–30 obrażeń; pancerz zbroi 15 / 35 / 60; hełmu i tarczy 5 / 12 / 20; buty: pancerz 5 i +5% szybkości ruchu / pancerz 10 i +10% szybkości.
-- Ekwipunek: 8 slotów założonych (broń, tarcza, hełm, zbroja, rękawice, buty, pierścień, amulet) + plecak 4×6. Potiony i strzały jako stosy.
+- Ekwipunek: 8 slotów założonych (broń, tarcza, hełm, zbroja, rękawice, buty, pierścień, amulet) + plecak 16 miejsc (układ panelu HUD). Potiony i strzały jako stosy.
 
 ### Sklep w mieście
 
@@ -198,7 +198,7 @@ Wszystko generowane kodem w `tools/` (rozszerzenie `hero9.py` i `ui2.py`).
 | 1 | Świat 3×3 | Generator 9 komórek, miasto, przejścia, kolizje, minimapa. | gotowe |
 | 2 | Postać | Ekran startowy, wybór i kreator postaci, warstwowe sprite'y, zapis do 3 postaci. | gotowe |
 | 3 | Walka | Moby z AI, auto-atak, 4 umiejętności, mana, cooldowny, śmierć i respawn mobów oraz gracza. | gotowe |
-| 4 | Progresja i łup | Exp i poziomy, punkty atrybutów, złoto, potiony, 20 przedmiotów, ekwipunek, widoczna broń i zbroja. |  |
+| 4 | Progresja i łup | Exp i poziomy, punkty atrybutów, złoto, potiony, 20 przedmiotów, ekwipunek, widoczna broń i zbroja. | gotowe |
 | 5 | Miasto i sklep | Kupiec, strzały, buty, okno sklepu. |  |
 | 6 | Dźwięk, balans, wydanie | Efekty dźwiękowe, strojenie wartości, testy, wersja v0.1 dla testerów. |  |
 

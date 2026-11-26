@@ -31,6 +31,8 @@ import { StashWindow, type StashState } from './ui/stash';
 import { StashStore, deposit, withdraw } from './logic/stash';
 import { GuardManager } from './game/guards';
 import { Fountain } from './render/fountain';
+import { Townfolk } from './game/townfolk';
+import { LoadingScreen } from './ui/loading';
 import { OFFERS, buy as shopBuy, potionSellPrice, sellBag, sellPotion, sellPrice } from './logic/shop';
 import { RARITY_COLOR } from './logic/items';
 import { itemIcon } from './ui/icons';
@@ -47,7 +49,7 @@ declare global {
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
-      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; openStash(): void; stashOpen(): boolean; moveMob(id: number, u: number, v: number): void; mobState(id: number): string; guards(): { u: number; v: number; target: number | null }[]; sitting(): boolean;
+      mobs(): { id: number; kind: string; hp: number; state: string; u: number; v: number }[]; attack(id: number): void; skill(i: number): void; hurt(n: number): void; peace(on: boolean): void; dashReady(): boolean; talkToMerchant(): void; shopOpen(): boolean; openStash(): void; stashOpen(): boolean; moveMob(id: number, u: number, v: number): void; mobState(id: number): string; guards(): { u: number; v: number; target: number | null }[]; folk(): { name: string; u: number; v: number }[]; sitting(): boolean;
       drops(): { id: number; kind: string; item: string | null; u: number; v: number }[]; give(id: string): boolean; exp(n: number): void;
       inv(): { eq: Record<string, string | null>; bag: (string | null)[]; hpPot: number; mpPot: number; points: number; armor: number; str: number };
       player(): { hp: number; hpMax: number; mana: number; level: number; exp: number; kills: number; dead: boolean; arrows: number; gold: number };
@@ -59,6 +61,7 @@ const FADE = 0.25;   // s – wygaszenie przy przejściu między komórkami
 const DOG_OFFSET: [number, number] = [-22, 6];
 
 const AUTOSAVE = 10;  // s
+let loadingScreen: LoadingScreen;
 
 const itemName = (id: string) => ITEMS[id]?.name ?? id;
 /** poziomy widocznego ekwipunku z zapisu (przed utworzeniem kontrolera) */
@@ -88,26 +91,26 @@ async function main() {
   assetsP.catch(() => undefined);
   const store = new SaveStore();
   document.body.classList.add('in-menu');
-  const loading = document.createElement('div');
-  loading.className = 'menu-loading';
-  loading.textContent = 'Wczytywanie świata…';
+  loadingScreen = new LoadingScreen();
   let started = false;
   const menu = createMenu(store, (c) => {
     if (started) return;
     started = true;
     menu.hide();
-    document.body.append(loading);
+    loadingScreen.show('Wczytywanie świata');
     void (async () => {
       try {
         const assets = await assetsP;
         app.ticker.remove(menuTick);
         await runGame(app, assets, sky, c, store);
         document.body.classList.remove('in-menu');
+        await loadingScreen.hide();
+        window.__ready = true;          // gra gotowa dopiero po zniknięciu ekranu wczytywania
       } catch (err) {
         console.error(err);
         document.body.insertAdjacentHTML('beforeend', `<pre class="fatal">Błąd uruchomienia gry:\n${String(err)}</pre>`);
       } finally {
-        loading.remove();
+        await loadingScreen.hide();
       }
     })();
   });
@@ -282,6 +285,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const guards = new GuardManager(world, atlas, world.layer, mobs, floaters, info.guards ?? []);
   for (const g of guards.guards) xray.add({ view: g.c, body: g.s, frame: () => g.frame || 'hero_S_idle0', kind: 'npc', source: guards.sheet });
   const fountain = new Fountain(world, 1.5 * world.size, 1.5 * world.size);
+  const folk = new Townfolk(world, atlas, world.layer, info.folk ?? []);
+  for (const f of folk.folk) xray.add({ view: f.c, body: f.s, frame: () => f.frame || 'hero_S_idle0', kind: 'npc', source: f.sheet });
   world.layer.addChild(fountain.g);
   let peaceful = false;   // tylko do testów: potwory nie widzą gracza
   const mobXray = new Map<number, Parameters<Xray['add']>[0]>();
@@ -298,9 +303,6 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const minimap = createMinimap(document.querySelector<HTMLElement>('#hud')!, info);
 
   const camera = new Camera();
-  const fade = document.createElement('div');
-  fade.className = 'fade';
-  document.body.appendChild(fade);
 
   function fitClouds() {
     const M = world.meta;
@@ -323,8 +325,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   async function cross(dx: number, dy: number) {
     const nx = world.cx + dx, ny = world.cy + dy;
     busy = true;
-    const slow = !world.isLoaded(nx, ny);          // sąsiad jeszcze się wczytuje → krótkie wygaszenie
-    if (slow) fade.style.opacity = '1';
+    loadingScreen.show(world.cellAt(nx, ny)?.name ?? '');
     try {
       await world.center(nx, ny);
       const C = world.size;
@@ -339,7 +340,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     } catch (err) {
       console.error(err);
     } finally {
-      fade.style.opacity = '0';
+      await loadingScreen.hide();
       busy = false;
     }
   }
@@ -348,7 +349,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   async function jump(cx: number, cy: number, pos: [number, number]) {
     if (busy) return;
     busy = true;
-    fade.style.opacity = '1';
+    loadingScreen.show(world.cellAt(cx, cy)?.name ?? '');
     await wait(FADE);
     try {
       const moved = cx !== world.cx || cy !== world.cy;
@@ -374,7 +375,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     } catch (err) {
       console.error(err);
     } finally {
-      fade.style.opacity = '0';
+      await loadingScreen.hide();
       busy = false;
     }
   }
@@ -410,6 +411,15 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       }
     }
     wantStash = false;
+    // mieszkańcy: kliknięcie – rozmowa (postać podchodzi, kwestia na czacie i nad głową)
+    const person = showMark ? folk.at(wx, wy) : null;
+    if (person) {
+      combat!.setTarget(null);
+      const line = folk.speak(person);
+      hud.say(`<span style="color:#8af59a">${person.def.name}:</span> ${line}`);
+      floaters.add(person.c.x, person.c.y - 50, line.length > 34 ? line.slice(0, 32) + '…' : line, '#f4ecd8');
+      return;
+    }
     const m = mobs.at(wx, wy);
     if (m) { combat!.setTarget(m); loot.wanted = null; return; }
     const drop = loot.at(wx, wy);
@@ -459,6 +469,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     stashOpen: () => stashWin.open,
     moveMob: (id, u, v) => { const m = mobs.mobs.get(id); if (m) { m.pos = [world.cx * world.size + u, world.cy * world.size + v]; m.state = 'idle'; } },
     mobState: (id) => { const m = mobs.mobs.get(id); return m ? m.state : 'none'; },
+    folk: () => folk.folk.map((f) => ({ name: f.def.name, u: f.pos[0] - world.cx * world.size, v: f.pos[1] - world.cy * world.size })),
     guards: () => guards.guards.map((g) => ({ u: g.pos[0] - world.cx * world.size, v: g.pos[1] - world.cy * world.size, target: g.target })),
     sitting: () => combat!.sitting,
     drops: () => loot.drops.map((d) => ({ id: d.id, kind: d.kind, item: d.item, u: d.pos[0] - world.cx * world.size, v: d.pos[1] - world.cy * world.size })),
@@ -533,6 +544,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       if (stashWin.open && ds > 110) stashWin.hide();
     } else if (stashWin.open) stashWin.hide();
     guards.update(dt);
+    folk.update(dt, [world.cx * world.size + hero.u, world.cy * world.size + hero.v]);
     fountain.update(t);
     mobs.render(world.layer);
     loot.update(dt);
@@ -561,7 +573,6 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     minimap.update(dt);
     hud.update(stage.x + hero.sx * camera.zoom, stage.y + (hero.sy - 52) * camera.zoom, camera.zoom, dt);
   });
-  window.__ready = true;
 }
 
 main().catch((err) => {

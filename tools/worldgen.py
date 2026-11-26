@@ -149,7 +149,15 @@ def town_lamps():
 
 
 FOUNTAIN_R = 40                          # fontanna na środku placu
-STASH = (CTR + 62, CTR - 58)             # skrzynia gracza przy fontannie
+STASH = (CTR + 80, CTR - 30)             # skrzynia gracza przy fontannie
+STALLS = [((CTR - 104, CTR - 62), 0, 'v'), ((CTR - 62, CTR - 104), 1, 'u'), ((CTR + 66, CTR - 104), 2, 'u')]   # (pozycja, towar, oś frontu)
+PLANTERS = [(CTR + dx * 56, CTR + dy * 56) for dx in (-1, 1) for dy in (-1, 1)]
+TOWNFOLK = [
+    dict(name='Liwia', kind='woman', u=CTR - 38, v=CTR - 86, face=(1, 1),
+         lines=['Świeże jabłka! Prosto z sadu za murami.', 'Uważaj na wilki przy drodze na Łąki.', 'Mój brat strzeże wschodniej bramy.']),
+    dict(name='Dziadek Ostromir', kind='elder', u=CTR + 72, v=CTR + 22, face=(-1, 0),
+         lines=['Za moich czasów smoki latały nad Ruinami…', 'Katedrę zbudowano, zanim przyszły szkielety.', 'Odpocznij, młody. Usiądź – zdrowie samo wraca.']),
+]
 RING = 64                                # chodnik wokół miasta: odległość od muru
 
 
@@ -166,11 +174,8 @@ def town_flowers():
     """rabaty: wokół fontanny i przy wejściach do domów"""
     bs = town_buildings()
     pts = []
-    for k in range(12):
-        a = (k + 0.5) / 12 * 2 * np.pi
-        pts.append((CTR + np.cos(a) * 78, CTR + np.sin(a) * 78))
     for b in bs:
-        if b['tag'] == 'tower':
+        if b['tag'] in ('tower', 'church_tower'):
             continue
         if b['door'] == 'u':
             dc = (b['v0'] + b['v1']) / 2
@@ -184,7 +189,7 @@ def town_flowers():
             continue
         if any(b['u0'] - 10 < u < b['u1'] + 10 and b['v0'] - 10 < v < b['v1'] + 10 for b in bs):
             continue
-        if np.hypot(u - STASH[0], v - STASH[1]) < 24:
+        if np.hypot(u - STASH[0], v - STASH[1]) < 24 or any(np.hypot(u - q[0][0], v - q[0][1]) < 30 for q in STALLS):
             continue
         ok.append((float(u), float(v)))
     return ok
@@ -204,7 +209,6 @@ HOUSES = [
     (-255, -100, 56, 44, 48, 'gable_v', 0, 'stone', 'u', 2, 2, 'shop'),
     (-420, -300, 40, 56, 40, 'gable_u', 1, 'plaster', 'v', 1, 2, None),
     (-250, -360, 32, 32, 36, 'hip', 2, 'plaster', 'u', 1, 1, None),
-    (-300, 235, 60, 40, 60, 'hip', 0, 'stone', 'u', 3, 2, None),
     (-440, 380, 36, 48, 40, 'gable_v', 1, 'plaster', 'v', 2, 1, None),
     (-210, 420, 30, 30, 34, 'gable_u', 0, 'plaster', 'u', 1, 1, None),
     (-410, 110, 36, 28, 38, 'hip', 1, 'plaster', 'u', 1, 1, None),
@@ -216,7 +220,7 @@ HOUSES = [
     (220, 110, 30, 26, 34, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
 ]
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
-SPAWN = (CTR - 70, CTR + 70)
+SPAWN = (CTR - 100, CTR + 92)          # na placu, z dala od fontanny i donic
 
 
 def town_buildings():
@@ -225,6 +229,13 @@ def town_buildings():
         r = rect(cu, cv, hu, hv)
         bs.append(dict(r, base=BASE, eave=BASE + eave, roof=roof, roofpal=pal, walls=walls, door=door,
                        wins_u=wu, wins_v=wv, winz=12, mat=TR.ROOF, tag=tag))
+    # katedra: wysoka nawa z dwuspadowym dachem, duże łukowe drzwi od strony placu, okna z witrażami; wieża z iglicą z tyłu
+    nave = rect(-300, 240, 64, 34)
+    bs.append(dict(nave, base=BASE, eave=BASE + 62, roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
+                   winz=10, winw=5, winh=24, stained=True, doorw=14, doorh=34, pitch=1.0, mat=TR.ROOF, tag='church'))
+    tw_ = rect(-378, 240, 14, 14)
+    bs.append(dict(tw_, base=BASE, eave=BASE + 150, roof='hip', roofpal=2, walls='stone', door=None, wins_u=1, wins_v=1,
+                   winz=96, winw=3, winh=14, stained=True, pitch=3.0, mat=TR.ROOF, tag='church_tower'))
     r = rect(TOWER[0], TOWER[1], TOWER[2], TOWER[3])
     bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 118, eave=BASE + 8 + 118, roof='flat', walls='stone', door='u',
                    wins_u=1, wins_v=0, winz=46, mat=TR.WALL, tag='tower', plinth=8))
@@ -335,8 +346,10 @@ def layout(gu, gv):
             du_ = np.minimum(gu - b['u0'], b['u1'] - gu)
             dv_ = np.minimum(gv - b['v0'], b['v1'] - gv)
             d_ = dv_ if b['roof'] == 'gable_u' else du_ if b['roof'] == 'gable_v' else np.minimum(du_, dv_)
-            H[m] = (b['eave'] + np.floor(d_ * 0.8))[m].astype(np.int32)
+            H[m] = (b['eave'] + np.floor(d_ * b.get('pitch', 0.8)))[m].astype(np.int32)
         MAT[m] = b['mat']
+        if b['tag'] == 'church_tower':
+            continue
         if b['tag'] == 'tower':
             ringb = m & (((gu - b['u0']) < 4) | ((b['u1'] - gu) < 4) | ((gv - b['v0']) < 4) | ((b['v1'] - gv) < 4))
             merlon = ringb & ((((gu - b['u0']) // 7 + (gv - b['v0']) // 7) % 2) == 0)
@@ -427,6 +440,12 @@ def build_sprites():
     spr['weaponrack'] = props2.iso_face(*props2.weapon_rack(), along='u')        # przy tylnej ścianie v
     spr['shelfitems'] = props2.iso_face(*props2.accessory_shelf(), along='v')    # przy tylnej ścianie u
     spr['shelfitems_u'] = props2.iso_face(*props2.accessory_shelf(), along='u')
+    for k in range(3):
+        a_, anc = props2.stall(k)
+        spr[f'stall{k}u'] = props2.iso_face(a_, anc, along='u', depth=12)
+        spr[f'stall{k}v'] = props2.iso_face(a_, anc, along='v', depth=12)
+    for k in range(4):
+        spr[f'planter{k}'] = props2.planter(k)
     spr['torch0'] = props2.torch(0)
     spr['torch1'] = props2.torch(1)
     import hero9
@@ -669,6 +688,15 @@ def gen_cell(ci, cj, sizes):
         x, y = to_screen(lu, lv)
         ground_shadow(x + 4, y, 17, 5, 0.6)
         ents.append(dict(k='stash', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for ((u, v), k, ax_) in STALLS:
+            lu, lv = u - ou + M, v - ov + M
+            x, y = to_screen(lu, lv)
+            ground_shadow(x + 6, y + 2, 26, 9, 0.6)
+            ents.append(dict(k='prop', s=[f'stall{k}{ax_}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        for i, (u, v) in enumerate(PLANTERS):
+            lu, lv = u - ou + M, v - ov + M
+            x, y = to_screen(lu, lv)
+            ents.append(dict(k='prop', s=[f'planter{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M)))
         # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
         lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
         ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 30) + Y0), z=int(lu + lv - 2 * M) + 2))
@@ -697,11 +725,14 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         cic, cjc = int((chest_uv[0] - ou + M) // CELLW), int((chest_uv[1] - ov + M) // CELLW)
         walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
-        for (u, v) in town_lamps() + town_flowers() + [STASH]:
+        for (u, v) in town_lamps() + town_flowers() + [STASH] + PLANTERS + [q[0] for q in STALLS]:
             cic, cjc = int((u - ou + M) // CELLW), int((v - ov + M) // CELLW)
             walk[cjc - 1:cjc + 2, cic - 1:cic + 2] = False
         cic, cjc = int((STASH[0] - ou + M) // CELLW), int((STASH[1] - ov + M) // CELLW)
         walk[cjc - 3:cjc + 4, cic - 4:cic + 4] = False
+        for (u, v) in PLANTERS + [q[0] for q in STALLS]:
+            cic, cjc = int((u - ou + M) // CELLW), int((v - ov + M) // CELLW)
+            walk[cjc - 4:cjc + 5, cic - 4:cic + 5] = False
     # most: przechodni pomost nad wodą (wysokość pomostu)
     on_bridge = (np.abs(Gc[0] - CTR) < BR_HALF_W - 4) & (Gc[1] > BRIDGE['v0'] + 2) & (Gc[1] < BRIDGE['v1'] - 2)
     walk |= on_bridge
@@ -724,7 +755,8 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         extra = dict(shop=[float(shop_door[0] - ou), float(shop_door[1] - ov)], spawn=[float(SPAWN[0] - ou), float(SPAWN[1] - ov)],
                      stash=[float(STASH[0] - ou), float(STASH[1] - ov)],
-                     guards=[dict(g, u=g['u'] - ou, v=g['v'] - ov) for g in town_guards()])
+                     guards=[dict(g, u=g['u'] - ou, v=g['v'] - ov) for g in town_guards()],
+                     folk=[dict(t, u=t['u'] - ou, v=t['v'] - ov, face=list(t['face'])) for t in TOWNFOLK])
     sz = sum(os.path.getsize(d / f) for f in ['ground.webp', 'bands.webp', 'water_a.png', 'water_b.png', 'pick.png', 'walk.png', 'meta.json'])
     print(f'komórka {ci},{cj} {name}: pasma {len(bands)}, atlas pasm {AW}×{AH}, obiekty {len(ents)}, {sz / 1e6:.1f} MB', flush=True)
     return (ci, cj), extra
@@ -831,6 +863,7 @@ def main():
         world['shop'] = dict(cx=1, cy=1, u=town['shop'][0], v=town['shop'][1])
         world['stash'] = dict(cx=1, cy=1, u=town['stash'][0], v=town['stash'][1])
         world['guards'] = [dict(cx=1, cy=1, **g) for g in town['guards']]
+        world['folk'] = [dict(cx=1, cy=1, **t) for t in town['folk']]
     if shop_int:
         world['interiors'] = {'shop': shop_int}
     json.dump(world, open(wpath, 'w'), separators=(',', ':'))

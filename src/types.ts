@@ -28,6 +28,8 @@ export interface WorldInfo {
   stash?: CellPos;
   /** posterunki strażników (fu, fv – kierunek patrzenia) */
   guards?: (CellPos & { fu: number; fv: number })[];
+  /** mieszkańcy miasta */
+  folk?: (CellPos & { name: string; kind: 'woman' | 'elder'; lines: string[]; face: [number, number] })[];
 }
 
 /** wnętrze budynku: osobny mały widok wczytywany przez portal */

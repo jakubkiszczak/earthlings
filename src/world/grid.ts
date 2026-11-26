@@ -57,8 +57,10 @@ export class WorldGrid {
   pathTo(u: number, v: number, tu: number, tv: number): [number, number][] | null {
     const target = nearestWalkable(this.cellH, ...this.cellOf(tu, tv));
     if (!target) return null;
-    const [si, sj] = this.cellOf(u, v);
-    const p = findPath(this.cellH, si, sj, target[0], target[1], { size: this.M.NC });
+    // start z najbliższej przechodniej komórki (np. postać zapisana w miejscu, gdzie teraz stoi donica)
+    const start = nearestWalkable(this.cellH, ...this.cellOf(u, v));
+    if (!start) return null;
+    const p = findPath(this.cellH, start[0], start[1], target[0], target[1], { size: this.M.NC });
     return p ? p.slice(1).map(([i, j]) => this.cellCenter(i, j)) : null;
   }
 }

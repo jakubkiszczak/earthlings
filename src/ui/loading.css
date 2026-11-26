@@ -1,0 +1,19 @@
+.loading-screen { position: fixed; inset: 0; z-index: 80; display: grid; grid-template-columns: auto 1fr; background: #07060c;
+  opacity: 0; pointer-events: none; transition: opacity .25s ease; font-family: 'Jersey', monospace; color: #e8e2d4; text-shadow: 2px 2px 0 #0a0706; }
+.loading-screen.on { opacity: 1; pointer-events: auto; }
+.ls-art { height: 100vh; aspect-ratio: 736 / 1308; background-size: cover; background-position: center; image-rendering: pixelated;
+  box-shadow: inset -60px 0 60px -20px #07060c; }
+.ls-panel { display: grid; align-content: center; justify-items: center; gap: 18px; padding: 24px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(80, 20, 20, .35), transparent 60%); }
+.ls-logo { margin: 0; font-weight: normal; font-size: clamp(48px, 8vw, 110px); line-height: 1; color: #f2d27a; letter-spacing: .06em;
+  text-shadow: 4px 4px 0 #6a2a18, 8px 8px 0 #0a0706; }
+.ls-place { color: #9ad0ff; font-size: clamp(20px, 2.4vw, 30px); letter-spacing: .12em; text-transform: uppercase; }
+.ls-barbox { width: min(520px, 70%); height: 16px; background: #110e14; box-shadow: 0 0 0 3px #432914, 0 0 0 5px #0a0706, inset 0 2px 0 #000; }
+.ls-bar { display: block; height: 100%; width: 0; background: linear-gradient(#ffe48a 0 40%, #d8a83a 40%); box-shadow: 0 0 12px #c48e3e; }
+.ls-tip { max-width: 560px; text-align: center; color: #c8bca4; font-size: clamp(16px, 1.5vw, 22px); }
+.ls-tip::before { content: 'Rada: '; color: #f2d27a; }
+@media (max-aspect-ratio: 1 / 1) {
+  .loading-screen { grid-template-columns: 1fr; }
+  .ls-art { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; opacity: .35; box-shadow: none; }
+  .ls-panel { position: relative; }
+}

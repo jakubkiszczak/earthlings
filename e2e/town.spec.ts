@@ -9,6 +9,9 @@ test('miasto: strażnicy bronią bram, skrzynia przy fontannie, wnętrze sklepu'
   await enterGame(page, 'Mieszczanin');
   await page.evaluate(() => window.__game!.peace(true));
   expect(await page.evaluate(() => window.__game!.guards().length)).toBe(8);
+  // mieszkańcy: młoda kobieta i dziadek, kliknięcie → kwestia na czacie
+  const folk = await page.evaluate(() => window.__game!.folk());
+  expect(folk.map((f) => f.name).sort()).toEqual(['Dziadek Ostromir', 'Liwia']);
   await page.waitForTimeout(800);
   await page.screenshot({ path: 'test-results/miasto_fontanna.png' });
 
@@ -31,8 +34,10 @@ test('miasto: strażnicy bronią bram, skrzynia przy fontannie, wnętrze sklepu'
   await page.waitForFunction((id) => window.__game!.mobState(id) === 'dead', mob.id, { timeout: 60_000 });
   await page.screenshot({ path: 'test-results/straznik.png' });
 
-  // wnętrze sklepu z wyposażeniem
-  await page.evaluate(() => window.__game!.warp(100, 100, 200, 140));
+  // wnętrze sklepu z wyposażeniem; przy wejściu widać ekran wczytywania
+  await page.evaluate(() => { void window.__game!.warp(100, 100, 200, 140); });
+  await expect(page.locator('.loading-screen.on')).toBeVisible();
+  await expect(page.locator('.loading-screen .ls-place')).toHaveText('Sklep');
   await page.waitForFunction(() => window.__game!.cell().name === 'Sklep' && !window.__game!.busy(), null, { timeout: 60_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'test-results/sklep_wnetrze.png' });

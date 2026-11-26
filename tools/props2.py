@@ -196,3 +196,70 @@ def iso_face(sprite, anchor, along='v', depth=6):
     ax, ay = anchor
     ndy = int(round(ax * sl)) + (lift if sl < 0 else 0)
     return out, (ax + ox, ay + ndy)
+
+
+def stall(kind):
+    """stragan: słupki, pasiasta markiza, lada z towarem (owoce, tkaniny, garnki) – płasko, potem iso_face"""
+    p = Px(40, 40)
+    stripes = [('#c83a3a', '#f4f0e8'), ('#3a6ac8', '#f4f0e8'), ('#3a8a4a', '#f2d27a')][kind]
+    p.put(2, 8, 4, 39, '#6a4420'); p.put(36, 8, 38, 39, '#5a3418')                  # słupki
+    for x in range(0, 40):                                                           # markiza w pasy z falbanką
+        c = stripes[(x // 5) % 2]
+        p.put(x, 2, x + 1, 9, c)
+        if (x // 5) % 2 == 0:
+            p.put(x, 9, x + 1, 11, c)
+    p.put(0, 1, 40, 2, '#6a4420')
+    p.put(3, 24, 37, 39, '#8a5626'); p.put(3, 24, 37, 26, '#ad7034'); p.put(3, 37, 37, 39, '#5a3418')   # lada
+    for x in range(6, 36, 6):
+        p.put(x, 27, x + 1, 37, '#673e1c')
+    r = np.random.default_rng(11 + kind)
+    if kind == 0:      # owoce i warzywa
+        for _ in range(26):
+            x, y = int(r.integers(5, 35)), int(r.integers(19, 24))
+            c = ['#e03a2a', '#f0b030', '#7ac040', '#a04ac0', '#ff8a2a'][int(r.integers(0, 5))]
+            p.put(x, y, x + 2, y + 2, c)
+    elif kind == 1:    # tkaniny w belach
+        for i, x in enumerate(range(5, 34, 6)):
+            c = ['#c83a6a', '#3a8ac8', '#e8c040', '#6a3ac8', '#3aa05a'][i % 5]
+            p.put(x, 16, x + 5, 24, c); p.put(x, 16, x + 1, 24, '#ffffff'); p.put(x, 23, x + 5, 24, '#1a1418')
+    else:              # garnki i dzbany
+        for x in range(5, 34, 7):
+            p.put(x, 16, x + 5, 24, '#b06a3a'); p.put(x + 1, 14, x + 4, 16, '#b06a3a'); p.put(x, 16, x + 1, 24, '#d88a50'); p.put(x, 19, x + 5, 20, '#6a3a1a')
+    return p.done(), (20, 39)
+
+
+def planter(seed):
+    """duża donica z kwiatami w rzucie izometrycznym: romb z ziemią i kwiatami, dwie kamienne ściany"""
+    W, Hh = 50, 42
+    p = Px(W, Hh)
+    cx, top, hw, hh, wall = 25, 8, 23, 11, 12
+    r = np.random.default_rng(seed)
+    for y in range(Hh):
+        for x in range(W):
+            dx, dy = abs(x - cx) / hw, abs(y - (top + hh)) / hh
+            if dx + dy <= 1:
+                p.px(x, y, '#5a3a22' if r.random() < 0.7 else '#4a2e1a')     # ziemia
+            # ściany: lewa (jaśniejsza) i prawa
+            yb = top + hh + (hh - abs(x - cx) / hw * hh)
+            if x - cx <= 0 and dx <= 1 and yb <= y < yb + wall and y > top + hh:
+                p.px(x, y, '#a89888' if (x + y) % 6 else '#8a7a6a')
+            if x - cx > 0 and dx <= 1 and yb <= y < yb + wall and y > top + hh:
+                p.px(x, y, '#7a6a5c' if (x + y) % 6 else '#665848')
+    # obrzeże z cegły na górze
+    for x in range(W):
+        dx = abs(x - cx) / hw
+        if dx <= 1:
+            y1 = round(top + hh - (1 - dx) * hh); y2 = round(top + hh + (1 - dx) * hh)
+            p.px(x, y1, '#c8b8a4'); p.px(x, y2, '#c8b8a4')
+    # kwiaty i liście
+    cols = [['#ff5a7a', '#ffd84a'], ['#f6f2e8', '#ff9a3a'], ['#9ab0ff', '#e85aa8'], ['#ff4a4a', '#fff0a0']][seed % 4]
+    for _ in range(120):
+        x, y = int(r.integers(4, W - 4)), int(r.integers(top - 4, top + 2 * hh - 2))
+        if abs(x - cx) / hw + abs(y - (top + hh)) / hh <= 0.85:
+            p.px(x, y, ['#2c6630', '#3a7a36', '#4c8e3e'][int(r.integers(0, 3))]); p.px(x, y - 1, '#3a7a36')
+    for _ in range(80):
+        x, y = int(r.integers(4, W - 4)), int(r.integers(top - 5, top + 2 * hh - 3))
+        if abs(x - cx) / hw + abs(y + 2 - (top + hh)) / hh <= 0.8:
+            c = cols[int(r.integers(0, 2))]
+            p.px(x, y - 2, c); p.px(x + 1, y - 2, c); p.px(x, y - 3, c)
+    return p.done(), (cx, top + 2 * hh + wall - 1)

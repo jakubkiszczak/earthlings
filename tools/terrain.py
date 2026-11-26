@@ -106,6 +106,9 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     bdoorf = np.array([{'u': 1, 'v': 2}.get(b.get('door'), 0) for b in buildings] + [0], np.int8)
     bwu, bwv = barr('wins_u', 0, np.int8), barr('wins_v', 0, np.int8)
     bwinz = barr('winz', 14)
+    bdw, bdh = barr('doorw', 9), barr('doorh', 26)          # pół-szerokość i wysokość drzwi (do łuku)
+    bww, bwh = barr('winw', 5), barr('winh', 12)            # pół-szerokość i wysokość okna (do łuku)
+    bst = np.array([b.get('stained', False) for b in buildings] + [False])   # witraże
 
     # dach: rzędy dachówek prostopadle do spadku, połać od światła jaśniejsza
     m = MAT == ROOF
@@ -264,11 +267,14 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         dcv = (bu0[bid] + bu1[bid]) / 2           # środek ściany +v (współrzędna u)
         onDoorFace = (onU & (bdoorf[bid] == 1)) | (onV & (bdoorf[bid] == 2))
         dc = np.where(fl, dcv, dcu)
-        door = onDoorFace & (np.abs(alongF - dc) < 9) & (zb >= 0) & ((zb < 26) | ((alongF - dc) ** 2 + (zb - 26) ** 2 < 81))
-        frame = onDoorFace & (np.abs(alongF - dc) < 12) & (zb >= 0) & ((zb < 26) | ((alongF - dc) ** 2 + (zb - 26) ** 2 < 144)) & ~door
-        plank = ((alongF - dc + 9) % 4.5) < 1
-        dcol = ramp(K.DR, np.where(plank, 0.6, 2.6 + 1.2 * (zb % 11 < 1) - 0.8 * (zb > 26)), True, xs, ys)
-        knob = door & (np.abs(alongF - dc + 5) < 1.5) & (np.abs(zb - 13) < 1.5)
+        dw, dh, ad = bdw[bid], bdh[bid], alongF - dc
+        door = onDoorFace & (np.abs(ad) < dw) & (zb >= 0) & ((zb < dh) | (ad ** 2 + (zb - dh) ** 2 < dw ** 2))
+        frame = onDoorFace & (np.abs(ad) < dw + 3) & (zb >= 0) & ((zb < dh) | (ad ** 2 + (zb - dh) ** 2 < (dw + 3) ** 2)) & ~door
+        plank = ((ad + dw) % 4.5) < 1
+        double = (dw > 11) & (np.abs(ad) < 0.8)                     # dwuskrzydłowe drzwi: szczelina
+        dcol = ramp(K.DR, np.where(plank | double, 0.6, 2.6 + 1.2 * (zb % 11 < 1) - 0.8 * (zb > dh)), True, xs, ys)
+        knob = door & (np.abs(np.abs(ad) - np.where(dw > 11, 3, 5)) < 1.5) & (np.abs(zb - dh * 0.5) < 1.5)
+        iron = door & (dw > 11) & ((np.abs(zb - dh * 0.25) < 0.8) | (np.abs(zb - dh * 0.7) < 0.8))   # okucia
         # okna: n na ścianę, równo rozłożone, z pominięciem miejsca na drzwi; drugi rząd przy wysokich ścianach
         nwin = np.where(fl, bwu[bid], bwv[bid]).astype(np.float32)
         f0 = np.where(fl, bu0[bid], bv0[bid]); f1 = np.where(fl, bu1[bid], bv1[bid])
@@ -278,12 +284,20 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         wface = (onU | onV) & (nwin > 0) & (zb < eaveb) & ~(onDoorFace & (np.abs(wc - dc) < 16))
         win = np.zeros(n_, bool); wfr = np.zeros(n_, bool); wcol = np.zeros((n_, 3), np.float32)
         for row in (0, 1):
-            zw = zb - bwinz[bid] - row * 28
-            ok_row = wface & ((row == 0) | (eaveb >= 58)) & (zw + 14 < eaveb - 2)
-            w_ = ok_row & (np.abs(alongF - wc) < 5) & (zw >= 0) & (zw < 12)
-            f_ = ok_row & (np.abs(alongF - wc) < 7) & (zw >= -2) & (zw < 14) & ~w_
-            cross = (np.abs(alongF - wc) < 0.8) | (np.abs(zw - 6) < 0.8)
-            wc_ = ramp(K.WA, np.where(cross, 0.0, 1.0 + 2.5 * ((alongF - wc + zw) % 7 < 2)), True, xs, ys)
+            ww, wh, aw = bww[bid], bwh[bid], alongF - wc
+            zw = zb - bwinz[bid] - row * (wh + 16)
+            ok_row = wface & ((row == 0) | (eaveb >= 58)) & (zw + wh + ww + 2 < eaveb)
+            arch = (zw < wh) | (aw ** 2 + (zw - wh) ** 2 < ww ** 2)
+            w_ = ok_row & (np.abs(aw) < ww) & (zw >= 0) & arch
+            f_ = ok_row & (np.abs(aw) < ww + 2) & (zw >= -2) & ((zw < wh) | (aw ** 2 + (zw - wh) ** 2 < (ww + 2) ** 2)) & ~w_
+            cross = (np.abs(aw) < 0.8) | (np.abs(zw - wh * 0.5) < 0.8)
+            wc_ = ramp(K.WA, np.where(cross, 0.0, 1.0 + 2.5 * ((aw + zw) % 7 < 2)), True, xs, ys)
+            # witraż: kolorowe szkiełka w ołowianej siatce
+            glass = K.hexs(['#c83a3a', '#3a5ac8', '#e8c040', '#3aa05a', '#9a4ac8', '#e87a2a'])
+            gi = np.floor(hsh(np.floor((aw + 20) / 2.5), np.floor(zw / 3), 97) * len(glass)).astype(int) % len(glass)
+            lead = ((aw + 20) % 2.5 < 0.7) | (zw % 3 < 0.7)
+            sg = np.where(lead[:, None], np.array([26, 20, 24], np.float32), glass[gi] * (0.85 + 0.3 * ((aw + zw) % 5 < 1))[:, None])
+            wc_ = np.where(bst[bid][:, None], sg, wc_)
             wcol = np.where(w_[:, None], wc_, wcol)
             win |= w_; wfr |= f_
         col = rock.copy()
@@ -296,6 +310,7 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         col = np.where(frame[:, None] | wfr[:, None], np.where(bplaster[bid][:, None], ramp(WD, np.full(n_, 1.6), True, xs, ys), ramp(K.WL, np.full(n_, 5.6), True, xs, ys)), col)
         col = np.where(door[:, None], dcol, col)
         col = np.where(knob[:, None], K.WL[6][None], col)
+        col = np.where(iron[:, None], np.array([40, 36, 44], np.float32), col)
         col = np.where(win[:, None], wcol, col)
         # wodospad na krawędzi świata
         fall = mat == WATER

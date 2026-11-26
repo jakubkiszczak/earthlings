@@ -160,6 +160,9 @@ Jeden kupiec (NPC), okno otwierane kliknięciem. Kupiec skupuje przedmioty i pot
 - Miasto (środek): mur lub palisada z bramami na 4 strony, kupiec, kilka budynków dekoracyjnych, punkt odrodzenia.
 - Miasto ma: fontannę na placu, skrzynię gracza przy fontannie (wspólna dla wszystkich postaci z przeglądarki, 24 miejsca), chodniki do drzwi i dookoła miasta, latarnie, rabaty z kwiatami, szyld sklepu (tarcza i miecz), strażników poz. 20 przy bramach (zabijają potwory, które podejdą za blisko).
 - Wnętrze sklepu: manekiny w zbrojach, stojaki z bronią, regał z akcesoriami, pochodnie.
+- Plac: 3 stragany (owoce, tkaniny, garnki), 4 duże donice z kwiatami wokół fontanny, mieszkańcy: Liwia (młoda kobieta) i Dziadek Ostromir (stare szaty, kostur) – mówią po kliknięciu.
+- Katedra z wieżą i iglicą, dużymi łukowymi drzwiami i łukowymi oknami z witrażami.
+- Ekran wczytywania (grafika smoka) przy starcie, przejściu między komórkami i wejściu do budynku.
 - Pozostałe komórki: różny charakter – las, polana z rzeką, ruiny, cmentarz.
 - **Minimapa 3×3** w rogu: komórki, obecna komórka podświetlona, pozycja gracza, miasto.
 

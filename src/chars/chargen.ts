@@ -13,7 +13,7 @@ export const FRAMES = ['walk0', 'walk1', 'walk2', 'walk3', 'idle0', 'idle1'] as 
 /** widoczny ekwipunek: poziom przedmiotu (0 = brak) */
 export interface Gear { weapon: number; shield: number; armor: number; helm: number; boots: number; gloves: number }
 export const START_GEAR: Gear = { weapon: 1, shield: 0, armor: 0, helm: 0, boots: 0, gloves: 0 };
-export interface CharLook { race: Race; cls: ClassId; hair: Hair; build: Build; beard: Beard; kind?: 'skeleton' | 'zombie'; gear?: Gear }
+export interface CharLook { race: Race; cls: ClassId; hair: Hair; build: Build; beard: Beard; kind?: 'skeleton' | 'zombie' | 'woman' | 'elder'; gear?: Gear }
 export type Pose = 'none' | 'atk0' | 'atk1';
 
 type RGB = [number, number, number];
@@ -48,7 +48,19 @@ function palette(l: CharLook, glow = false): Record<string, RGB> {
       R: '#3a5a2e', r: '#2a4220', x: '#1a2a14', P: '#5a4a36', p: '#44382a', q: '#2a2218',
     });
   }
-  if (l.kind) Object.assign(p, { BL: l.kind === 'zombie' ? '#7a9060' : '#b8b09a' });
+  if (l.kind === 'skeleton' || l.kind === 'zombie') Object.assign(p, { BL: l.kind === 'zombie' ? '#7a9060' : '#b8b09a' });
+  // mieszkańcy: młoda kobieta w sukni, dziadek w starych szatach
+  if (l.kind === 'woman') Object.assign(p, {
+    B: '#8a3a6a', b: '#6a2a52', D: '#3e1830', c: '#f2d27a', L: '#f4ecd8', l: '#d8ccb0', n: '#a89878', V: '#f4ecd8', v: '#d8ccb0',
+    R: '#f4ecd8', r: '#d8ccb0', x: '#a89878', P: '#8a3a6a', p: '#6a2a52', q: '#3e1830', K: '#5a2a1a', Y: '#e8c050', U: '#c8a060',
+    H: '#d46a3a', h: '#a84a28', g: '#6e2c16', y: '#7a3418', BL: '#f09080', M: '#f4ecd8', A: '#5a3418', a: '#3e2410', j: '#24140a',
+  });
+  if (l.kind === 'elder') Object.assign(p, {
+    B: '#6a5a48', b: '#4e4234', D: '#2e261c', c: '#a89068', L: '#6a5a48', l: '#4e4234', n: '#2e261c', V: '#6a5a48', v: '#4e4234',
+    R: '#8a7a5a', r: '#6a5a40', x: '#40342a', P: '#5a4c3c', p: '#40362a', q: '#2a2218', K: '#a08050', Y: '#c8a060', U: '#7a6040',
+    H: '#f4f4f0', h: '#d0d4dc', g: '#9aa0b0', y: '#c8ccd4', S: '#e4b490', s: '#bc8a66', z: '#8a5c3e', BL: '#d88a76', M: '#a89068',
+    A: '#4e3a24', a: '#36281a', j: '#20160c',
+  });
   if (l.kind === 'skeleton') Object.assign(p, {
     S: '#e8e2cc', s: '#b8b09a', z: '#807860', i: '#ff3a2a', w: '#1a1414', m: '#1a1414',
     B: '#5a4a42', b: '#3e322c', D: '#24201c', c: '#8a7a60', L: '#e0dac4', l: '#a8a08a', n: '#6a6450',
@@ -162,8 +174,9 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
   const t0 = 18 + by, t1 = 29;
   const sw = -stride;
   const zombie = l.kind === 'zombie';
+  const civil = l.kind === 'woman' || l.kind === 'elder';
   const gear = l.gear ?? START_GEAR;
-  const warrior = l.cls === 'warrior' && !zombie && (gear.weapon > 0 || !!l.kind);
+  const warrior = l.cls === 'warrior' && !zombie && !civil && (gear.weapon > 0 || !!l.kind);
   const shield = l.cls === 'warrior' && !l.kind && gear.shield > 0;
   const hunter = l.cls === 'hunter' && !l.kind && gear.weapon > 0;
   const quiver = l.cls === 'hunter' && !l.kind;
@@ -231,8 +244,17 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
     if (shield) shieldBack(cx - 3, t0 + 7);
   }
 
-  // ---------------- nogi i buty
-  if (side < 1) {
+  // ---------------- nogi i buty (suknia / szata do kostek u mieszkańców)
+  if (civil) {
+    const sw2 = Math.round(stride * 0.5);
+    for (let y = 28; y <= 39; y++) {
+      const k = (y - 28) / 11, half = tw + 0.5 + k * (l.kind === 'woman' ? 3 : 1.5) - side * 1.2;
+      cv.shadeRect(cx - half + (side ? sw2 : 0), y, cx + half + (side ? sw2 : 0), y, 'P', 'p', 'q');
+    }
+    cv.rect(cx - tw - 1, 39, cx + tw + 1, 39, 'q');
+    for (const sgn of side < 1 ? [-1, 1] : [0]) cv.rect(cx + sgn * 2.5 - 1 + stride * 0.5, 40, cx + sgn * 2.5 + 1 + stride * 0.5, 41, 'a');
+    if (l.kind === 'woman' && !(d === 'N' || d === 'NE')) for (let y = 30; y <= 38; y += 2) cv.px(cx + side * 2, y, 'c');   // haft
+  } else if (side < 1) {
     const sep = B.sep - side;
     for (const sgn of [-1, 1]) {
       const lx = cx + sgn * sep;
@@ -434,6 +456,18 @@ function frame(l: CharLook, d: Dir, phase: number, breath: number, walking: bool
       cv.rect(nx, hy - 1, nx, hy + 1, 'H3');                     // nosal
       if (t === 3) cv.rect(hx - 1, hy - 8, hx + 1, hy - 8, 'H4'); // grzebień
     } else if (t === 3) cv.rect(hx - 1, hy - 8, hx + 1, hy - 8, 'H4');
+  }
+  if (l.kind === 'elder') {
+    // kostur w prawej ręce: od ziemi do nad głowę, z sękiem u góry
+    const sx = d === 'E' ? cx + 5 : cx + tw + 2;
+    cv.line(sx, 41, sx + 1, 6, 'W2', 'W1');
+    cv.rect(sx, 5, sx + 2, 6, 'W2'); cv.px(sx + 2, 4, 'W1');
+  }
+  if (l.kind === 'woman') {
+    // długie włosy opadające na ramiona / plecy
+    if (back) cv.rect(hx - 4, hy + 2, hx + 4, hy + 12, 'h');
+    else if (d === 'E') cv.rect(hx - 4, hy + 2, hx - 1, hy + 11, 'h');
+    else { cv.rect(hx - 6, hy, hx - 5, hy + 10, 'h'); cv.rect(hx + 5, hy, hx + 6, hy + 10, 'g'); }
   }
   cv.outline();
   return cv.a;

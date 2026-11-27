@@ -1081,10 +1081,11 @@ def main():
         world['guards'] = [dict(cx=1, cy=1, **g) for g in town['guards']]
         world['folk'] = [dict(cx=1, cy=1, **t) for t in town['folk']]
     ints = world.get('interiors', {})
+    keep = lambda k: {x: ints.get(k, {})[x] for x in ('door', 'back') if x in ints.get(k, {})}   # drzwi z poprzedniego miasta
     if shop_int:
-        ints['shop'] = dict(shop_int, role='shop', npcName='Kupiec Bronek')
+        ints['shop'] = dict(shop_int, role='shop', npcName='Kupiec Bronek', **keep('shop'))
     if tav_int:
-        ints['tavern'] = tav_int
+        ints['tavern'] = dict(tav_int, **keep('tavern'))
     if town:
         ints.setdefault('shop', {})['door'] = dict(cx=1, cy=1, u=town['shop'][0], v=town['shop'][1])
         ints['shop']['back'] = [22.0, 6.0]

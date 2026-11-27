@@ -276,46 +276,74 @@ def planter(seed):
 
 # ------------------------------------------------------------------ bryły w rzucie izometrycznym (stragany)
 class Iso:
-    """Płótno do rysowania brył w izometrii 2:1: x = u - v, y = (u + v) / 2 - z (jednostki świata = piksele).
-    Ściany +v (lewa-dolna) jaśniejsze, +u (prawa-dolna) ciemniejsze – światło z lewej-góry."""
-    def __init__(self, w, h, ox, oy):
+    """Płótno do rysowania brył w izometrii 2:1: x = p - q, y = (p + q) / 2 - z (jednostki świata = piksele).
+    rot (0–3) obraca geometrię o 90° wokół (cu, cv) – ten sam przedmiot widziany z innej strony; bufor głębi
+    rozstrzyga, co jest z przodu. Ściany zwrócone do +q (lewa-dolna) jaśniejsze, do +p (prawa-dolna) ciemniejsze."""
+    def __init__(self, w, h, ox, oy, rot=0, cu=0.0, cv=0.0):
         self.p = Px(w, h)
         self.ox, self.oy = ox, oy
+        self.rot, self.cu, self.cv = rot % 4, cu, cv
+        self.depth = np.full((h, w), -1e9, np.float32)
+
+    def T(self, u, v):
+        a, b = u - self.cu, v - self.cv
+        for _ in range(self.rot):
+            a, b = b, -a
+        return a + self.cu, b + self.cv
+
+    def Tn(self, du, dv):
+        for _ in range(self.rot):
+            du, dv = dv, -du
+        return du, dv
 
     def P(self, u, v, z):
-        return int(round(u - v + self.ox)), int(round((u + v) / 2 - z + self.oy))
+        p, q = self.T(u, v)
+        return int(round(p - q + self.ox)), int(round((p + q) / 2 - z + self.oy))
 
-    def dot(self, u, v, z, c):
-        x, y = self.P(u, v, z)
-        self.p.px(x, y, c)
+    def dot(self, u, v, z, c, bias=0.0):
+        p, q = self.T(u, v)
+        x, y = int(round(p - q + self.ox)), int(round((p + q) / 2 - z + self.oy))
+        if not (0 <= x < self.p.w and 0 <= y < self.p.h):
+            return
+        dpt = p + q + z * 0.02 + bias
+        if dpt >= self.depth[y, x]:
+            self.depth[y, x] = dpt
+            self.p.px(x, y, c)
 
     def box(self, u0, u1, v0, v1, z0, z1, top, left, right, pat=None):
-        """prostopadłościan; pat(face, a, b) -> kolor lub None (np. deski, pasy)"""
+        """prostopadłościan; pat(face, a, b) -> kolor lub None; face 'u'/'v' = ściana prostopadła do osi u/v, 't' = wierzch"""
         st = 0.5
-        for u in np.arange(u0, u1 + 1e-6, st):                    # ściana +v
-            for z in np.arange(z0, z1 + 1e-6, st):
-                c = (pat and pat('v', u - u0, z - z0)) or left
-                self.dot(u, v1, z, c)
-        for v in np.arange(v0, v1 + 1e-6, st):                    # ściana +u
-            for z in np.arange(z0, z1 + 1e-6, st):
-                c = (pat and pat('u', v - v0, z - z0)) or right
-                self.dot(u1, v, z, c)
-        for u in np.arange(u0, u1 + 1e-6, st):                    # wierzch
+        for (face, n, fixed) in (('v', (0, 1), v1), ('v', (0, -1), v0), ('u', (1, 0), u1), ('u', (-1, 0), u0)):
+            np_, nq = self.Tn(*n)
+            if np_ < 0 or nq < 0:
+                continue                                              # ściana odwrócona od widza
+            base = left if nq > 0 else right
+            if face == 'v':
+                for u in np.arange(u0, u1 + 1e-6, st):
+                    for z in np.arange(z0, z1 + 1e-6, st):
+                        a = (u - u0) if n[1] > 0 else (u1 - u)
+                        self.dot(u, fixed, z, (pat and pat('v', a, z - z0)) or base, 0.3)
+            else:
+                for v in np.arange(v0, v1 + 1e-6, st):
+                    for z in np.arange(z0, z1 + 1e-6, st):
+                        a = (v - v0) if n[0] > 0 else (v1 - v)
+                        self.dot(fixed, v, z, (pat and pat('u', a, z - z0)) or base, 0.3)
+        for u in np.arange(u0, u1 + 1e-6, st):
             for v in np.arange(v0, v1 + 1e-6, st):
-                c = (pat and pat('t', u - u0, v - v0)) or top
-                self.dot(u, v, z1, c)
+                self.dot(u, v, z1, (pat and pat('t', u - u0, v - v0)) or top, 0.6)
 
 
 STALL_STRIPES = [('#c83a3a', '#f4f0e8'), ('#3a6ac8', '#f4f0e8'), ('#3a8a4a', '#f2d27a')]
 
 
-def stall_iso(kind):
+def stall_iso(kind, rot=0):
     """stragan w prawdziwej izometrii (front wzdłuż u, klienci od strony +v): cztery słupki, tylna półka z towarem,
     lada-skrzynia z deskami, towar na blacie (kosze z owocami / bele tkanin / garnki), skośna markiza w pasy z falbaną.
     Wersję z frontem wzdłuż v daje lustrzane odbicie."""
     L, D, CT = 44, 24, 14                    # długość, głębokość, wysokość lady
     W, H = L + D + 20, 108
-    g = Iso(W, H, D + 10, 70)
+    W = H = 120
+    g = Iso(W, H, W // 2, 76, rot, L / 2, D / 2)
     wood = ('#ad7034', '#8a5626', '#5a3418')
     sa, sb = STALL_STRIPES[kind]
     r = np.random.default_rng(31 + kind)
@@ -387,7 +415,7 @@ def stall_iso(kind):
             g.dot(u, fv, 46 - dz, stripe if dz < drop - 0.5 else '#1e1418')
     # cień pod markizą na ladzie (ciemniejsze pasy blatu) – drobny akcent głębi
     a = g.p.done()
-    ax, ay = g.P(L / 2, D / 2 + 4, 0)
+    ax, ay = g.P(L / 2, D / 2, 0)
     return a, (ax, ay)
 
 

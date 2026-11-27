@@ -64,6 +64,8 @@ export interface CellMeta {
   /** siatka chodzenia: komórka CELL×CELL tekseli, NC×NC komórek */
   CELL: number; NC: number;
   size: number;
+  /** widok (obrót co 90°), którego dotyczy obraz; brak = 0 */
+  rot?: number;
   bands: Band[];
   ents: WorldEnt[];
 }

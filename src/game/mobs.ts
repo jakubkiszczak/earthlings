@@ -1,6 +1,7 @@
 // Potwory w świecie: rozmieszczenie (30 na komórkę poza miastem), AI, widok (sprite, cień, pasek HP), trafianie myszą.
 import { Container, Graphics, Sprite, type Text } from 'pixi.js';
 import { nameLabel } from '../ui/worldlabel';
+import { depthOf, screenDir } from '../world/view';
 import { CharSheet } from '../chars/sheet';
 import { wolfFrames } from '../chars/wolfgen';
 import {
@@ -125,10 +126,10 @@ export class MobManager {
       const [x, y] = this.world.toScreenGlobal(m.pos[0], m.pos[1]);
       v.c.position.set(Math.round(x), Math.round(y));
       const lu = m.pos[0] - this.world.cx * this.world.size, lv = m.pos[1] - this.world.cy * this.world.size;
-      v.c.zIndex = Math.round(lu + lv) * 10 + (dead ? 3 : 6);
+      v.c.zIndex = Math.round(depthOf(lu, lv)) * 10 + (dead ? 3 : 6);
       // klatka
       const sheet = this.sheets[m.kind];
-      const sdx = m.face[0] - m.face[1], sdy = (m.face[0] + m.face[1]) / 2;
+      const [sdx, sdy] = screenDir(m.face[0], m.face[1]);
       let name: string, flip: boolean;
       const act = m.atkT >= 0 ? (m.atkT < 0.15 ? 'atk0' : 'atk1') : m.moving ? `walk${Math.floor(this.t * 9 + m.id) % 4}` : `idle${Math.floor(this.t * 1.5 + m.id * 0.37) % 2}`;
       if (dead) {

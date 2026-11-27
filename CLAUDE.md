@@ -13,6 +13,7 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 - Klient: TypeScript + Vite + PixiJS 8 (`src/`). Grafiki z `assets/` serwowane jako osobne pliki (publicDir), ścieżki przez `assetUrl()`.
 - `npm run dev` – podgląd na żywo; `npm run build` – `dist/` (sprawdza typy); `npm test` – Vitest (`tests/`); `npm run test:e2e` – Playwright (`e2e/`).
 - Grafiki (Python, środowisko `.venv`): `.venv/bin/python tools/ui2.py` → `assets/generated/ui2/`; `.venv/bin/python tools/worldgen.py [cx,cy ...]` → `assets/generated/world/` (świat 3×3, komórka 40×40 kafli + margines 128 tekseli; miasto w 1,1).
+- Obrót widoku co 90° (klawisze `,` `.`): generator rysuje każdą komórkę z 4 stron (`ground_rN.webp`, `bands_rN`, `pick_rN`, `water_*_rN`, `meta_rN.json`; `walk.png` wspólny). Logika gry zawsze w układzie świata (u, v); rzut, zIndex i kierunek postaci przez `src/world/view.ts` (zgodny z `rot_pt` w `tools/worldgen.py`, test `tests/view.test.ts`). Mapa wyboru zawsze w układzie świata. Wnętrza tylko widok 0. Obiekty kierunkowe (stragany, szyldy, most) mają warianty na każdy widok.
 - Świat w grze: w pamięci tylko bieżąca komórka (`src/world/world.ts`), przejście przez krawędź wczytuje sąsiada (`src/logic/cells.ts`). Teren = `ground.webp` pod wszystkim + `bands.webp` (pasma głębi tylko dla murów, klifów i dachów).
 - Publikacja: push do `main` → GitHub Actions (`.github/workflows/pages.yml`) testuje i wystawia GitHub Pages.
 - Node i gh są w `~/.local` (ścieżka w `~/.zprofile`).

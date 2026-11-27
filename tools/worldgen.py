@@ -84,7 +84,42 @@ BR_HALF_W, BR_HALF_L, BR_H = 18, 112, BASE + 2
 BRIDGE = dict(u0=int(CTR - BR_HALF_W), u1=int(CTR + BR_HALF_W), v0=int(river_v(CTR) - BR_HALF_L), v1=int(river_v(CTR) + BR_HALF_L))
 
 
-def bridge_sprite():
+# ------------------------------------------------------------------ obrót widoku (4 widoki co 90°)
+ROTS = (0, 1, 2, 3)
+
+
+def rot_pt(u, v, r):
+    """punkt świata (u, v) → współrzędne widoku obróconego o r×90° (p, q); obrót kwadratu świata wokół jego środka"""
+    G1 = GRID * C - 1
+    return [(u, v), (v, G1 - u), (G1 - u, G1 - v), (G1 - v, u)][r % 4]
+
+
+def rot_vec(du, dv, r):
+    """wektor świata → wektor w widoku r"""
+    for _ in range(r % 4):
+        du, dv = dv, -du
+    return du, dv
+
+
+def rot_building(b, r):
+    """budynek w układzie widoku r: prostokąt, oś dachu, strona drzwi (tylko widoczne ściany +p/+q), liczba okien"""
+    if r == 0:
+        return b
+    (p0, q0), (p1, q1) = rot_pt(b['u0'], b['v0'], r), rot_pt(b['u1'], b['v1'], r)
+    nb = dict(b, u0=min(p0, p1), u1=max(p0, p1), v0=min(q0, q1), v1=max(q0, q1))
+    if r % 2:
+        nb['roof'] = {'gable_u': 'gable_v', 'gable_v': 'gable_u'}.get(b['roof'], b['roof'])
+        nb['wins_u'], nb['wins_v'] = b.get('wins_v', 0), b.get('wins_u', 0)
+    door = None
+    if b.get('door') in ('u', 'v'):
+        n = rot_vec(*((1, 0) if b['door'] == 'u' else (0, 1)), r)
+        door = 'u' if n == (1, 0) else 'v' if n == (0, 1) else None
+    nb['door'] = door
+    return nb
+
+
+def bridge_sprite(transpose=False):
+    """pomost wzdłuż v; transpose=True – ten sam most wzdłuż u (widok obrócony o 90°)"""
     pad = 6
     L, Wd = BRIDGE['v1'] - BRIDGE['v0'], BRIDGE['u1'] - BRIDGE['u0']
     S = L + 2 * pad
@@ -104,8 +139,11 @@ def bridge_sprite():
         H[(u == Wd) & (np.abs(v - pv_) < 5)] = 0
         H[(u >= 0) & (u < Wd) & (v == L) & (np.abs(u - Wd / 2) < 4) & (abs(pv_ - vc) < 1)] = BR_H - 4
     Wi, Hs_ = 2 * S, S + 40 + BR_H
-    R = TR.render(u, v, H, MAT, [], PALS, Wi, Hs_, S, 40 + BR_H, seed=5, wood_axis='v')
-    keep = (R['pu'] >= 0) & (R['pu'] < Wd) & (R['pv'] >= 0) & (R['pv'] < L) & (R['kind'] >= 0)
+    if transpose:
+        H, MAT = H.T.copy(), MAT.T.copy()
+    R = TR.render(u, v, H, MAT, [], PALS, Wi, Hs_, S, 40 + BR_H, seed=5, wood_axis='u' if transpose else 'v')
+    lu_, lv_ = (L, Wd) if transpose else (Wd, L)
+    keep = (R['pu'] >= 0) & (R['pu'] < lu_) & (R['pv'] >= 0) & (R['pv'] < lv_) & (R['kind'] >= 0)
     ys, xs = np.nonzero(keep)
     y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     rgba = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
@@ -523,8 +561,11 @@ def build_sprites():
     col, al, anc = props.chest()
     spr['chest'] = (rgba(col, al), anc)
     spr['bridge'] = bridge_sprite()
+    spr['bridge_t'] = bridge_sprite(transpose=True)
     spr['lamp'] = props2.lamp_big()
     spr['shopsign'] = props2.shop_sign()
+    a_, anc = props2.shop_sign()
+    spr['shopsign_m'] = (np.ascontiguousarray(a_[:, ::-1]), (a_.shape[1] - 1 - anc[0], anc[1]))
     for i in range(4):
         spr[f'flowers{i}'] = props2.flowerbed(i)
     for t in (1, 2, 3):
@@ -533,9 +574,8 @@ def build_sprites():
     spr['shelfitems'] = props2.iso_face(*props2.accessory_shelf(), along='v')    # przy tylnej ścianie u
     spr['shelfitems_u'] = props2.iso_face(*props2.accessory_shelf(), along='u')
     for k in range(3):
-        a_, anc = props2.stall_iso(k)
-        spr[f'stall{k}u'] = (a_, anc)
-        spr[f'stall{k}v'] = (np.ascontiguousarray(a_[:, ::-1]), (a_.shape[1] - 1 - anc[0], anc[1]))
+        for g_ in range(4):                                          # stragan widziany z czterech stron
+            spr[f'stall{k}_g{g_}'] = props2.stall_iso(k, g_)
         spr[f'banner{k}'] = props2.banner(k)
         spr[f'head{k}_u'] = props2.iso_face(*props2.big(props2.mount_head)(k), along='u', depth=3)
         spr[f'head{k}_v'] = props2.iso_face(*props2.big(props2.mount_head)(k), along='v', depth=3)
@@ -637,7 +677,7 @@ def props_in(gu0, gv0, gu1, gv1):
 
 
 # ------------------------------------------------------------------ zapis warstw komórki (świat i wnętrza)
-def save_water(d, R, kind, pu_l, pv_l):
+def save_water(d, R, kind, pu_l, pv_l, sfx=''):
     """Dane wody do animacji na CPU: water_a (indeks koloru, fazy fal), water_b (piana)."""
     HSd, Wd = kind.shape
     wm = kind == TR.WATER
@@ -650,11 +690,12 @@ def save_water(d, R, kind, pu_l, pv_l):
     wr[..., 1] = np.where(wm, np.clip(WF * 255, 0, 255), 0)
     wr[..., 2] = np.where(wm, np.clip(WF2 * 255, 0, 255), 0)
     wq = np.where(wm, np.clip((Q + 4) * 20, 0, 255), 0).astype(np.uint8)
-    Image.fromarray(wr).save(d / 'water_a.png', optimize=True)
-    Image.fromarray(wq).save(d / 'water_b.png', optimize=True)
+    Image.fromarray(wr).save(d / f'water_a{sfx}.png', optimize=True)
+    Image.fromarray(wq).save(d / f'water_b{sfx}.png', optimize=True)
 
 
-def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg, no_occ=None):
+def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg, no_occ=None, pick=None, sfx=''):
+    """pu_l/pv_l – indeksy tablic (H, no_occ) dla pikseli; pick – (u, v) lokalne do mapy wyboru (domyślnie te same)"""
     """ground.webp (teren pod wszystkim), bands.webp (pasma głębi: ściany, klify, dachy), pick.png (piksel → teksel)."""
     HSd, Wd = kind.shape
     wm = kind == TR.WATER
@@ -662,7 +703,7 @@ def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg, no_occ=None):
     base_rgba = np.zeros((HSd, Wd, 4), np.uint8)
     base_rgba[..., :3] = np.clip(img, 0, 255)
     base_rgba[..., 3] = np.where(land, 255, 0)
-    Image.fromarray(base_rgba).save(d / 'ground.webp', lossless=True, quality=100, method=6)
+    Image.fromarray(base_rgba).save(d / f'ground{sfx}.webp', lossless=True, quality=100, method=6)
     raised = H > ndi.minimum_filter(H, size=129)
     occ = land & ((kind == TR.CLIFF_KIND) | raised[pv_l, pu_l])
     if no_occ is not None:
@@ -699,13 +740,14 @@ def save_layers(d, R, img, kind, dep, H, pu_l, pv_l, Mg, no_occ=None):
     for (b, x0, y0, ax, ay, t) in placed_b:
         atl[ay:ay + t.shape[0], ax:ax + t.shape[1]] = t
         bands.append(dict(z=int(b) * BW - 2 * Mg, x=int(x0), y=int(y0), ax=int(ax), ay=int(ay), w=int(t.shape[1]), h=int(t.shape[0])))
-    Image.fromarray(atl).save(d / 'bands.webp', lossless=True, quality=100, method=6)
+    Image.fromarray(atl).save(d / f'bands{sfx}.webp', lossless=True, quality=100, method=6)
 
     # ---- mapa wyboru (piksel → teksel lokalny + OFF) i siatka chodzenia
     pk = np.full((HSd, Wd), 0xFFFFFF, np.int64)
     ok = (R['pu'] > -90000) & (kind >= 0)
-    pk[ok] = (pu_l[ok].astype(np.int64) << 11) | pv_l[ok]
-    Image.fromarray(np.dstack([(pk >> 16) & 255, (pk >> 8) & 255, pk & 255]).astype(np.uint8)).save(d / 'pick.png', optimize=True)
+    ku, kv = pick if pick is not None else (pu_l, pv_l)
+    pk[ok] = (ku[ok].astype(np.int64) << 11) | kv[ok]
+    Image.fromarray(np.dstack([(pk >> 16) & 255, (pk >> 8) & 255, pk & 255]).astype(np.uint8)).save(d / f'pick{sfx}.png', optimize=True)
     return bands, AW, AH
 
 
@@ -746,103 +788,137 @@ def gen_cell(ci, cj, sizes):
     tav = next(b for b in buildings if b['tag'] == 'tavern')
     tav_door = ((tav['u0'] + tav['u1']) / 2, tav['v1'] + 16)          # portal przed drzwiami (+v)
 
-    # render terenu (z wypiekanymi cieniami obiektów)
-    R = TR.render(gui, gvi, H, MAT, buildings, PALS, W, HS, X0, Y0, seed=ci * 3 + cj, gpid=gpid)
-    img, dep, kind = R['img'], R['dep'], R['kind']
-    # poza światem: przezroczyście (w grze widać tam niebo)
-    beyond = (R['pu'] < 0) | (R['pv'] < 0) | (R['pu'] >= GRID * C) | (R['pv'] >= GRID * C)
-    kind[beyond] = -1
-
-    def to_screen(lu, lv):
-        h = int(H[int(lv), int(lu)])
-        return int(lu - lv + X0), int((lu + lv) // 2 - h + Y0)
-
-    def ground_shadow(x, y, rx, ry, k=0.6, dx=0.0):
-        x0, x1 = int(max(0, x + dx - rx - 2)), int(min(W, x + dx + rx + 3))
-        y0, y1 = int(max(0, y - ry - 2)), int(min(HS, y + ry + 3))
-        if x1 <= x0 or y1 <= y0:
-            return
-        yy, xx = np.mgrid[y0:y1, x0:x1]
-        e = ((xx - x - dx) / rx) ** 2 + ((yy - y) / ry) ** 2 + K.BAYER[yy % 4, xx % 4] * 0.25
-        kd = kind[y0:y1, x0:x1]
-        m = (e < 1) & (kd >= 0) & (kd != TR.CLIFF_KIND) & (kd != TR.WATER)
-        sub = img[y0:y1, x0:x1]
-        sub[m] = sub[m] * k * np.array([0.85, 0.95, 1.15])
-
-    ents = []
+    # ---- obiekty: opisy w układzie świata; rzut na ekran osobno dla każdego widoku
     rr = np.random.default_rng(ci * 7 + cj)
+    specs = []
+    def add(k, s_, u, v, h=None, dz=0, ph=None, sh=None, zfront=None):
+        specs.append(dict(k=k, s=s_, u=float(u), v=float(v), h=h, dz=dz, ph=ph, sh=sh, zfront=zfront))
     for (kd_, idx, u, v, lu, lv) in placed:
-        x, y = to_screen(lu, lv)
-        z = int(lu + lv - 2 * M)
         if kd_ == 'tree':
             R_ = TREE_VARIANTS[idx][0]
-            ground_shadow(x, y, R_ * 1.15, R_ * 0.42, 0.62, dx=R_ * 0.55)
-            ents.append(dict(k='tree', s=[f'tree{idx}_t', f'tree{idx}_c'], x=x, y=y, z=z, ph=round(float(rr.random() * 6.28), 3)))
+            add('tree', [f'tree{idx}_t', f'tree{idx}_c'], u, v, ph=round(float(rr.random() * 6.28), 3), sh=(R_ * 0.55, 0, R_ * 1.15, R_ * 0.42, 0.62))
         elif kd_ == 'bush':
             R_ = BUSH_VARIANTS[idx][0]
-            ground_shadow(x, y + 1, R_, R_ * 0.4, 0.65, dx=R_ * 0.4)
-            ents.append(dict(k='bush', s=[f'bush{idx}'], x=x, y=y, z=z, ph=round(float(rr.random() * 6.28), 3)))
+            add('bush', [f'bush{idx}'], u, v, ph=round(float(rr.random() * 6.28), 3), sh=(R_ * 0.4, 1, R_, R_ * 0.4, 0.65))
         else:
-            ents.append(dict(k='prop', s=[f'rock{idx}'], x=x, y=y, z=z))
+            add('prop', [f'rock{idx}'], u, v)
     if (ci, cj) == (1, 1):
-        lu, lv = chest_uv[0] - ou + M, chest_uv[1] - ov + M
-        x, y = to_screen(lu, lv)
-        ground_shadow(x + 4, y, 17, 5, 0.6)
-        ents.append(dict(k='prop', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
+        add('prop', ['chest'], *chest_uv, sh=(4, 0, 17, 5, 0.6))
         for (u, v) in town_lamps():
-            lu, lv = u - ou + M, v - ov + M
-            x, y = to_screen(lu, lv)
-            ground_shadow(x + 2, y, 7, 3, 0.7)
-            ents.append(dict(k='lamp', s=['lamp'], x=x, y=y, z=int(lu + lv - 2 * M)))
+            add('lamp', ['lamp'], u, v, sh=(2, 0, 7, 3, 0.7))
         for i, (u, v) in enumerate(town_flowers()):
-            lu, lv = u - ou + M, v - ov + M
-            x, y = to_screen(lu, lv)
-            ents.append(dict(k='bush', s=[f'flowers{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M), ph=round(float(rr.random() * 6.28), 3)))
-        lu, lv = STASH[0] - ou + M, STASH[1] - ov + M
-        x, y = to_screen(lu, lv)
-        ground_shadow(x + 4, y, 17, 5, 0.6)
-        ents.append(dict(k='stash', s=['chest'], x=x, y=y, z=int(lu + lv - 2 * M)))
+            add('bush', [f'flowers{i % 4}'], u, v, ph=round(float(rr.random() * 6.28), 3))
+        add('stash', ['chest'], *STASH, sh=(4, 0, 17, 5, 0.6))
         for ((u, v), k, ax_) in STALLS:
-            lu, lv = u - ou + M, v - ov + M
-            x, y = to_screen(lu, lv)
-            ground_shadow(x + 6, y + 2, 26, 9, 0.6)
-            ents.append(dict(k='prop', s=[f'stall{k}{ax_}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+            face = (0, 1) if ax_ == 'u' else (1, 0)                       # strona klientów w świecie
+            def stall_name(r, k=k, face=face):
+                f = rot_vec(*face, r)
+                g_ = [rot_vec(0, 1, g) for g in range(4)].index(f)
+                return [f'stall{k}_g{g_}']
+            add('prop', stall_name, u, v, sh=(6, 2, 26, 9, 0.6))
         for i, (u, v) in enumerate(PLANTERS):
-            lu, lv = u - ou + M, v - ov + M
-            x, y = to_screen(lu, lv)
-            ents.append(dict(k='prop', s=[f'planter{i % 4}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+            add('prop', [f'planter{i % 4}'], u, v)
         for i, (u, v) in enumerate(town_banners()):
-            lu, lv = u - ou + M, v - ov + M
-            x, y = to_screen(lu, lv)
-            ground_shadow(x + 3, y, 6, 2, 0.6)
-            ents.append(dict(k='prop', s=[f'banner{i % 3}'], x=x, y=y, z=int(lu + lv - 2 * M)))
+            add('prop', [f'banner{i % 3}'], u, v, sh=(3, 0, 6, 2, 0.6))
         for i, (u, v, h) in enumerate(town_flags()):
-            lu, lv = u - ou + M, v - ov + M
-            ents.append(dict(k='flag', s=[f'flag{i % 3}_0'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - h + Y0),
-                             z=int(lu + lv - 2 * M) + 4, ph=round(float(rr.random()), 3)))
-        # karczma: szyld z kuflem obok drzwi (ściana +v), komin z dymem na kalenicy
-        lu, lv = (tav['u0'] + tav['u1']) / 2 + 20 - ou + M, tav['v1'] + 2 - ov + M
-        ents.append(dict(k='prop', s=['tavernsign_m'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 44) + Y0), z=int(lu + lv - 2 * M) + 2))
+            add('flag', [f'flag{i % 3}_0'], u, v, h=h, dz=4, ph=round(float(rr.random()), 3))
+        # szyldy tylko gdy ich ściana jest widoczna (zwrócona do +p albo +q)
+        def sign(names):
+            def f(r, wall):
+                n = rot_vec(*wall, r)
+                return [names[0]] if n == (1, 0) else [names[1]] if n == (0, 1) else None
+            return f
+        tsign = sign(('tavernsign', 'tavernsign_m'))
+        add('prop', lambda r: tsign(r, (0, 1)), (tav['u0'] + tav['u1']) / 2 + 20, tav['v1'] + 2, h=BASE + 44, dz=2)
         ridge = tav['eave'] + int((tav['v1'] - tav['v0']) / 2 * 0.8)
-        lu, lv = tav['u1'] - 18 - ou + M, (tav['v0'] + tav['v1']) / 2 - ov + M
-        zf = int(tav['u1'] + tav['v1'] - ou - ov) + 4                     # przed dachem
-        ents.append(dict(k='prop', s=['chimney'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (ridge - 6) + Y0), z=zf))
-        ents.append(dict(k='smoke', s=[], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (ridge + 24) + Y0), z=zf + 1))
-        # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
-        lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
-        ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 42) + Y0), z=int(lu + lv - 2 * M) + 2))
-    bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)
-    if (ci, cj) == (bcx, bcy):
-        lu, lv = BRIDGE['u0'] - ou + M, BRIDGE['v0'] - ov + M
-        ents.append(dict(k='bridge', s=['bridge'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - BR_H + Y0), z=int(lu + lv - 2 * M) - 8))
+        cu_, cv_ = tav['u1'] - 18, (tav['v0'] + tav['v1']) / 2
+        add('prop', ['chimney'], cu_, cv_, h=ridge - 6, zfront=(tav, 4))
+        add('smoke', [], cu_, cv_, h=ridge + 24, zfront=(tav, 5))
+        ssign = sign(('shopsign', 'shopsign_m'))
+        add('prop', lambda r: ssign(r, (1, 0)), shop['u1'] + 2, (shop['v0'] + shop['v1']) / 2 - 18, h=BASE + 42, dz=2)
 
-    pu_l = np.clip(R['pu'] - ou + M, 0, N - 1)
-    pv_l = np.clip(R['pv'] - ov + M, 0, N - 1)
+    under_bridge = (np.abs(gu - CTR) < BR_HALF_W + 14) & (gv > BRIDGE['v0'] - 6) & (gv < BRIDGE['v1'] + 6)
+    bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)
     d = OUT / f'c{ci}{cj}'
     d.mkdir(parents=True, exist_ok=True)
-    save_water(d, R, kind, pu_l, pv_l)
-    under_bridge = (np.abs(gu - CTR) < BR_HALF_W + 14) & (gv > BRIDGE['v0'] - 6) & (gv < BRIDGE['v1'] + 6)
-    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, M, no_occ=under_bridge)
+    total_bands = 0
+    for r in ROTS:
+        # początek komórki w układzie widoku i indeksy tablic świata dla każdego piksela-teksela widoku
+        (pa, qa), (pb, qb) = rot_pt(ou, ov, r), rot_pt(ou + C - 1, ov + C - 1, r)
+        op, oq = min(pa, pb), min(qa, qb)
+        Pg = (op - M + iu).astype(np.int64)
+        Qg = (oq - M + iv).astype(np.int64)
+        Ug, Vg = rot_pt(Pg, Qg, (4 - r) % 4)
+        IU, IV = (Ug - ou + M).astype(np.int64), (Vg - ov + M).astype(np.int64)
+        Hr, MATr, gpr = H[IV, IU], MAT[IV, IU], gpid[IV, IU]
+        R = TR.render(Pg, Qg, Hr, MATr, [rot_building(b, r) for b in buildings], PALS, W, HS, X0, Y0, seed=ci * 3 + cj, gpid=gpr)
+        img, dep, kind = R['img'], R['dep'], R['kind']
+        # poza światem: przezroczyście (w grze widać tam niebo)
+        beyond = (R['pu'] < 0) | (R['pv'] < 0) | (R['pu'] >= GRID * C) | (R['pv'] >= GRID * C)
+        kind[beyond] = -1
+
+        def ground_shadow(x, y, rx, ry, k=0.6, dx=0.0):
+            x0, x1 = int(max(0, x + dx - rx - 2)), int(min(W, x + dx + rx + 3))
+            y0, y1 = int(max(0, y - ry - 2)), int(min(HS, y + ry + 3))
+            if x1 <= x0 or y1 <= y0:
+                return
+            yy, xx = np.mgrid[y0:y1, x0:x1]
+            e = ((xx - x - dx) / rx) ** 2 + ((yy - y) / ry) ** 2 + K.BAYER[yy % 4, xx % 4] * 0.25
+            kd = kind[y0:y1, x0:x1]
+            m = (e < 1) & (kd >= 0) & (kd != TR.CLIFF_KIND) & (kd != TR.WATER)
+            sub = img[y0:y1, x0:x1]
+            sub[m] = sub[m] * k * np.array([0.85, 0.95, 1.15])
+
+        def loc(u, v):
+            P_, Q_ = rot_pt(u, v, r)
+            return P_ - op + M, Q_ - oq + M
+
+        ents = []
+        for sp in specs:
+            names = sp['s'](r) if callable(sp['s']) else sp['s']
+            if names is None:
+                continue
+            lp, lq = loc(sp['u'], sp['v'])
+            h = sp['h']
+            if h is None:
+                h = int(H[int(np.clip(sp['v'] - ov + M, 0, N - 1)), int(np.clip(sp['u'] - ou + M, 0, N - 1))])
+            x, y = int(lp - lq + X0), int((lp + lq) // 2 - h + Y0)
+            if sp['zfront'] is not None:                                   # przed dachem budynku (najbliższy narożnik)
+                b_, off = sp['zfront']
+                z = int(max(sum(loc(cu2, cv2)) for cu2 in (b_['u0'], b_['u1']) for cv2 in (b_['v0'], b_['v1'])) - 2 * M) + off
+            else:
+                z = int(lp + lq - 2 * M) + sp['dz']
+            if sp['sh']:
+                dx_, dy_, rx_, ry_, k_ = sp['sh']
+                ground_shadow(x, y + dy_, rx_, ry_, k_, dx=dx_)
+            e = dict(k=sp['k'], s=names, x=x, y=y, z=z)
+            if sp['ph'] is not None:
+                e['ph'] = sp['ph']
+            ents.append(e)
+        if (ci, cj) == (bcx, bcy):
+            (pa, qa), (pb, qb) = loc(BRIDGE['u0'], BRIDGE['v0']), loc(BRIDGE['u1'] - 1, BRIDGE['v1'] - 1)
+            lp, lq = min(pa, pb), min(qa, qb)
+            ents.append(dict(k='bridge', s=['bridge_t' if r % 2 else 'bridge'], x=int(lp - lq + X0), y=int((lp + lq) // 2 - BR_H + Y0), z=int(lp + lq - 2 * M) - 8))
+
+        # piksel → indeks tablic widoku (woda, pasma) i lokalne (u, v) świata (mapa wyboru – gra liczy w układzie świata)
+        ip_l = np.clip(R['pu'] - (op - M), 0, N - 1)
+        iq_l = np.clip(R['pv'] - (oq - M), 0, N - 1)
+        Uw, Vw = rot_pt(R['pu'], R['pv'], (4 - r) % 4)
+        pick_u = np.clip(Uw - ou + M, 0, N - 1); pick_v = np.clip(Vw - ov + M, 0, N - 1)
+        sfx = '' if r == 0 else f'_r{r}'
+        save_water(d, R, kind, ip_l, iq_l, sfx)
+        bands, AW, AH = save_layers(d, R, img, kind, dep, Hr, ip_l, iq_l, M, no_occ=under_bridge[IV, IU], pick=(pick_u, pick_v), sfx=sfx)
+        total_bands += len(bands)
+        NC_ = N // CELLW
+        meta = dict(cx=ci, cy=cj, name=name, biome=biome, W=W, H=HS, X0=X0, Y0=Y0 + M, OFF=M, N=N, CELL=CELLW, NC=NC_,
+                    size=C, rot=r, bands=bands, ents=ents)
+        json.dump(meta, open(d / f'meta{sfx}.json', 'w'), separators=(',', ':'))
+        if r == 0:
+            (ROOT / 'build_tmp').mkdir(exist_ok=True)
+            Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / f'preview_c{ci}{cj}.png')
+        else:
+            Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / f'preview_c{ci}{cj}_r{r}.png')
+
     NC = N // CELLW
     Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     Mc = MAT[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
@@ -878,11 +954,6 @@ def gen_cell(ci, cj, sizes):
     wg = np.where(walk, np.clip(Hc + 1, 1, 254), 0).astype(np.uint8)
     Image.fromarray(wg).save(d / 'walk.png')
 
-    meta = dict(cx=ci, cy=cj, name=name, biome=biome, W=W, H=HS, X0=X0, Y0=Y0 + M, OFF=M, N=N, CELL=CELLW, NC=NC,
-                size=C, bands=bands, ents=ents)
-    json.dump(meta, open(d / 'meta.json', 'w'), separators=(',', ':'))
-    (ROOT / 'build_tmp').mkdir(exist_ok=True)
-    Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / f'preview_c{ci}{cj}.png')
     extra = {}
     if (ci, cj) == (1, 1):
         extra = dict(shop=[float(shop_door[0] - ou), float(shop_door[1] - ov)], spawn=[float(SPAWN[0] - ou), float(SPAWN[1] - ov)],
@@ -891,7 +962,7 @@ def gen_cell(ci, cj, sizes):
                      guards=[dict(g, u=g['u'] - ou, v=g['v'] - ov) for g in town_guards()],
                      folk=[dict(t, u=t['u'] - ou, v=t['v'] - ov, face=list(t['face'])) for t in TOWNFOLK])
     sz = sum(os.path.getsize(d / f) for f in ['ground.webp', 'bands.webp', 'water_a.png', 'water_b.png', 'pick.png', 'walk.png', 'meta.json'])
-    print(f'komórka {ci},{cj} {name}: pasma {len(bands)}, atlas pasm {AW}×{AH}, obiekty {len(ents)}, {sz / 1e6:.1f} MB', flush=True)
+    print(f'komórka {ci},{cj} {name}: 4 widoki, pasma {total_bands}, obiekty {len(specs)}, widok 0: {sz / 1e6:.1f} MB', flush=True)
     return (ci, cj), extra
 
 

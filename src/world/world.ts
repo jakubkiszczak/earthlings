@@ -7,6 +7,7 @@ import { subTexture, type Atlas } from '../render/atlas';
 import { createWater } from '../render/water';
 import type { CellInfo, CellMeta, WorldInfo } from '../types';
 import { WorldGrid } from './grid';
+import { rotCell, rotLocal, rotVec, VIEW } from './view';
 
 /** zIndex w warstwie głębi: z = u + v (lokalnie), obiekty po terenie o tym samym z */
 export const depthZ = (z: number, offset: number) => z * 10 + offset;
@@ -96,6 +97,9 @@ export class World {
 
   isLoaded(cx: number, cy: number) { return this.cells.has(key(cx, cy)); }
 
+  /** czy bieżąca komórka jest wczytana (przy zmianie widoku na chwilę nie jest) */
+  get hasCurrent(): boolean { return this.cells.has(key(this.cx, this.cy)); }
+
   /** komórki aktualnie wczytane (bieżąca i sąsiedzi) */
   loadedCells(): { cx: number; cy: number; biome: string }[] {
     return [...this.cells.values()].map((c) => ({ cx: c.info.cx, cy: c.info.cy, biome: c.info.biome }));
@@ -124,7 +128,8 @@ export class World {
   /** punkt globalny o znanej wysokości (np. obiekt poza siatką chodzenia) → piksel widoku */
   toScreenGlobalH(gu: number, gv: number, h: number): [number, number] {
     const u = gu - this.cx * this.size, v = gv - this.cy * this.size, M = this.meta;
-    return [u - v + M.X0, Math.floor((u + v) / 2) - h + M.Y0];
+    const [p, q] = rotLocal(u, v, M.size, M.rot ?? 0);
+    return [p - q + M.X0, Math.floor((p + q) / 2) - h + M.Y0];
   }
 
   /** punkt globalny → piksel widoku bieżącej komórki */
@@ -133,12 +138,17 @@ export class World {
     const u = gu - this.cx * this.size, v = gv - this.cy * this.size;
     const h = l ? l.g.heightAt(l.u, l.v) : 0;
     const M = this.meta;
-    return [u - v + M.X0, Math.floor((u + v) / 2) - h + M.Y0];
+    const [p, q] = rotLocal(u, v, M.size, M.rot ?? 0);
+    return [p - q + M.X0, Math.floor((p + q) / 2) - h + M.Y0];
   }
 
   /** Ustawia środek na (cx, cy): czeka na tę komórkę, sąsiadów doczytuje w tle. */
   async center(cx: number, cy: number): Promise<void> {
     this.want = { cx, cy };
+    // wnętrza zawsze w widoku 0 (ściany tylne z wystrojem); świat w widoku wybranym klawiszami Q/E
+    const r = cx >= INTERIOR_BASE ? 0 : this.rot;
+    if (r !== VIEW.r) { this.dropAll(); VIEW.r = r; }
+    VIEW.C = this.size;
     await this.ensure(cx, cy);
     this.cx = cx;
     this.cy = cy;
@@ -152,6 +162,22 @@ export class World {
         void this.ensure(cx + dx, cy + dy).catch((e) => { if (!(e instanceof StaleCell)) console.error(e); });
       }
     }
+  }
+
+  /** wybrany obrót widoku świata (0–3, co 90°) */
+  rot = 0;
+
+  /** zmienia obrót: obrazy komórek są inne dla każdego widoku – przeładowanie bieżącej i sąsiadów */
+  async rotate(dir: 1 | -1): Promise<void> {
+    this.rot = (this.rot + dir + 4) % 4;
+    await this.center(this.cx, this.cy);
+  }
+
+  /** usuwa wszystkie wczytane komórki (zmiana widoku) */
+  private dropAll() {
+    for (const c of this.cells.values()) this.unload(c);
+    this.cells.clear();
+    this.loading.clear();
   }
 
   update(t: number, dt: number) {
@@ -184,8 +210,10 @@ export class World {
     if (!p) {
       const info = this.cellAt(cx, cy);
       if (!info) return Promise.reject(new Error(`Brak komórki ${k}`));
-      p = loadCell(info).then((assets) => {
+      const r = VIEW.r;
+      p = loadCell(info, info.biome === 'interior' ? 0 : r).then((assets) => {
         this.loading.delete(k);
+        if (r !== VIEW.r) throw new StaleCell();                    // w międzyczasie zmieniono widok
         // w międzyczasie środek mógł odjechać – wtedy nie budujemy
         if (this.cells.size && (Math.abs(cx - this.want.cx) > 1 || Math.abs(cy - this.want.cy) > 1)) throw new StaleCell();
         const c = this.build(info, assets);
@@ -305,7 +333,9 @@ export class World {
 
   private place(c: LoadedCell) {
     this.hashDirty = true;
-    const dx = c.info.cx - this.cx, dy = c.info.cy - this.cy, C = c.meta.size;
+    const G = this.gridSize;
+    const [ax, ay] = rotCell(c.info.cx, c.info.cy, G), [bx, by] = rotCell(this.cx, this.cy, G);
+    const dx = c.info.cx >= INTERIOR_BASE ? 0 : ax - bx, dy = c.info.cx >= INTERIOR_BASE ? 0 : ay - by, C = c.meta.size;
     const ox = (dx - dy) * C, oy = ((dx + dy) * C) / 2, oz = (dx + dy) * C * 10;
     c.ground.position.set(ox, oy);
     c.water.sprite.position.set(ox, oy);
@@ -325,6 +355,7 @@ export class World {
 
   /** przesunięcie obrazu przy zmianie środka o (dx, dy) komórek – do korekty kamery */
   static screenShift(dx: number, dy: number, size: number): [number, number] {
+    [dx, dy] = rotVec(dx, dy);
     return [(dx - dy) * size, ((dx + dy) * size) / 2];
   }
 }

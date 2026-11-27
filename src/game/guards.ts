@@ -2,6 +2,7 @@
 // Nieśmiertelni dla prototypu; potwory ich nie atakują. Zabici przez nich nie dają graczowi doświadczenia.
 import { Container, Sprite, type Text } from 'pixi.js';
 import { nameLabel } from '../ui/worldlabel';
+import { depthOf, screenDir } from '../world/view';
 import { CharSheet } from '../chars/sheet';
 import { damageMob, dist, type Vec } from '../logic/combat';
 import type { Atlas } from '../render/atlas';
@@ -98,8 +99,8 @@ export class GuardManager {
     const [x, y] = this.world.toScreenGlobal(g.pos[0], g.pos[1]);
     g.c.position.set(Math.round(x), Math.round(y));
     const C = this.world.size;
-    g.c.zIndex = Math.round(g.pos[0] - this.world.cx * C + g.pos[1] - this.world.cy * C) * 10 + 6;
-    const sdx = g.face[0] - g.face[1], sdy = (g.face[0] + g.face[1]) / 2;
+    g.c.zIndex = Math.round(depthOf(g.pos[0] - this.world.cx * C, g.pos[1] - this.world.cy * C)) * 10 + 6;
+    const [sdx, sdy] = screenDir(g.face[0], g.face[1]);
     const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
     const act = g.atkT >= 0 ? (g.atkT < 0.14 ? 'atk0' : 'atk1') : g.moving ? `walk${Math.floor(this.t * 10) % 4}` : `idle${Math.floor(this.t * 1.5) % 2}`;
     const name = `hero_${OCT_DIR[oct]}_${act}`;

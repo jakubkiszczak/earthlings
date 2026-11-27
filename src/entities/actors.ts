@@ -3,6 +3,7 @@ import { Container, Graphics, Sprite, type Text } from 'pixi.js';
 import type { Atlas } from '../render/atlas';
 import { CharSheet, type FrameSource } from '../chars/sheet';
 import { nameLabel } from '../ui/worldlabel';
+import { depthOf, screenDir } from '../world/view';
 import type { WorldGrid } from '../world/grid';
 
 const HERO_SPEED = 74;   // jednostek świata na sekundę (+15%, potem +25%)   // jednostek świata na sekundę
@@ -26,7 +27,7 @@ function makeActor(atlas: Atlas, layer: Container, shadowW: number): Actor {
 }
 
 /** zIndex aktora w warstwie świata (nad terenem i obiektami o tym samym u+v) */
-const actorZ = (u: number, v: number) => Math.round(u + v) * 10 + 6;
+const actorZ = (u: number, v: number) => Math.round(depthOf(u, v)) * 10 + 6;
 
 export class Hero {
   u: number;
@@ -79,7 +80,7 @@ export class Hero {
 
   /** obrót w stronę punktu (u, v) */
   faceTo(u: number, v: number) {
-    const du = u - this.u, dv = v - this.v, sdx = du - dv, sdy = (du + dv) / 2;
+    const du = u - this.u, dv = v - this.v, [sdx, sdy] = screenDir(du, dv);
     if (Math.hypot(sdx, sdy) < 0.2) return;
     const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
     this.dir = OCT_DIR[oct];
@@ -103,7 +104,7 @@ export class Hero {
       const sp = HERO_SPEED * speed * dt;
       if (dist <= sp) { this.u = tu; this.v = tv; this.path.shift(); }
       else { this.u += (du / dist) * sp; this.v += (dv / dist) * sp; }
-      const sdx = du - dv, sdy = (du + dv) / 2;
+      const [sdx, sdy] = screenDir(du, dv);
       if (Math.hypot(sdx, sdy) > 0.2) {
         const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
         this.dir = OCT_DIR[oct];

@@ -1,5 +1,6 @@
 // Fontanna na placu: strumienie wody z kolumny do misy (krople rysowane co klatkę, mieszanie addytywne).
 import { Graphics } from 'pixi.js';
+import { depthOf } from '../world/view';
 import type { World } from '../world/world';
 
 const TOP = 30, WATER = 3, BASE = 48;
@@ -17,7 +18,7 @@ export class Fountain {
     if (!on) return;
     const g = this.g.clear();
     const [cx, cy] = this.world.toScreenGlobalH(this.gu, this.gv, BASE + TOP);
-    this.g.zIndex = Math.round(this.gu - this.world.cx * C + this.gv - this.world.cy * C) * 10 + 7;
+    this.g.zIndex = Math.round(depthOf(this.gu - this.world.cx * C, this.gv - this.world.cy * C)) * 10 + 7;
     // 8 strumieni po łuku do misy, krople przesuwają się w czasie
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * Math.PI * 2;

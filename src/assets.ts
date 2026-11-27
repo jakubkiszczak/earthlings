@@ -39,11 +39,14 @@ export interface CellAssets {
 
 const cellPath = (c: CellInfo, file: string) => `generated/world/${c.dir}/${file}`;
 
-export async function loadCell(c: CellInfo): Promise<CellAssets> {
+/** plik widoku r (obrót co 90°): ground_r1.webp itd.; siatka chodzenia wspólna dla wszystkich widoków */
+const rotFile = (file: string, r: number) => (r && file !== 'walk.png' ? file.replace(/\.(\w+)$/, `_r${r}.$1`) : file);
+
+export async function loadCell(c: CellInfo, r = 0): Promise<CellAssets> {
   const keys = Object.keys(CELL_IMAGES) as CellImage[];
   const [meta, ...imgs] = await Promise.all([
-    loadJson<CellMeta>(cellPath(c, 'meta.json')),
-    ...keys.map((k) => loadImage(assetUrl(cellPath(c, CELL_IMAGES[k])))),
+    loadJson<CellMeta>(cellPath(c, rotFile('meta.json', r))),
+    ...keys.map((k) => loadImage(assetUrl(cellPath(c, rotFile(CELL_IMAGES[k], r))))),
   ]);
   return { meta: meta as CellMeta, img: Object.fromEntries(keys.map((k, i) => [k, imgs[i]])) as Record<CellImage, HTMLImageElement> };
 }

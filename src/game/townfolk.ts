@@ -1,6 +1,7 @@
 // Mieszkańcy miasta (NPC): stoją przy straganach / fontannie, odwracają się do gracza, po kliknięciu mówią.
 import { Container, Sprite, type Text } from 'pixi.js';
 import { nameLabel } from '../ui/worldlabel';
+import { depthOf, screenDir } from '../world/view';
 import { CharSheet } from '../chars/sheet';
 import type { Vec } from '../logic/combat';
 import type { Atlas } from '../render/atlas';
@@ -45,8 +46,8 @@ export class Townfolk {
       f.face = Math.hypot(dx, dy) < 90 ? [dx, dy] : [...f.def.face] as Vec;
       const [x, y] = this.world.toScreenGlobalH(f.pos[0], f.pos[1], FLOOR);
       f.c.position.set(Math.round(x), Math.round(y));
-      f.c.zIndex = Math.round(f.pos[0] - this.world.cx * C + f.pos[1] - this.world.cy * C) * 10 + 6;
-      const sdx = f.face[0] - f.face[1], sdy = (f.face[0] + f.face[1]) / 2;
+      f.c.zIndex = Math.round(depthOf(f.pos[0] - this.world.cx * C, f.pos[1] - this.world.cy * C)) * 10 + 6;
+      const [sdx, sdy] = screenDir(f.face[0], f.face[1]);
       const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
       const name = `hero_${OCT_DIR[oct]}_idle${Math.floor(this.t * 1.3 + f.pos[0] * 0.01) % 2}`;
       if (name !== f.frame) { f.sheet.setFrame(f.s, name); f.frame = name; }

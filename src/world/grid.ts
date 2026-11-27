@@ -2,6 +2,7 @@
 import { readPixels } from '../assets';
 import { findPath, nearestWalkable } from '../logic/pathfinding';
 import type { CellMeta } from '../types';
+import { rotLocal } from './view';
 
 export class WorldGrid {
   private readonly walk: Uint8ClampedArray;
@@ -35,12 +36,13 @@ export class WorldGrid {
 
   /** współrzędne świata (u, v) → piksele obrazu świata */
   toScreen(u: number, v: number): [number, number] {
-    return [u - v + this.M.X0, Math.floor((u + v) / 2) - this.heightAt(u, v) + this.M.Y0];
+    return this.toScreenAt(u, v, this.heightAt(u, v));
   }
 
   /** jak toScreen, ale z podaną wysokością (dla punktów poza siatką chodzenia) */
   toScreenAt(u: number, v: number, h: number): [number, number] {
-    return [u - v + this.M.X0, Math.floor((u + v) / 2) - h + this.M.Y0];
+    const [p, q] = rotLocal(u, v, this.M.size, this.M.rot ?? 0);      // obraz komórki w bieżącym widoku
+    return [p - q + this.M.X0, Math.floor((p + q) / 2) - h + this.M.Y0];
   }
 
   /** piksel obrazu świata → punkt (u, v) z mapy wyboru, albo null (puste tło) */

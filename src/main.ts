@@ -40,6 +40,7 @@ import { RARITY_COLOR } from './logic/items';
 import { itemIcon } from './ui/icons';
 import { deathPenalty, dist, seeded, type MobEvent } from './logic/combat';
 import { World, type Item } from './world/world';
+import { depthOf, unrotVec } from './world/view';
 import './style.css';
 
 declare global {
@@ -50,6 +51,8 @@ declare global {
     __game?: {
       /** portale przed drzwiami wnętrz (sklep, karczma) */
       door(key: string): { u: number; v: number } | null;
+      /** obrót widoku (0–3) i jego zmiana */
+      rot(): number; rotate(dir: 1 | -1): Promise<void>;
       /** imię NPC we wnętrzu (kupiec / karczmarz) */
       npcName(): string | null;
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
@@ -366,6 +369,34 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     }
   }
 
+  /** obrót widoku świata o 90° (przecinek / kropka); we wnętrzach wyłączony */
+  async function rotateView(dir: 1 | -1) {
+    if (busy || world.inInterior) return;
+    busy = true;
+    loadingScreen.show('Obracanie widoku');
+    await wait(FADE);
+    try {
+      await world.rotate(dir);
+      hero.teleport([hero.u, hero.v]);
+      dog.teleport([dog.u, dog.v]);
+      effects.clearMark();
+      hero.path = [];
+      fitClouds();
+      snapCamera();
+      hud.say(`Widok obrócony (${['północ', 'wschód', 'południe', 'zachód'][world.rot]}).`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      await loadingScreen.hide();
+      busy = false;
+    }
+  }
+  addEventListener('keydown', (e) => {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+    if (e.key === ',') void rotateView(-1);
+    else if (e.key === '.') void rotateView(1);
+  });
+
   /** skok (np. zwój powrotu): wygaszenie, wczytanie, ustawienie postaci */
   async function jump(cx: number, cy: number, pos: [number, number]) {
     if (busy) return;
@@ -461,7 +492,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     const hx = stage.x + hero.sx * camera.zoom, hy = stage.y + (hero.sy - 16) * camera.zoom;
     const dx = gx - hx, dy = gy - hy;
     const g = world.grid, h0 = g.heightAt(hero.u, hero.v);
-    combat!.dodge(dy + dx / 2, dy - dx / 2, (u, v) => { const c = g.cellH(...g.cellOf(u, v)); return c > 0 && Math.abs(c - 1 - h0) <= 8; });
+    const [ddu, ddv] = unrotVec(dy + dx / 2, dy - dx / 2);         // wektor ekranu → świat (z obrotem widoku)
+    combat!.dodge(ddu, ddv, (u, v) => { const c = g.cellH(...g.cellOf(u, v)); return c > 0 && Math.abs(c - 1 - h0) <= 8; });
   });
   // kursor nad potworem
   app.stage.on('globalpointermove', (e) => {
@@ -489,6 +521,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     shop: () => ({ u: info.shop.u, v: info.shop.v }),
     door: (key) => { const d = doors.find((x) => x.key === key); return d ? { u: d.door.u, v: d.door.v } : null; },
     npcName: () => npc?.name ?? null,
+    rot: () => world.rot,
+    rotate: (dir) => rotateView(dir),
     mobs: () => mobs.alive().map((m) => ({ id: m.id, kind: m.kind, hp: m.hp, state: m.state, u: m.pos[0] - world.cx * world.size, v: m.pos[1] - world.cy * world.size })),
     attack: (id) => { const m = mobs.mobs.get(id); if (m) combat!.setTarget(m); },
     player: () => ({ hp: combat!.hp, hpMax: combat!.hpMax, mana: combat!.mana, level: combat!.progress.level, exp: combat!.progress.exp, kills: combat!.kills, dead: combat!.dead, arrows: combat!.arrows, gold: combat!.gold }),
@@ -518,6 +552,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     t += dt;
     at += dt;
     world.update(t, dt);
+    if (!world.hasCurrent) return;                                  // przeładowanie widoku (obrót) – chwila bez komórki
     saveT += dt;
     if (saveT > AUTOSAVE && !busy) { saveT = 0; savePos(); }
     clouds.update(t, cloudOx, cloudOy);
@@ -555,7 +590,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       if (!inTown) d.enter.ghost.visible = false;
       if (inTown) {
         if (d.enter.view.parent !== world.layer) world.layer.addChild(d.enter.view);
-        d.enter.update(t, ...world.grid.toScreen(d.enter.u, d.enter.v), d.enter.u + d.enter.v);
+        d.enter.update(t, ...world.grid.toScreen(d.enter.u, d.enter.v), depthOf(d.enter.u, d.enter.v));
         portalOccluded(d.enter);
         if (!busy && d.enter.check(hero.u, hero.v)) void jump(d.cell.cx, d.cell.cy, d.it.spawn);
       }
@@ -564,7 +599,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       if (!isIn) d.exit.ghost.visible = false;
       else {
         if (d.exit.view.parent !== world.layer) world.layer.addChild(d.exit.view);
-        d.exit.update(t, ...world.grid.toScreen(d.exit.u, d.exit.v), d.exit.u + d.exit.v);
+        d.exit.update(t, ...world.grid.toScreen(d.exit.u, d.exit.v), depthOf(d.exit.u, d.exit.v));
         portalOccluded(d.exit);
         if (!busy && d.exit.check(hero.u, hero.v)) { const e = exitPos(d); void jump(e.cx, e.cy, [e.u, e.v]); }
       }

@@ -4,6 +4,7 @@ import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { ITEMS, RARITY_COLOR, type LootRoll } from '../logic/items';
 import type { Vec } from '../logic/combat';
 import type { World } from '../world/world';
+import { depthOf } from '../world/view';
 
 export type DropKind = 'gold' | 'hp' | 'mp' | 'item';
 export interface Drop { id: number; kind: DropKind; amount: number; item: string | null; pos: Vec; from: Vec; pop: number; t: number; view: Container; icon: Sprite; glow: Graphics }
@@ -102,7 +103,7 @@ export class LootManager {
       d.icon.y = -Math.round(1 + Math.abs(Math.sin(d.t * 2.4)) * 2);
       d.glow.alpha = 0.7 + 0.3 * Math.sin(d.t * 3.1);
       const lu = d.pos[0] - this.world.cx * C, lv = d.pos[1] - this.world.cy * C;
-      d.view.zIndex = Math.round(lu + lv) * 10 + 2;
+      d.view.zIndex = Math.round(depthOf(lu, lv)) * 10 + 2;
       d.view.alpha = d.t > LIFETIME - 5 ? (LIFETIME - d.t) / 5 : 1;
     }
   }

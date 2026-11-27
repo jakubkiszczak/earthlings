@@ -44,6 +44,13 @@ export interface InteriorInfo {
   npc: [number, number];
   /** wysokość podłogi */
   floor?: number;
+  /** portal przed drzwiami w świecie i przesunięcie miejsca wyjścia względem niego */
+  door?: CellPos;
+  back?: [number, number];
+  /** rola NPC: kupiec (handel) albo karczmarz (rozmowa) */
+  role?: 'shop' | 'inn';
+  npcName?: string;
+  lines?: string[];
 }
 
 /** meta.json komórki: obraz terenu, pasma głębi, obiekty. Współrzędne (u, v) lokalne dla komórki. */

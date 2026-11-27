@@ -6,6 +6,7 @@ import { ITEMS, sanitizeInventory } from './logic/items';
 import { EXP_TO_NEXT } from './logic/character';
 import { SaveStore, type SavedChar } from './logic/save';
 import { loadArtManifest } from './ui/art';
+import { nameLabel } from './ui/worldlabel';
 import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
 import { Dog, Hero, Npc } from './entities/actors';
@@ -17,7 +18,7 @@ import { Effects } from './render/effects';
 import { Portal } from './render/portal';
 import { Sky } from './render/sky';
 import { Xray } from './render/xray';
-import type { GameBridge } from './types';
+import type { CellPos, GameBridge, InteriorInfo } from './types';
 import { createHud } from './ui/hud';
 import { createMinimap } from './ui/minimap';
 import { Floaters } from './ui/floaters';
@@ -38,7 +39,7 @@ import { OFFERS, buy as shopBuy, potionSellPrice, sellBag, sellPotion, sellPrice
 import { RARITY_COLOR } from './logic/items';
 import { itemIcon } from './ui/icons';
 import { deathPenalty, dist, seeded, type MobEvent } from './logic/combat';
-import { World } from './world/world';
+import { World, type Item } from './world/world';
 import './style.css';
 
 declare global {
@@ -47,6 +48,10 @@ declare global {
     __ready?: boolean;
     __menu?: MenuApi;
     __game?: {
+      /** portale przed drzwiami wnętrz (sklep, karczma) */
+      door(key: string): { u: number; v: number } | null;
+      /** imię NPC we wnętrzu (kupiec / karczmarz) */
+      npcName(): string | null;
       cell(): { cx: number; cy: number; name: string }; hero(): { u: number; v: number }; goTo(u: number, v: number): boolean;
       place(u: number, v: number): void; warp(cx: number, cy: number, u: number, v: number): Promise<void>; busy(): boolean;
       outlines(): number; shop(): { u: number; v: number };
@@ -145,13 +150,23 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   stage.addChild(xray.overlay);
   const heroXray = { view: hero.view, body: hero.body, frame: () => hero.frameName, kind: 'hero' as const, source: sheet as FrameSource };
   xray.add(heroXray);
+  const occBuf: Item[] = [];
+  const heroLabel = nameLabel(char.name, 0xb9f78a);
+  hero.view.addChild(heroLabel);
 
   // portale: przed drzwiami sklepu (miasto) i wyjście ze sklepu (wnętrze)
-  const shopInfo = info.interiors?.shop;
-  const shopCell = world.interiorCell('shop');
-  const townPortal = new Portal(info.shop.u, info.shop.v);
-  const exitPortal = shopInfo ? new Portal(shopInfo.exit[0], shopInfo.exit[1]) : null;
+  // wnętrza (sklep, karczma): portal przed drzwiami w mieście i portal wyjścia w środku
+  interface Door { key: string; it: InteriorInfo; cell: { cx: number; cy: number }; door: CellPos; back: [number, number]; enter: Portal; exit: Portal }
+  const doors: Door[] = Object.entries(info.interiors ?? {}).flatMap(([key, it]) => {
+    const cell = world.interiorCell(key);
+    const door = it.door ?? (key === 'shop' ? info.shop : undefined);
+    if (!cell || !door) return [];
+    return [{ key, it, cell, door, back: it.back ?? [22, 6], enter: new Portal(door.u, door.v), exit: new Portal(it.exit[0], it.exit[1]) }];
+  });
+  const curDoor = () => doors.find((d) => d.cell.cx === world.cx && d.cell.cy === world.cy) ?? null;
+  const exitPos = (d: Door) => ({ cx: d.door.cx, cy: d.door.cy, u: d.door.u + d.back[0], v: d.door.v + d.back[1] });
   let npc: Npc | null = null;
+  let innLine = 0;
 
   const bridge: GameBridge = {
     speed: 1,
@@ -298,7 +313,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
 
   // autozapis postaci (we wnętrzu – miejsce przed sklepem)
   const savePos = () => {
-    const p = world.inInterior ? { cx: info.shop.cx, cy: info.shop.cy, u: info.shop.u + 22, v: info.shop.v + 6 } : { cx: world.cx, cy: world.cy, u: hero.u, v: hero.v };
+    const cd = curDoor();
+    const p = world.inInterior && cd ? exitPos(cd) : { cx: world.cx, cy: world.cy, u: hero.u, v: hero.v };
     const c = combat!;
     store.upsert({ ...char, pos: p, played: Date.now(), level: c.progress.level, exp: c.progress.exp, points: invc.points, alloc: invc.alloc, gold: invc.gold, arrows: c.arrows, inv: invc.inv });
   };
@@ -369,13 +385,14 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       clouds.sprite.visible = !world.inInterior;
       // kupiec tylko we wnętrzu sklepu
       if (npc) { xray.remove(npcTarget!); npc.destroy(); npc = null; npcTarget = null; }
-      if (world.inInterior && shopInfo) {
-        const n = new Npc(atlas, world.layer, shopInfo.npc[0], shopInfo.npc[1], shopInfo.floor ?? 48);
+      const here = curDoor();
+      if (here) {
+        const n = new Npc(atlas, world.layer, here.it.npc[0], here.it.npc[1], here.it.floor ?? 48, here.it.role ?? 'shop', here.it.npcName ?? 'Kupiec Bronek');
         npc = n;
         npcTarget = { view: n.view, body: n.body, frame: () => n.frameName || 'hero_SE_idle0', kind: 'npc', source: n.sheet };
         xray.add(npcTarget);
       }
-      townPortal.armed = exitPortal!.armed = false;
+      for (const d of doors) d.enter.armed = d.exit.armed = false;
       snapCamera();
     } catch (err) {
       console.error(err);
@@ -411,7 +428,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
         combat!.stand();
         combat!.setTarget(null);
         wantStash = true;
-        goToWorld(stashPos[0] - world.cx * world.size - 30, stashPos[1] - world.cy * world.size, true);
+        goToWorld(stashPos[0] - world.cx * world.size + 28, stashPos[1] - world.cy * world.size, true);
         return;
       }
     }
@@ -422,7 +439,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       combat!.setTarget(null);
       const line = folk.speak(person);
       hud.say(`<span style="color:#8af59a">${person.def.name}:</span> ${line}`);
-      floaters.add(person.c.x, person.c.y - 74, line.length > 34 ? line.slice(0, 32) + '…' : line, '#f4ecd8');
+      floaters.say(() => [person.c.x, person.c.y - 66], person.def.name, line);
       return;
     }
     const m = mobs.at(wx, wy);
@@ -449,7 +466,16 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   // kursor nad potworem
   app.stage.on('globalpointermove', (e) => {
     const wx = Math.floor((e.global.x - stage.x) / camera.zoom), wy = Math.floor((e.global.y - stage.y) / camera.zoom);
-    app.stage.cursor = mobs.at(wx, wy) ? 'crosshair' : loot.at(wx, wy) ? CURSOR_GRAB : 'pointer';
+    const mob = mobs.at(wx, wy);
+    app.stage.cursor = mob ? 'crosshair' : loot.at(wx, wy) ? CURSOR_GRAB : 'pointer';
+    // nazwy pod postaciami tylko po najechaniu myszką
+    mobs.hoverId = mob ? mob.id : null;
+    const person = mob ? null : folk.at(wx, wy);
+    for (const f of folk.folk) f.label.visible = f === person;
+    const guard = mob || person ? null : guards.at(wx, wy);
+    for (const g of guards.guards) g.label.visible = g === guard;
+    if (npc) npc.label.visible = !mob && Math.abs(wx - npc.view.x) <= 18 && wy <= npc.view.y + 2 && wy >= npc.view.y - 64;
+    heroLabel.visible = !mob && !person && !guard && Math.abs(wx - hero.sx) <= 14 && wy <= hero.sy + 2 && wy >= hero.sy - 62;
   });
 
   window.__game = {
@@ -461,6 +487,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     busy: () => busy,
     outlines: () => (xray.isVisible(heroXray) ? 1 : 0),
     shop: () => ({ u: info.shop.u, v: info.shop.v }),
+    door: (key) => { const d = doors.find((x) => x.key === key); return d ? { u: d.door.u, v: d.door.v } : null; },
+    npcName: () => npc?.name ?? null,
     mobs: () => mobs.alive().map((m) => ({ id: m.id, kind: m.kind, hp: m.hp, state: m.state, u: m.pos[0] - world.cx * world.size, v: m.pos[1] - world.cy * world.size })),
     attack: (id) => { const m = mobs.mobs.get(id); if (m) combat!.setTarget(m); },
     player: () => ({ hp: combat!.hp, hpMax: combat!.hpMax, mana: combat!.mana, level: combat!.progress.level, exp: combat!.progress.exp, kills: combat!.kills, dead: combat!.dead, arrows: combat!.arrows, gold: combat!.gold }),
@@ -470,7 +498,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     dashReady: () => combat!.dashReady,
     talkToMerchant: () => { if (npc) { wantShop = true; goToWorld(npc.u + 64, npc.v, true); } },
     shopOpen: () => shop.open,
-    openStash: () => { if (stashPos) { wantStash = true; goToWorld(stashPos[0] - world.cx * world.size - 30, stashPos[1] - world.cy * world.size, true); } },
+    openStash: () => { if (stashPos) { wantStash = true; goToWorld(stashPos[0] - world.cx * world.size + 28, stashPos[1] - world.cy * world.size, true); } },
     stashOpen: () => stashWin.open,
     moveMob: (id, u, v) => { const m = mobs.mobs.get(id); if (m) { m.pos = [world.cx * world.size + u, world.cy * world.size + v]; m.state = 'idle'; } },
     mobState: (id) => { const m = mobs.mobs.get(id); return m ? m.state : 'none'; },
@@ -514,20 +542,31 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
       const step = world.inInterior ? null : cellStep(world.cx, world.cy, hero.u, hero.v, world.size, world.gridSize);
       if (step) void cross(step.dx, step.dy);
     }
-    // portale
-    const inTown = world.cx === info.shop.cx && world.cy === info.shop.cy;
-    townPortal.view.visible = inTown;
-    if (inTown) {
-      if (townPortal.view.parent !== world.layer) world.layer.addChild(townPortal.view);
-      townPortal.update(t, ...world.grid.toScreen(townPortal.u, townPortal.v), townPortal.u + townPortal.v);
-      if (!busy && shopCell && shopInfo && townPortal.check(hero.u, hero.v)) void jump(shopCell.cx, shopCell.cy, shopInfo.spawn);
-    }
-    if (exitPortal) {
-      exitPortal.view.visible = world.inInterior;
-      if (world.inInterior) {
-        if (exitPortal.view.parent !== world.layer) world.layer.addChild(exitPortal.view);
-        exitPortal.update(t, ...world.grid.toScreen(exitPortal.u, exitPortal.v), exitPortal.u + exitPortal.v);
-        if (!busy && exitPortal.check(hero.u, hero.v)) void jump(info.shop.cx, info.shop.cy, [info.shop.u + 22, info.shop.v + 6]);
+    // portale (zasłonięte – mocny błękitny kontur nad światem)
+    const portalOccluded = (p: Portal) => {
+      const { x, y } = p.view.position;
+      p.setOccluded(world.occluders(x - 14, y - 30, x + 14, y + 8, p.view.zIndex, occBuf).length > 0, t);
+    };
+    const inside = curDoor();
+    for (const d of doors) {
+      if (!d.enter.ghost.parent) xray.overlay.addChild(d.enter.ghost, d.exit.ghost);
+      const inTown = !world.inInterior && world.cx === d.door.cx && world.cy === d.door.cy;
+      d.enter.view.visible = inTown;
+      if (!inTown) d.enter.ghost.visible = false;
+      if (inTown) {
+        if (d.enter.view.parent !== world.layer) world.layer.addChild(d.enter.view);
+        d.enter.update(t, ...world.grid.toScreen(d.enter.u, d.enter.v), d.enter.u + d.enter.v);
+        portalOccluded(d.enter);
+        if (!busy && d.enter.check(hero.u, hero.v)) void jump(d.cell.cx, d.cell.cy, d.it.spawn);
+      }
+      const isIn = inside === d;
+      d.exit.view.visible = isIn;
+      if (!isIn) d.exit.ghost.visible = false;
+      else {
+        if (d.exit.view.parent !== world.layer) world.layer.addChild(d.exit.view);
+        d.exit.update(t, ...world.grid.toScreen(d.exit.u, d.exit.v), d.exit.u + d.exit.v);
+        portalOccluded(d.exit);
+        if (!busy && d.exit.check(hero.u, hero.v)) { const e = exitPos(d); void jump(e.cx, e.cy, [e.u, e.v]); }
       }
     }
     if (npc && world.inInterior) {
@@ -537,9 +576,19 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
         wantShop = false;
         hero.path = [];
         hero.faceTo(npc.u, npc.v);
-        shopMsg = '';
-        shop.show(shopState());
-        hud.say('<span style="color:#8ae07a">Kupiec Bronek:</span> Witaj, wędrowcze! Czego ci trzeba?');
+        const n = npc;
+        if (n.role === 'inn') {
+          // karczmarz: kolejna kwestia w dymku i na czacie
+          const lines = inside?.it.lines ?? ['Witaj w karczmie!'];
+          const line = lines[innLine++ % lines.length];
+          floaters.say(() => [n.view.x, n.view.y - 66], n.name, line);
+          hud.say(`<span style="color:#8ae07a">${n.name}:</span> ${line}`);
+        } else {
+          shopMsg = '';
+          shop.show(shopState());
+          floaters.say(() => [n.view.x, n.view.y - 66], n.name, 'Witaj, wędrowcze! Czego ci trzeba?');
+          hud.say(`<span style="color:#8ae07a">${n.name}:</span> Witaj, wędrowcze! Czego ci trzeba?`);
+        }
       }
       if (shop.open && dn > 140) shop.hide();
     } else if (shop.open) shop.hide();

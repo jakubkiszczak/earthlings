@@ -439,3 +439,184 @@ def flag(kind, frame):
         if x > 24 and frame % 2:
             p.px(x, bot, c)
     return p.done(), (3, 39)
+
+
+# ------------------------------------------------------------------ karczma „Pod Złotym Kuflem”
+def tavern_sign():
+    """szyld karczmy: wspornik z łańcuszkami, deska z pienistym kuflem piwa"""
+    p = Px(28, 32)
+    p.put(0, 2, 24, 4, '#3a2a1e'); p.put(0, 2, 24, 3, '#5a4030'); p.line(2, 4, 9, 11, '#3a2a1e')
+    p.line(6, 4, 6, 8, '#8a8890'); p.line(20, 4, 20, 8, '#8a8890')
+    p.put(3, 8, 25, 30, '#8a5626'); p.put(3, 8, 25, 10, '#ad7034'); p.put(3, 28, 25, 30, '#673e1c')
+    p.put(3, 8, 5, 30, '#ad7034'); p.put(23, 8, 25, 30, '#5a3418')
+    # kufel: złote piwo, piana, ucho
+    p.put(9, 15, 18, 27, '#e8a830'); p.put(9, 15, 11, 27, '#ffd060'); p.put(16, 15, 18, 27, '#b87a18')
+    p.put(9, 18, 18, 19, '#c89020'); p.put(9, 23, 18, 24, '#c89020')
+    p.put(8, 11, 19, 15, '#fbf6ea'); p.put(10, 10, 17, 11, '#fbf6ea'); p.px(9, 15, '#fbf6ea'); p.px(15, 16, '#fbf6ea')
+    p.put(18, 17, 21, 18, '#b87a18'); p.put(20, 17, 21, 24, '#b87a18'); p.put(18, 23, 21, 24, '#b87a18')
+    p.px(12, 20, '#fff0b0'); p.px(13, 22, '#fff0b0')
+    return p.done(), (1, 31)
+
+
+def mount_head(kind):
+    """wypchana głowa na tarczy z drewna: 0 jeleń (poroże), 1 niedźwiedź, 2 wilk"""
+    p = Px(34, 34)
+    for y in range(14, 32):                                         # owalna deska
+        for x in range(8, 26):
+            if ((x - 16.5) / 9) ** 2 + ((y - 23) / 9) ** 2 <= 1:
+                p.px(x, y, '#8a5626' if x > 10 else '#ad7034')
+    if kind == 0:
+        fur, dark = '#a0683a', '#6a4220'
+        p.put(13, 12, 21, 26, fur); p.put(14, 24, 20, 30, fur); p.put(15, 28, 19, 31, '#3a2416')
+        p.put(12, 12, 14, 15, dark); p.put(20, 12, 22, 15, dark)                         # uszy
+        for side in (-1, 1):                                                              # poroże
+            bx = 15 if side < 0 else 19
+            p.line(bx, 12, bx + side * 6, 3, '#e8dcc0'); p.line(bx + side * 3, 8, bx + side * 1, 2, '#e8dcc0')
+            p.line(bx + side * 5, 5, bx + side * 9, 4, '#e8dcc0'); p.line(bx + side * 6, 3, bx + side * 6, 0, '#d0c0a0')
+        p.put(14, 18, 15, 19, '#1a1010'); p.put(19, 18, 20, 19, '#1a1010'); p.px(14, 18, '#ffffff')
+        p.put(13, 20, 21, 21, '#c08a58')
+    elif kind == 1:
+        fur, dark = '#5a3a24', '#3a2416'
+        p.put(10, 12, 24, 27, fur); p.put(10, 12, 13, 27, '#6e4a2e')
+        p.put(9, 9, 13, 13, fur); p.put(21, 9, 25, 13, fur); p.put(10, 10, 12, 12, dark); p.put(22, 10, 24, 12, dark)
+        p.put(13, 21, 21, 29, '#8a6a4a'); p.put(15, 21, 19, 23, '#1a1010')                # pysk, nos
+        p.put(14, 27, 20, 29, '#7a2020'); p.px(14, 27, '#f4f0e8'); p.px(19, 27, '#f4f0e8')
+        p.put(13, 16, 14, 18, '#1a1010'); p.put(20, 16, 21, 18, '#1a1010'); p.px(13, 16, '#ffffff')
+    else:
+        fur, dark = '#8a8a94', '#56565e'
+        p.put(11, 13, 23, 25, fur); p.put(11, 13, 13, 25, '#a8a8b0')
+        p.line(11, 13, 12, 6, fur); p.line(12, 13, 14, 7, dark); p.line(23, 13, 22, 6, fur); p.line(22, 13, 20, 7, dark)
+        p.put(14, 22, 20, 31, fur); p.put(14, 28, 20, 31, '#d8d4cc'); p.put(16, 30, 18, 32, '#1a1414')
+        p.put(14, 29, 20, 30, '#a02a2a'); p.px(14, 29, '#f4f0e8'); p.px(19, 29, '#f4f0e8')
+        p.put(13, 17, 15, 18, '#ffd040'); p.put(19, 17, 21, 18, '#ffd040')
+    return p.done(), (17, 33)
+
+
+def shield_swords(k):
+    """tarcza herbowa na dwóch skrzyżowanych mieczach"""
+    p = Px(36, 36)
+    for (x0, y0, x1, y1) in ((3, 33, 32, 3), (32, 33, 3, 3)):
+        p.line(x0, y0, x1, y1, '#d8dde4'); p.line(x0 + (1 if x1 > x0 else -1), y0, x1 + (1 if x1 > x0 else -1), y1, '#9aa2ae')
+    p.put(1, 30, 7, 32, '#c8a040'); p.put(28, 30, 34, 32, '#c8a040')
+    c1, c2 = [('#b8282c', '#f2d27a'), ('#2a4aa8', '#e8ecf0'), ('#2e7a3a', '#f2d27a')][k]
+    for y in range(8, 30):
+        w = 10 if y < 21 else 10 - (y - 21) * 1.2
+        for x in range(int(18 - w), int(18 + w)):
+            edge = x <= 18 - w + 1 or x >= 18 + w - 2 or y == 8
+            p.px(x, y, '#c8ccd6' if edge else (c1 if (x < 18) == (y < 18) else c2))
+    return p.done(), (18, 35)
+
+
+def dragon_painting(k):
+    """obraz w złotej ramie: smok nad górami (czerwony / zielony / czarny)"""
+    p = Px(40, 30)
+    p.put(0, 0, 40, 30, '#c8a040'); p.put(1, 1, 39, 29, '#8a6a20'); p.put(2, 2, 38, 28, '#e0b850')
+    sky = [('#e8a060', '#f4d090'), ('#7aa8d8', '#c0dcf0'), ('#5a4a7a', '#9a7ab0')][k]
+    for y in range(3, 27):
+        p.put(3, y, 37, y + 1, sky[1] if y < 12 else sky[0])
+    for x in range(3, 37):                                                     # góry
+        h = int(19 + 4 * np.sin(x * 0.5) + 2 * np.sin(x * 1.3))
+        p.put(x, h, x + 1, 27, '#4a4a5a'); p.px(x, h, '#e8ecf0')
+    dc = ['#c02a2a', '#2e8a3a', '#2a2a34'][k]
+    p.put(14, 10, 24, 14, dc); p.put(22, 8, 27, 11, dc); p.px(27, 9, '#ffd040')         # tułów i głowa
+    p.line(10, 12, 14, 12, dc); p.line(6, 14, 10, 12, dc)                                # ogon
+    for i in range(7):                                                                    # skrzydła
+        p.line(16 + i, 10, 12 + i * 2, 4, dc)
+    p.line(27, 10, 33, 12, '#ff9a2a'); p.line(28, 11, 34, 14, '#ffd040')                # ogień
+    return p.done(), (20, 29)
+
+
+def bar_shelf():
+    """regał za barem: trzy półki z butelkami, dzbanami i kuflami"""
+    p = Px(64, 44)
+    p.put(0, 0, 64, 44, '#5a3418'); p.put(2, 2, 62, 42, '#3a2414')
+    r = np.random.default_rng(5)
+    for sy in (13, 27, 41):
+        p.put(0, sy, 64, sy + 3, '#8a5626'); p.put(0, sy, 64, sy + 1, '#ad7034')
+        x = 4
+        while x < 58:
+            kind = int(r.integers(0, 3))
+            c = ['#2e7a3a', '#7a2a2a', '#3a5aa8', '#c89040', '#6a3a8a'][int(r.integers(0, 5))]
+            if kind == 0:                                                   # butelka
+                p.put(x, sy - 9, x + 3, sy, c); p.put(x + 1, sy - 12, x + 2, sy - 9, c); p.px(x, sy - 8, '#ffffff')
+                x += 5
+            elif kind == 1:                                                 # dzban
+                p.put(x, sy - 8, x + 5, sy, '#b06a3a'); p.put(x + 1, sy - 10, x + 4, sy - 8, '#b06a3a'); p.px(x, sy - 7, '#d88a50')
+                x += 7
+            else:                                                           # kufel
+                p.put(x, sy - 6, x + 4, sy, '#c8ccd6'); p.put(x, sy - 7, x + 4, sy - 6, '#fbf6ea'); p.put(x + 4, sy - 5, x + 5, sy - 2, '#9aa2ae')
+                x += 7
+    return p.done(), (32, 43)
+
+
+def barrel():
+    """beczka z obręczami"""
+    p = Px(18, 22)
+    for y in range(2, 22):
+        w = 7 + (1 if 5 < y < 18 else 0)
+        for x in range(9 - w, 9 + w):
+            p.px(x, y, '#ad7034' if x < 7 else '#8a5626' if x < 13 else '#673e1c')
+    for y in (4, 11, 18):
+        p.put(1, y, 17, y + 2, '#4a4652'); p.put(1, y, 6, y + 1, '#7a7682')
+    p.put(3, 0, 15, 3, '#9a6230'); p.put(4, 1, 14, 2, '#c08a50')
+    return p.done(), (9, 21)
+
+
+def tavern_table(seed):
+    """drewniany stół z czterema taboretami w izometrii; na blacie kufle i talerz"""
+    g = Iso(64, 50, 32, 30)
+    r = np.random.default_rng(seed)
+    st = ('#9a6230', '#7a4a20', '#4a2c14')
+    for (u, v) in ((-6, 4), (16, 4), (4, -6), (4, 16)):                     # taborety
+        g.box(u, u + 5, v, v + 5, 0, 7, '#b07840', '#8a5626', '#5a3418')
+    for (u, v) in ((0, 0), (12, 0), (0, 12), (12, 12)):                     # nogi stołu
+        g.box(u, u + 1.5, v, v + 1.5, 0, 11, *st)
+    g.box(-2, 15.5, -2, 15.5, 11, 13, '#c08a50', '#9a6230', '#6a4220',
+          lambda f, a, b: '#ad7034' if f == 't' and int(a) % 5 == 0 else None)
+    for _ in range(int(r.integers(2, 4))):                                   # kufle
+        u, v = r.uniform(1, 11), r.uniform(1, 11)
+        g.box(u, u + 2.5, v, v + 2.5, 13, 17, '#fbf6ea', '#c8ccd6', '#8a92a0')
+    u, v = r.uniform(2, 9), r.uniform(2, 9)
+    g.box(u, u + 4, v, v + 4, 13, 13.5, '#e8e0d0', '#c8c0b0', '#a8a090')       # talerz
+    g.dot(u + 2, v + 2, 14, '#c0603a')
+    a = g.p.done()
+    return a, g.P(7, 7, 0)
+
+
+def hearth(frame):
+    """kominek: kamienny portal z półką, palenisko z polanami i ogniem (3 klatki)"""
+    p = Px(56, 64)
+    p.put(0, 0, 56, 64, '#7a7682')
+    for y in range(0, 64, 6):                                               # kamienie
+        off = 0 if (y // 6) % 2 else 7
+        for x in range(-off, 56, 14):
+            p.put(x + 1, y + 1, x + 13, y + 5, '#8a8692' if (x + y) % 3 else '#6a6672')
+    p.put(0, 22, 56, 26, '#5a3418'); p.put(0, 22, 56, 23, '#8a5626')                # półka (gzyms)
+    p.put(10, 30, 46, 64, '#1a1214')                                         # otwór
+    p.put(12, 32, 44, 64, '#2a1a16')
+    p.put(14, 58, 42, 61, '#6a4220'); p.put(16, 55, 40, 58, '#8a5626')       # polana
+    fl = [['#ff5a1a', '#ffb030', '#fff0a0'], ['#ff6a1a', '#ffc040', '#fffbd0'], ['#ff4a10', '#ffa020', '#fff4b0']][frame]
+    r = np.random.default_rng(frame * 7 + 1)
+    for i in range(9):
+        x = 16 + i * 3
+        h = int(8 + r.integers(0, 12))
+        p.put(x, 55 - h, x + 3, 56, fl[0]); p.put(x + 1, 55 - int(h * 0.7), x + 2, 56, fl[1])
+        if h > 12:
+            p.px(x + 1, 55 - int(h * 0.4), fl[2])
+    p.put(24, 46, 32, 55, fl[2])
+    for (x, y) in ((6, 12), (44, 12)):                                       # świeczniki na półce
+        p.put(x, y, x + 3, y + 10, '#f4ecd8'); p.px(x + 1, y - 2, '#ffd040'); p.px(x + 1, y - 1, '#ff8a2a')
+    return p.done(), (28, 63)
+
+
+def chimney():
+    """komin z cegły na dach (bryła izometryczna z czapą)"""
+    g = Iso(30, 44, 14, 34)
+    def brick(face, a, b):
+        if face == 't':
+            return None
+        return '#5a2a20' if int(b) % 4 == 0 or (int(a) + (int(b) // 4) * 3) % 6 == 0 else None
+    g.box(0, 9, 0, 9, 0, 26, '#4a3a36', '#b05a40', '#7a3a2a', brick)
+    g.box(-1, 10, -1, 10, 26, 29, '#2a2224', '#8a8692', '#5a5662')
+    g.box(1.5, 7.5, 1.5, 7.5, 29, 29.5, '#1a1214', '#1a1214', '#1a1214')
+    return g.p.done(), g.P(4.5, 4.5, 0)

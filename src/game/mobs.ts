@@ -1,5 +1,6 @@
 // Potwory w świecie: rozmieszczenie (30 na komórkę poza miastem), AI, widok (sprite, cień, pasek HP), trafianie myszą.
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite, type Text } from 'pixi.js';
+import { nameLabel } from '../ui/worldlabel';
 import { CharSheet } from '../chars/sheet';
 import { wolfFrames } from '../chars/wolfgen';
 import {
@@ -11,9 +12,11 @@ import type { World } from '../world/world';
 export const MOBS_PER_CELL = 30;
 const OCT_DIR = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'] as const;
 
-interface MobView { c: Container; s: Sprite; bar: Graphics; ring: Graphics; frame: string }
+interface MobView { label: Text; c: Container; s: Sprite; bar: Graphics; ring: Graphics; frame: string }
 
 export class MobManager {
+  /** potwór pod kursorem (pokazuje nazwę) */
+  hoverId: number | null = null;
   readonly mobs = new Map<number, Mob>();
   private readonly views = new Map<number, MobView>();
   private readonly seededCells = new Set<string>();
@@ -108,12 +111,14 @@ export class MobManager {
         if (m.kind === 'wolf') sh.scale.set(1.3, 1);
         const s = new Sprite();
         const bar = new Graphics();
-        c.addChild(ring, sh, s, bar);
+        const label = nameLabel(MOBS[m.kind].name, 0xff8a7a);
+        c.addChild(ring, sh, s, bar, label);
         layer.addChild(c);
-        v = { c, s, bar, ring, frame: '' };
+        v = { label, c, s, bar, ring, frame: '' };
         this.views.set(m.id, v);
       }
       const dead = m.state === 'dead';
+      v.label.visible = this.hoverId === m.id && !dead;
       if (dead && m.deadT > CORPSE_TIME) { v.c.visible = false; continue; }
       v.c.visible = true;
       v.c.alpha = dead ? Math.max(0, Math.min(1, (CORPSE_TIME - m.deadT) / 0.6)) : 1;

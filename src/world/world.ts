@@ -27,7 +27,9 @@ interface LoadedCell {
   /** poświata latarni i pochodni (migotanie) */
   glows: { g: Graphics; ph: number }[];
   /** pochodnie: sprite płomienia (2 klatki) */
-  torches: { s: Sprite; ph: number; flag?: string }[];   // pochodnie (2 klatki) i flagi (3 klatki, prefiks)
+  torches: { s: Sprite; ph: number; flag?: string }[];   // pochodnie (2 klatki), flagi i ogień w kominku (3 klatki, prefiks)
+  /** dym z kominów */
+  smokes: { g: Graphics; ph: number }[];
   sources: ImageSource[];
   grid?: WorldGrid;
 }
@@ -156,6 +158,15 @@ export class World {
       c.water.update(t, dt);
       for (const w of c.sway) w.s.x = Math.round(Math.sin(t * 1.3 + w.ph) * w.amp);
       for (const l of c.glows) l.g.alpha = 0.8 + 0.2 * Math.sin(t * 7.3 + l.ph) * Math.sin(t * 2.1 + l.ph * 2);
+      for (const sm of c.smokes) {
+        // dym z komina: kłęby unoszą się, rosną i znikają, wiatr znosi je w prawo
+        const g = sm.g.clear();
+        for (let i = 0; i < 9; i++) {
+          const p = (t * 0.22 + i / 9 + sm.ph) % 1;
+          const x = Math.sin(t * 0.9 + i * 1.7) * 2 + p * 16, y = -p * 64;
+          g.circle(Math.round(x), Math.round(y), 2.5 + p * 7).fill({ color: p < 0.3 ? 0x8a8690 : 0xb8b4bc, alpha: 0.5 * (1 - p) * Math.min(1, p * 6) });
+        }
+      }
       for (const tc of c.torches) {
         if (tc.flag) this.atlas.setFrame(tc.s, `${tc.flag}_${Math.floor(t * 5 + tc.ph * 3) % 3}`);
         else this.atlas.setFrame(tc.s, Math.floor(t * 7 + tc.ph * 7) % 2 ? 'torch1' : 'torch0');
@@ -204,6 +215,7 @@ export class World {
     const sway: LoadedCell['sway'] = [];
     const glows: LoadedCell['glows'] = [];
     const torches: LoadedCell['torches'] = [];
+    const smokes: LoadedCell['smokes'] = [];
     for (const e of meta.ents) {
       const a = e.x - meta.X0, u = (e.z + a) / 2, v = (e.z - a) / 2;
       if (u < 0 || v < 0 || u >= C || v >= C) continue;
@@ -229,11 +241,21 @@ export class World {
         glows.push({ g, ph: (e.x * 0.37 + e.y * 0.11) % 6.28 });
         if (!lamp) torches.push({ s: c.children[0] as Sprite, ph: (e.x * 0.13) % 1 });
       }
+      if (e.k === 'smoke') { const g = new Graphics(); c.addChild(g); smokes.push({ g, ph: (e.x * 0.071) % 1 }); }
+      if (e.k === 'fire') {
+        torches.push({ s: c.children[0] as Sprite, ph: e.ph ?? 0, flag: e.s[0].replace(/_\d+$/, '') });
+        const g = new Graphics();
+        g.blendMode = 'add';
+        g.ellipse(0, -8, 60, 26).fill({ color: 0xff9a30, alpha: 0.10 });
+        g.ellipse(0, -14, 30, 16).fill({ color: 0xffc060, alpha: 0.12 });
+        c.addChild(g);
+        glows.push({ g, ph: 1.3 });
+      }
       if (e.k === 'flag') torches.push({ s: c.children[0] as Sprite, ph: e.ph ?? 0, flag: e.s[0].replace(/_\d+$/, '') });
       items.push({ obj: c, x: e.x, y: e.y, z: depthZ(e.z, 5), bx0, by0, bx1, by1 });
     }
     for (const it of items) this.layer.addChild(it.obj);
-    return { info, meta, assets, ground, water, items, sway, glows, torches, sources: [groundSrc, bandsSrc] };
+    return { info, meta, assets, ground, water, items, sway, glows, torches, smokes, sources: [groundSrc, bandsSrc] };
   }
 
   /** położenie komórki względem bieżącego środka: przesunięcie obrazu i głębi */

@@ -22,10 +22,32 @@ export class Floaters {
     this.list.push({ el, x: x + (Math.random() - 0.5) * 6, y, t: 0 });
   }
 
+  private readonly bubbles: { el: HTMLElement; at: () => [number, number]; t: number; life: number }[] = [];
+
+  /** dymek z kwestią nad postacią (półprzezroczysty); at() – bieżący punkt nad głową w pikselach obrazu świata */
+  say(at: () => [number, number], who: string, text: string, life = 4.5) {
+    for (const b of this.bubbles.splice(0)) b.el.remove();          // jeden dymek naraz
+    const el = document.createElement('div');
+    el.className = 'wbubble';
+    el.innerHTML = `<b></b><span></span>`;
+    el.querySelector('b')!.textContent = who;
+    el.querySelector('span')!.textContent = text;
+    this.root.append(el);
+    this.bubbles.push({ el, at, t: 0, life });
+  }
+
   /** przesunięcie przy zmianie komórki (płynne przejście) */
   shift(dx: number, dy: number) { for (const f of this.list) { f.x += dx; f.y += dy; } }
 
   update(stageX: number, stageY: number, zoom: number, dt: number) {
+    for (let i = this.bubbles.length - 1; i >= 0; i--) {
+      const b = this.bubbles[i];
+      b.t += dt;
+      if (b.t > b.life) { b.el.remove(); this.bubbles.splice(i, 1); continue; }
+      const [x, y] = b.at();
+      b.el.style.transform = `translate(${Math.round(stageX + x * zoom)}px, ${Math.round(stageY + y * zoom - 8)}px) translate(-50%, -100%)`;
+      b.el.style.opacity = String(b.t > b.life - 0.4 ? (b.life - b.t) / 0.4 : Math.min(1, b.t / 0.15));
+    }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const f = this.list[i];
       f.t += dt;

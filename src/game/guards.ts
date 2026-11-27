@@ -1,6 +1,7 @@
 // Strażnicy miasta (poz. 20): stoją przed bramami, a gdy potwór podejdzie za blisko – ruszają i go zabijają.
 // Nieśmiertelni dla prototypu; potwory ich nie atakują. Zabici przez nich nie dają graczowi doświadczenia.
-import { Container, Sprite, Text } from 'pixi.js';
+import { Container, Sprite, type Text } from 'pixi.js';
+import { nameLabel } from '../ui/worldlabel';
 import { CharSheet } from '../chars/sheet';
 import { damageMob, dist, type Vec } from '../logic/combat';
 import type { Atlas } from '../render/atlas';
@@ -15,7 +16,7 @@ const GUARD_HIT = 160;
 const GUARD_EVERY = 0.8;
 const OCT_DIR = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'] as const;
 
-interface Guard { post: Vec; pos: Vec; face: Vec; target: number | null; cd: number; atkT: number; moving: boolean; c: Container; s: Sprite; frame: string }
+interface Guard { label: Text; post: Vec; pos: Vec; face: Vec; target: number | null; cd: number; atkT: number; moving: boolean; c: Container; s: Sprite; frame: string }
 
 export class GuardManager {
   readonly guards: Guard[] = [];
@@ -33,15 +34,18 @@ export class GuardManager {
       const c = new Container();
       const sh = atlas.sprite('shadow');
       const s = new Sprite();
-      const label = new Text({ text: `Strażnik · poz. ${GUARD_LEVEL}`, style: { fontFamily: 'Jersey', fontSize: 8, fill: 0x8af59a, stroke: { color: 0x0a0706, width: 2 } } });
-      label.resolution = 4;
-      label.anchor.set(0.5, 1);
-      label.position.set(0, -74);
+      const label = nameLabel(`Strażnik · poz. ${GUARD_LEVEL}`);
       c.addChild(sh, s, label);
       layer.addChild(c);
       const post: Vec = [p.cx * C + p.u, p.cy * C + p.v];
-      this.guards.push({ post, pos: [post[0], post[1]], face: [p.fu, p.fv], target: null, cd: 0, atkT: -1, moving: false, c, s, frame: '' });
+      this.guards.push({ label, post, pos: [post[0], post[1]], face: [p.fu, p.fv], target: null, cd: 0, atkT: -1, moving: false, c, s, frame: '' });
     }
+  }
+
+  /** strażnik pod punktem widoku (podświetlenie nazwy) */
+  at(wx: number, wy: number): Guard | null {
+    for (const g of this.guards) if (g.c.visible && Math.abs(wx - g.c.x) <= 18 && wy <= g.c.y + 2 && wy >= g.c.y - 68) return g;
+    return null;
   }
 
   private active(g: Guard) {

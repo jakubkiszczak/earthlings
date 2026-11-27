@@ -1,11 +1,12 @@
 // Bohater (ruch po ścieżce, 8 kierunków z odbiciem lustrzanym) i pies idący jego śladem.
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite, type Text } from 'pixi.js';
 import type { Atlas } from '../render/atlas';
 import { CharSheet, type FrameSource } from '../chars/sheet';
+import { nameLabel } from '../ui/worldlabel';
 import type { WorldGrid } from '../world/grid';
 
-const HERO_SPEED = 51;   // jednostek świata na sekundę
-const DOG_SPEED = 60;
+const HERO_SPEED = 59;   // +15%   // jednostek świata na sekundę
+const DOG_SPEED = 69;
 const TRAIL_MAX = 120;
 const DOG_LAG = 18;      // ile próbek śladu pies zostaje w tyle
 
@@ -168,11 +169,19 @@ export class Dog {
 export class Npc {
   frameName = '';
   private readonly a: Actor;
-  readonly sheet = new CharSheet({ race: 'human', cls: 'warrior', hair: 'brown', build: 'stocky', beard: 'mustache', gear: { weapon: 0, shield: 0, armor: 0, helm: 0, boots: 0, gloves: 0 } });
+  readonly sheet: CharSheet;
+  readonly label: Text;
 
-  /** h – wysokość podłogi (NPC może stać poza siatką chodzenia, np. za ladą) */
-  constructor(atlas: Atlas, layer: Container, public u: number, public v: number, private readonly h: number) {
+  /** h – wysokość podłogi (NPC może stać poza siatką chodzenia, np. za ladą); role – kupiec albo karczmarz */
+  constructor(atlas: Atlas, layer: Container, public u: number, public v: number, private readonly h: number,
+    readonly role: 'shop' | 'inn' = 'shop', readonly name = 'Kupiec Bronek') {
+    const none = { weapon: 0, shield: 0, armor: 0, helm: 0, boots: 0, gloves: 0 };
+    this.sheet = new CharSheet(role === 'inn'
+      ? { race: 'human', cls: 'warrior', hair: 'bald', build: 'stocky', beard: 'long', gear: none }
+      : { race: 'human', cls: 'warrior', hair: 'brown', build: 'stocky', beard: 'mustache', gear: none });
     this.a = makeActor(atlas, layer, 1);
+    this.label = nameLabel(name);
+    this.a.c.addChild(this.label);
   }
 
   get view(): Container { return this.a.c; }

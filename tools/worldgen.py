@@ -149,7 +149,7 @@ def town_lamps():
 
 
 FOUNTAIN_R = 40                          # fontanna na środku placu
-STASH = (CTR + 80, CTR - 30)             # skrzynia gracza przy fontannie
+STASH = (CTR + 60, CTR - 8)               # skrzynia gracza przy fontannie
 STALLS = [((CTR - 104, CTR - 62), 0, 'v'), ((CTR - 62, CTR - 104), 1, 'u'), ((CTR + 66, CTR - 104), 2, 'u')]   # (pozycja, towar, oś frontu)
 PLANTERS = [(CTR + dx * 56, CTR + dy * 56) for dx in (-1, 1) for dy in (-1, 1)]
 TOWNFOLK = [
@@ -159,6 +159,68 @@ TOWNFOLK = [
          lines=['Za moich czasów smoki latały nad Ruinami…', 'Katedrę zbudowano, zanim przyszły szkielety.', 'Odpocznij, młody. Usiądź – zdrowie samo wraca.']),
 ]
 RING = 64                                # chodnik wokół miasta: odległość od muru
+
+
+WALL_W = 14                              # pół-szerokość muru (mur 28 tekseli)
+WALL_H = 120                             # wysokość chodnika na murze nad gruntem
+GATE_T, CORNER_T = 20, 30                # pół-wymiary baszt przy bramach i dużych wież w narożnikach
+GATE_TH, CORNER_TH = 160, 176            # wysokości baszt i wież
+STAIR_L, STAIR_W = 80, 16                # schody: długość (20 stopni po 6) i szerokość
+
+
+def wall_stairs():
+    """schody na mur od strony miasta: po jednych na każdy odcinek muru (8), górą przy baszcie bramnej.
+    (oś, pozycja muru, kierunek do środka, początek u/v na dole, koniec na górze)"""
+    a0, a1 = TOWN_WALL
+    off = GATE + 2 * GATE_T + 10
+    st = []
+    for wall_axis, wpos, inward in (('u', a0, 1), ('u', a1, -1), ('v', a0, 1), ('v', a1, -1)):
+        for sgn in (-1, 1):
+            top = CTR + sgn * off
+            st.append((wall_axis, wpos, inward, top + sgn * STAIR_L, top))
+    return st
+
+
+def town_wall(gu, gv):
+    """mur miejski: wysokości (H, -1 = bez zmian), maska muru i maska przechodnia (chodnik na murze + schody)"""
+    a0, a1 = TOWN_WALL
+    Hw = np.full(gu.shape, -1, np.int32)
+    walk = np.zeros(gu.shape, bool)
+    gate = (np.abs(gu - CTR) < GATE) | (np.abs(gv - CTR) < GATE)
+    inner_gap = np.zeros(gu.shape, bool)
+    # schody (rampa ze stopniami 6 co 4 teksele) i luka w wewnętrznym przedpiersiu przy ich górze
+    for (ax, wpos, inward, bot, top) in wall_stairs():
+        along, across = (gv, gu) if ax == 'u' else (gu, gv)            # mur na stałym u biegnie wzdłuż v
+        face = wpos + inward * WALL_W
+        lo, hi = min(bot, top), max(bot, top)
+        m = (along >= lo) & (along < hi) & ((across - face) * inward >= 0) & ((across - face) * inward < STAIR_W)
+        k = (np.abs(along - bot) - (along < bot)) // 4                   # stopień liczony od dolnej krawędzi (oba kierunki)
+        Hw[m] = BASE + np.minimum(WALL_H, (k + 1) * 6)[m]
+        walk |= m
+        inner_gap |= (np.abs(along - top) < 10) & (np.abs(across - wpos) <= WALL_W)
+    for (wpos, ax) in ((a0, 'u'), (a1, 'u'), (a0, 'v'), (a1, 'v')):
+        across, along = (gu, gv) if ax == 'u' else (gv, gu)
+        out_dir = -1 if wpos == a0 else 1
+        d = (across - wpos) * out_dir                                    # >0 na zewnątrz
+        body = (np.abs(across - wpos) <= WALL_W) & (along > a0 - WALL_W) & (along < a1 + WALL_W) & ~gate
+        outer = body & (d > WALL_W - 4)
+        inner = body & (d < -WALL_W + 3) & ~inner_gap
+        Hw[body] = BASE + WALL_H
+        Hw[outer] = BASE + WALL_H + 8
+        Hw[outer & ((((along) // 8) % 2) == 0)] = BASE + WALL_H + 14        # blanki
+        Hw[inner] = BASE + WALL_H + 5
+        walk |= body & ~outer & ~inner
+    # baszty przy bramach i duże wieże w narożnikach
+    towers = [(CTR + s_ * (GATE + GATE_T), w, GATE_T, GATE_TH) for s_ in (-1, 1) for w in (a0, a1)]
+    towers += [(w, CTR + s_ * (GATE + GATE_T), GATE_T, GATE_TH) for s_ in (-1, 1) for w in (a0, a1)]
+    towers += [(x, y, CORNER_T, CORNER_TH) for x in (a0, a1) for y in (a0, a1)]
+    for (pu_, pv_, r_, h_) in towers:
+        bt = (np.abs(gu - pu_) < r_) & (np.abs(gv - pv_) < r_)
+        Hw[bt] = BASE + h_
+        rim = bt & ((np.abs(gu - pu_) > r_ - 5) | (np.abs(gv - pv_) > r_ - 5))
+        Hw[rim & ((((gu + gv) // 8) % 2) == 0)] = BASE + h_ + 10
+        walk &= ~bt
+    return Hw, walk, gate
 
 
 def town_banners():
@@ -176,8 +238,10 @@ def town_banners():
 def town_flags():
     """flagi na dachach: baszty przy bramach, wieża strażnicza, wieża katedry (u, v, wysokość podstawy masztu)"""
     a0, a1 = TOWN_WALL
-    fl = [(CTR - GATE - 10, a0, BASE + 90), (CTR + GATE + 10, a0, BASE + 90), (CTR - GATE - 10, a1, BASE + 90), (CTR + GATE + 10, a1, BASE + 90),
-          (a0, CTR - GATE - 10, BASE + 90), (a0, CTR + GATE + 10, BASE + 90), (a1, CTR - GATE - 10, BASE + 90), (a1, CTR + GATE + 10, BASE + 90),
+    g_ = GATE + GATE_T
+    fl = [(CTR + s_ * g_, w, BASE + GATE_TH) for s_ in (-1, 1) for w in (a0, a1)] + [(w, CTR + s_ * g_, BASE + GATE_TH) for s_ in (-1, 1) for w in (a0, a1)]
+    fl += [(x, y, BASE + CORNER_TH) for x in (a0, a1) for y in (a0, a1)]
+    fl += [
           (CTR + TOWER[0], CTR + TOWER[1], BASE + 8 + 150), (CTR - 378, CTR + 240, BASE + 150 + 40)]
     return [(float(u), float(v), int(h)) for (u, v, h) in fl]
 
@@ -244,7 +308,7 @@ HOUSES = [
     (-110, -210, 28, 26, 62, 'gable_v', 2, 'stone', 'v', 1, 1, None),
     (110, -210, 34, 28, 74, 'gable_u', 1, 'plaster', 'v', 2, 1, None),
     (210, -200, 28, 30, 60, 'hip', 0, 'plaster', 'v', 1, 1, None),
-    (210, -95, 30, 34, 66, 'gable_v', 2, 'plaster', 'v', 1, 2, None),
+    (215, -100, 44, 42, 104, 'gable_u', 0, 'plaster', 'v', 3, 2, 'tavern'),     # karczma „Pod Złotym Kuflem” (2 piętra)
     (-205, 110, 30, 34, 64, 'gable_v', 0, 'plaster', 'u', 1, 2, None),
     (-100, 215, 34, 30, 70, 'gable_u', 1, 'stone', 'u', 2, 1, None),
     (100, 210, 30, 30, 58, 'hip', 2, 'plaster', 'u', 1, 1, None),
@@ -334,16 +398,20 @@ def layout(gu, gv):
     town = (gu > C + 40) & (gu < 2 * C - 40) & (gv > C + 40) & (gv < 2 * C - 40)
     H[town] = BASE
     MAT[town & (MAT == TR.DIRT)] = TR.GRASS
-    plaza = town & (np.abs(gu - CTR) < 150) & (np.abs(gv - CTR) < 150)
+    plaza = town & (np.abs(gu - CTR) < 200) & (np.abs(gv - CTR) < 200)
     MAT[plaza] = TR.PAVE
-    street = town & ((np.abs(gu - CTR) < 26) | (np.abs(gv - CTR) < 26))          # główne ulice brukowane
+    street = town & ((np.abs(gu - CTR) < 34) | (np.abs(gv - CTR) < 34))          # główne ulice brukowane
+    street |= town & ((np.abs(np.abs(gu - CTR) - 300) < 12) | (np.abs(np.abs(gv - CTR) - 300) < 12))   # przecznice
     MAT[street] = TR.PAVE
+    for b in town_buildings():                                                    # chodniki wokół domów
+        side = (gu > b['u0'] - 20) & (gu < b['u1'] + 20) & (gv > b['v0'] - 20) & (gv < b['v1'] + 20)
+        MAT[town & side] = TR.PAVE
     a0, a1 = TOWN_WALL
     # chodnik dookoła miasta (wzdłuż muru, od środka) – łączy bramy
     rjit = (vnoise(gu, gv, 30, 93) - 0.5) * 4
     ringw = town & (((np.abs(gu - (a0 + RING)) < 7 + rjit) | (np.abs(gu - (a1 - RING)) < 7 + rjit)) & (gv > a0 + RING - 7) & (gv < a1 - RING + 7)
                     | ((np.abs(gv - (a0 + RING)) < 7 + rjit) | (np.abs(gv - (a1 - RING)) < 7 + rjit)) & (gu > a0 + RING - 7) & (gu < a1 - RING + 7))
-    MAT[ringw & (MAT != TR.PAVE)] = TR.PATH
+    MAT[ringw] = TR.PAVE
     # fontanna: kamienne obramowanie, woda, kolumna
     fr = np.hypot(gu - CTR, gv - CTR)
     H[fr < FOUNTAIN_R] = BASE + 10; MAT[fr < FOUNTAIN_R] = TR.WALL
@@ -351,20 +419,10 @@ def layout(gu, gv):
     H[fr < 7] = BASE + 24; MAT[fr < 7] = TR.WALL
     H[fr < 4] = BASE + 30
     MAT[(fr >= FOUNTAIN_R) & (fr < FOUNTAIN_R + 10) & town] = TR.PAVE
-    ring = ((np.abs(gu - a0) < 7) | (np.abs(gu - a1) < 7)) & (gv > a0 - 7) & (gv < a1 + 7)
-    ring |= ((np.abs(gv - a0) < 7) | (np.abs(gv - a1) < 7)) & (gu > a0 - 7) & (gu < a1 + 7)
-    gate = (np.abs(gu - CTR) < GATE) | (np.abs(gv - CTR) < GATE)
-    tower_merlon = ring & ((((gu + gv) // 10) % 2) == 0)
-    H[ring & ~gate] = BASE + 60
-    H[ring & ~gate & tower_merlon] = BASE + 68
-    MAT[ring & ~gate] = TR.WALL
-    # baszty przy bramach
-    for (pu_, pv_) in [(CTR - GATE - 10, a0), (CTR + GATE + 10, a0), (CTR - GATE - 10, a1), (CTR + GATE + 10, a1),
-                       (a0, CTR - GATE - 10), (a0, CTR + GATE + 10), (a1, CTR - GATE - 10), (a1, CTR + GATE + 10)]:
-        bt = (np.abs(gu - pu_) < 14) & (np.abs(gv - pv_) < 14)
-        H[bt] = BASE + 90
-        H[bt & ((((gu + gv) // 8) % 2) == 0) & ((np.abs(gu - pu_) > 9) | (np.abs(gv - pv_) > 9))] = BASE + 98
-        MAT[bt] = TR.WALL
+    Hw, _, _ = town_wall(gu, gv)
+    wm = Hw >= 0
+    H[wm] = Hw[wm]
+    MAT[wm] = TR.WALL
     buildings = town_buildings()
     for b in buildings:
         pl = b.get('plinth', 0)
@@ -477,10 +535,26 @@ def build_sprites():
         spr[f'stall{k}u'] = (a_, anc)
         spr[f'stall{k}v'] = (np.ascontiguousarray(a_[:, ::-1]), (a_.shape[1] - 1 - anc[0], anc[1]))
         spr[f'banner{k}'] = props2.banner(k)
+        spr[f'head{k}_u'] = props2.iso_face(*props2.mount_head(k), along='u', depth=2)
+        spr[f'head{k}_v'] = props2.iso_face(*props2.mount_head(k), along='v', depth=2)
+        spr[f'dragonpic{k}_u'] = props2.iso_face(*props2.dragon_painting(k), along='u', depth=1)
+        spr[f'dragonpic{k}_v'] = props2.iso_face(*props2.dragon_painting(k), along='v', depth=1)
+        spr[f'fire_{k}'] = props2.iso_face(*props2.hearth(k), along='u', depth=6)
         for f_ in range(3):
             spr[f'flag{k}_{f_}'] = props2.flag(k, f_)
     for k in range(4):
         spr[f'planter{k}'] = props2.planter(k)
+    spr['tavernsign'] = props2.tavern_sign()
+    a_, anc = props2.tavern_sign()
+    spr['tavernsign_m'] = (np.ascontiguousarray(a_[:, ::-1]), (a_.shape[1] - 1 - anc[0], anc[1]))
+    spr['chimney'] = props2.chimney()
+    for k in range(2):
+        spr[f'shieldsw{k}_u'] = props2.iso_face(*props2.shield_swords(k), along='u', depth=2)
+        spr[f'shieldsw{k}_v'] = props2.iso_face(*props2.shield_swords(k), along='v', depth=2)
+    spr['barshelf'] = props2.iso_face(*props2.bar_shelf(), along='v', depth=6)
+    spr['barrel'] = props2.barrel()
+    for k in range(3):
+        spr[f'ttable{k}'] = props2.tavern_table(k)
     spr['torch0'] = props2.torch(0)
     spr['torch1'] = props2.torch(1)
     import hero9
@@ -666,6 +740,8 @@ def gen_cell(ci, cj, sizes):
     shop = next(b for b in buildings if b['tag'] == 'shop')
     shop_door = (shop['u1'] + 16, (shop['v0'] + shop['v1']) / 2)        # portal przed drzwiami (+u)
     chest_uv = (shop['u1'] + 14, shop['v0'] - 6)
+    tav = next(b for b in buildings if b['tag'] == 'tavern')
+    tav_door = ((tav['u0'] + tav['u1']) / 2, tav['v1'] + 16)          # portal przed drzwiami (+v)
 
     # render terenu (z wypiekanymi cieniami obiektów)
     R = TR.render(gui, gvi, H, MAT, buildings, PALS, W, HS, X0, Y0, seed=ci * 3 + cj, gpid=gpid)
@@ -741,6 +817,14 @@ def gen_cell(ci, cj, sizes):
             lu, lv = u - ou + M, v - ov + M
             ents.append(dict(k='flag', s=[f'flag{i % 3}_0'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - h + Y0),
                              z=int(lu + lv - 2 * M) + 4, ph=round(float(rr.random()), 3)))
+        # karczma: szyld z kuflem obok drzwi (ściana +v), komin z dymem na kalenicy
+        lu, lv = (tav['u0'] + tav['u1']) / 2 + 20 - ou + M, tav['v1'] + 2 - ov + M
+        ents.append(dict(k='prop', s=['tavernsign_m'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 44) + Y0), z=int(lu + lv - 2 * M) + 2))
+        ridge = tav['eave'] + int((tav['v1'] - tav['v0']) / 2 * 0.8)
+        lu, lv = tav['u1'] - 18 - ou + M, (tav['v0'] + tav['v1']) / 2 - ov + M
+        zf = int(tav['u1'] + tav['v1'] - ou - ov) + 4                     # przed dachem
+        ents.append(dict(k='prop', s=['chimney'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (ridge - 6) + Y0), z=zf))
+        ents.append(dict(k='smoke', s=[], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (ridge + 24) + Y0), z=zf + 1))
         # szyld nad wejściem do sklepu (na ścianie +u, obok drzwi)
         lu, lv = shop['u1'] + 2 - ou + M, (shop['v0'] + shop['v1']) / 2 - 18 - ov + M
         ents.append(dict(k='prop', s=['shopsign'], x=int(lu - lv + X0), y=int((lu + lv) // 2 - (BASE + 42) + Y0), z=int(lu + lv - 2 * M) + 2))
@@ -761,6 +845,7 @@ def gen_cell(ci, cj, sizes):
     Mc = MAT[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     Gc = gu[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC], gv[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
     walk = np.isin(Mc, TR.WALKABLE) & (Hc < BASE + 60)
+    walk |= town_wall(*Gc)[1]                                                     # chodnik na murze i schody
     walk &= (Gc[0] >= 0) & (Gc[1] >= 0) & (Gc[0] < GRID * C) & (Gc[1] < GRID * C)
     for (kd_, idx, u, v, lu, lv) in placed:
         r = 2 if kd_ == 'tree' else 1
@@ -799,6 +884,7 @@ def gen_cell(ci, cj, sizes):
     if (ci, cj) == (1, 1):
         extra = dict(shop=[float(shop_door[0] - ou), float(shop_door[1] - ov)], spawn=[float(SPAWN[0] - ou), float(SPAWN[1] - ov)],
                      stash=[float(STASH[0] - ou), float(STASH[1] - ov)],
+                     tavern=[float(tav_door[0] - ou), float(tav_door[1] - ov)],
                      guards=[dict(g, u=g['u'] - ou, v=g['v'] - ov) for g in town_guards()],
                      folk=[dict(t, u=t['u'] - ou, v=t['v'] - ov, face=list(t['face'])) for t in TOWNFOLK])
     sz = sum(os.path.getsize(d / f) for f in ['ground.webp', 'bands.webp', 'water_a.png', 'water_b.png', 'pick.png', 'walk.png', 'meta.json'])
@@ -879,6 +965,85 @@ def gen_interior():
     return dict(dir='shop', name='Sklep', spawn=[262.0, 196.0], exit=[290.0, 222.0], npc=[22.0, 130.0], floor=BASE)
 
 
+# ------------------------------------------------------------------ wnętrze karczmy „Pod Złotym Kuflem”
+TU, TV = 384, 320        # sala 12×10 kafli
+NT = max(TU, TV) + 2 * MI
+TAV_TABLES = [(125, 92), (200, 92), (275, 92), (348, 104), (125, 180), (200, 180), (275, 180), (348, 192), (160, 262), (250, 262)]
+TAV_BAR = (60, 80, 46, 226)        # lada baru (u0, u1, v0, v1) – karczmarz za nią (mniejsze u)
+
+
+def gen_tavern():
+    d = OUT / 'tavern'
+    d.mkdir(parents=True, exist_ok=True)
+    iv, iu = np.mgrid[0:NT, 0:NT]
+    u = (iu - MI).astype(np.int64); v = (iv - MI).astype(np.int64)
+    H = np.full((NT, NT), BASE, np.int32)
+    MAT = np.full((NT, NT), TR.WOOD, np.int8)
+    walls = [dict(u0=-10, u1=-1, v0=-10, v1=TV + 5, base=BASE, eave=BASE + 110, top=BASE + 110, roof='flat', walls='plaster',
+                  door=None, wins_u=0, wins_v=0, winz=60),
+             dict(u0=-10, u1=TU + 5, v0=-10, v1=-1, base=BASE, eave=BASE + 110, top=BASE + 110, roof='flat', walls='plaster',
+                  door=None, wins_u=0, wins_v=0, winz=60)]
+    for b in walls:
+        m = (u >= b['u0']) & (u <= b['u1']) & (v >= b['v0']) & (v <= b['v1'])
+        H[m] = b['top']; MAT[m] = TR.WALL
+    front = ((u >= TU) & (u < TU + 6) & (v >= -10) & (v < TV + 6)) | ((v >= TV) & (v < TV + 6) & (u >= -10) & (u < TU + 6))
+    H[front] = BASE + 8; MAT[front] = TR.WALL
+    m = (u >= TAV_BAR[0]) & (u <= TAV_BAR[1]) & (v >= TAV_BAR[2]) & (v <= TAV_BAR[3])
+    H[m] = BASE + 22; MAT[m] = TR.WOOD
+    m = (u >= TAV_BAR[0]) & (u <= TAV_BAR[1]) & (v >= TAV_BAR[2]) & (v <= TAV_BAR[3]) & ((u - TAV_BAR[0] < 3) | (v - TAV_BAR[2] < 3))
+    H[m] = BASE + 23
+    W_, HS_ = 2 * NT, NT + HI_MAX + 8
+    R = TR.render(u, v, H, MAT, walls, PALS, W_, HS_, NT, HI_MAX, seed=77)
+    img, dep, kind = R['img'], R['dep'], R['kind']
+    pu_l = np.clip(R['pu'] + MI, 0, NT - 1); pv_l = np.clip(R['pv'] + MI, 0, NT - 1)
+    inside = (R['pu'] >= -10) & (R['pu'] < TU + 6) & (R['pv'] >= -10) & (R['pv'] < TV + 6)
+    kind[~inside] = -1
+    # ciepłe, przyćmione światło (pochodnie i kominek), jaśniej przy kominku
+    fire_d = np.hypot(R['pu'] - 260, R['pv'] - 10)
+    lightf = np.clip(0.82 + 0.38 * np.exp(-fire_d / 90) - (R['pu'] + R['pv']) / (TU + TV) * 0.12, 0.62, 1.2)
+    img *= lightf[..., None] * np.array([1.0, 0.9, 0.76])
+    save_water(d, R, kind, pu_l, pv_l)
+    bands, AW, AH = save_layers(d, R, img, kind, dep, H, pu_l, pv_l, MI)
+    NC = NT // CELLW
+    Hc = H[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
+    uc = u[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]; vc = v[CELLW // 2::CELLW, CELLW // 2::CELLW][:NC, :NC]
+    walk = (Hc == BASE) & (uc >= 4) & (uc < TU - 4) & (vc >= 4) & (vc < TV - 4) & (uc > TAV_BAR[1] + 6)
+    for (cu, cv_) in TAV_TABLES:
+        walk &= np.hypot(uc - cu, vc - cv_) > 20
+    walk &= ~((uc > 222) & (uc < 298) & (vc < 26))                       # kominek
+    walk &= ~((uc < 46) & (vc > 228))                                    # beczki
+    Image.fromarray(np.where(walk, BASE + 1, 0).astype(np.uint8)).save(d / 'walk.png')
+    def scrh(lu, lv, h):
+        return int(lu - lv + NT), int((lu + lv + 2 * MI) // 2 - h + HI_MAX)
+    ents = []
+    def put(nm, cu, cv_, h=BASE, k='prop', z=None, **kw):
+        x, y = scrh(cu, cv_, h)
+        ents.append(dict(k=k, s=[nm], x=x, y=y, z=int(cu + cv_) if z is None else z, **kw))
+    for i, (cu, cv_) in enumerate(TAV_TABLES):
+        put(f'ttable{i % 3}', cu, cv_)
+    for (cu, cv_) in [(14, 246), (14, 270), (34, 258), (14, 294)]:
+        put('barrel', cu, cv_)
+    put('barshelf', 1, 92, BASE + 30); put('barshelf', 1, 164, BASE + 30)
+    put('fire_0', 260, 2, k='fire', ph=0.0)
+    # ściana tylna v (wzdłuż u): głowy, obraz, tarcza nad kominkiem; ściana tylna u (wzdłuż v): głowa, obraz, tarcza
+    put('head0_u', 82, 0, BASE + 66); put('dragonpic0_u', 160, 0, BASE + 62); put('shieldsw0_u', 260, 0, BASE + 74)
+    put('head2_u', 345, 0, BASE + 66); put('dragonpic2_u', 310, 0, BASE + 98)
+    put('shieldsw1_v', 0, 24, BASE + 66); put('head1_v', 0, 250, BASE + 66); put('dragonpic1_v', 0, 296, BASE + 62)
+    for (cu, cv_) in [(40, 0), (122, 0), (200, 0), (226, 0), (294, 0), (372, 0), (0, 50), (0, 210), (0, 276)]:
+        put('torch0', cu, cv_, BASE + 60, k='torch')
+    meta = dict(cx=-1, cy=-1, name='Karczma', biome='interior', W=W_, H=HS_, X0=NT, Y0=HI_MAX + MI, OFF=MI, N=NT, CELL=CELLW, NC=NC,
+                size=max(TU, TV), bands=bands, ents=ents)
+    json.dump(meta, open(d / 'meta.json', 'w'), separators=(',', ':'))
+    Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(ROOT / 'build_tmp' / 'preview_tavern.png')
+    print('wnętrze karczmy zapisane', flush=True)
+    return dict(dir='tavern', name='Karczma „Pod Złotym Kuflem”', spawn=[316.0, 262.0], exit=[352.0, 292.0], npc=[28.0, 136.0], floor=BASE,
+                role='inn', npcName='Karczmarz Bogumił',
+                lines=['Siadaj, wędrowcze! Piwo z naszej warzelni najlepsze w Glastemii.',
+                       'Tę głowę niedźwiedzia przyniósł strażnik spod Urwisk. Twierdzi, że gołymi rękami…',
+                       'Smoki? Widziano jednego nad Ruinami. Stąd te obrazy – ku przestrodze.',
+                       'Przy kominku najlepiej się odpoczywa. Usiądź, zdrowie samo wraca.'])
+
+
 def _job(args):
     return gen_cell(*args)
 
@@ -894,6 +1059,7 @@ def main():
         with Pool(min(3, len(want))) as pool:
             results = pool.map(_job, [(i, j, sizes) for (i, j) in want])
     shop_int = gen_interior() if do_shop else None
+    tav_int = gen_tavern() if do_shop else None
     town = dict(results).get((1, 1))
     wpath = OUT / 'world.json'
     world = json.load(open(wpath)) if wpath.exists() else {}
@@ -908,8 +1074,18 @@ def main():
         world['stash'] = dict(cx=1, cy=1, u=town['stash'][0], v=town['stash'][1])
         world['guards'] = [dict(cx=1, cy=1, **g) for g in town['guards']]
         world['folk'] = [dict(cx=1, cy=1, **t) for t in town['folk']]
+    ints = world.get('interiors', {})
     if shop_int:
-        world['interiors'] = {'shop': shop_int}
+        ints['shop'] = dict(shop_int, role='shop', npcName='Kupiec Bronek')
+    if tav_int:
+        ints['tavern'] = tav_int
+    if town:
+        ints.setdefault('shop', {})['door'] = dict(cx=1, cy=1, u=town['shop'][0], v=town['shop'][1])
+        ints['shop']['back'] = [22.0, 6.0]
+        if 'tavern' in ints:
+            ints['tavern']['door'] = dict(cx=1, cy=1, u=town['tavern'][0], v=town['tavern'][1])
+            ints['tavern']['back'] = [6.0, 22.0]
+    world['interiors'] = ints
     json.dump(world, open(wpath, 'w'), separators=(',', ':'))
     print('świat zapisany:', wpath)
 

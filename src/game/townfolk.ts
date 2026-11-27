@@ -1,5 +1,6 @@
 // Mieszkańcy miasta (NPC): stoją przy straganach / fontannie, odwracają się do gracza, po kliknięciu mówią.
-import { Container, Sprite, Text } from 'pixi.js';
+import { Container, Sprite, type Text } from 'pixi.js';
+import { nameLabel } from '../ui/worldlabel';
 import { CharSheet } from '../chars/sheet';
 import type { Vec } from '../logic/combat';
 import type { Atlas } from '../render/atlas';
@@ -9,7 +10,7 @@ const OCT_DIR = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'] as const;
 const FLOOR = 48;
 
 export interface FolkDef { cx: number; cy: number; u: number; v: number; name: string; kind: 'woman' | 'elder'; lines: string[]; face: [number, number] }
-interface Folk { def: FolkDef; pos: Vec; face: Vec; c: Container; s: Sprite; sheet: CharSheet; frame: string; line: number }
+interface Folk { label: Text; def: FolkDef; pos: Vec; face: Vec; c: Container; s: Sprite; sheet: CharSheet; frame: string; line: number }
 
 export class Townfolk {
   readonly folk: Folk[] = [];
@@ -25,13 +26,10 @@ export class Townfolk {
       const c = new Container();
       const sh = atlas.sprite('shadow');
       const s = new Sprite();
-      const label = new Text({ text: def.name, style: { fontFamily: 'Jersey', fontSize: 8, fill: 0x8af59a, stroke: { color: 0x0a0706, width: 2 } } });
-      label.resolution = 4;
-      label.anchor.set(0.5, 1);
-      label.position.set(0, -70);
+      const label = nameLabel(def.name);
       c.addChild(sh, s, label);
       layer.addChild(c);
-      this.folk.push({ def, pos: [def.cx * C + def.u, def.cy * C + def.v], face: [...def.face] as Vec, c, s, sheet, frame: '', line: 0 });
+      this.folk.push({ label, def, pos: [def.cx * C + def.u, def.cy * C + def.v], face: [...def.face] as Vec, c, s, sheet, frame: '', line: 0 });
     }
   }
 

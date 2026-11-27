@@ -49,13 +49,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .log { flex: 1; overflow-y: auto; margin: calc(var(--s) * 2px) 0; font-size: .9em; line-height: 1.15; scrollbar-width: thin; scrollbar-color: #6c4320 #110e14; }
 .chatin { font: inherit; font-size: .9em; color: #e8e2d4; background: #110e14; border: calc(var(--s) * 1px) solid #432914; outline: none; padding: calc(var(--s) * 1px) calc(var(--s) * 2px); }
 .chatin:focus { border-color: #c48e3e; }
-.nameplate { position: absolute; left: 0; top: 0; text-align: center; width: 96px; }
-.npn { color: #b9f78a; font-size: 1em; white-space: nowrap; }
+.nameplate { position: absolute; left: 0; top: 0; text-align: center; width: 44px; }
+.npn { display: none; }   /* nazwa bohatera – pod postacią po najechaniu myszką */
 .npn span { color: #f2d27a; font-size: .8em; }
-.mini { height: 6px; background: #0a0706; border: 2px solid #0a0706; margin-top: 2px; position: relative; }
+.mini { height: 3px; background: #0a0706; border: 1px solid #0a0706; margin-top: 1px; position: relative; }
 .mini i { position: absolute; inset: 0 auto 0 0; display: block; }
 .mini.hp i { background: #d8384a; } .mini.mp i { background: #3a7ae8; }
-.bubble { position: absolute; left: 0; top: 0; display: none; max-width: 260px; background: rgba(246, 240, 224, .72); color: #1a1410; text-shadow: none; padding: 6px 10px; font-size: .9em; border: 2px solid #1a1410; box-shadow: 4px 4px 0 rgba(0,0,0,.35); }
+.bubble, .wbubble { position: absolute; left: 0; top: 0; display: none; max-width: 240px; background: rgba(12, 10, 16, .55); color: #f6eedc;
+  text-shadow: 1px 1px 0 #0a0706; padding: 5px 9px; font-size: .9em; line-height: 1.15; border: 1px solid rgba(242, 210, 122, .55); border-radius: 6px;
+  backdrop-filter: blur(1px); pointer-events: none; }
+.bubble::after, .wbubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent;
+  border-top-color: rgba(12, 10, 16, .55); border-bottom: 0; }
+.wbubble { display: block; text-align: center; }
+.wbubble b { color: #8af59a; font-weight: normal; display: block; font-size: .85em; }
 .float { position: absolute; left: 0; top: 0; font-size: 1.25em; white-space: nowrap; }
 .inv { position: absolute; display: none; pointer-events: auto; z-index: 5; }
 .inv.open { display: block; }

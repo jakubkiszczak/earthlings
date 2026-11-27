@@ -35,6 +35,23 @@ export class Portal {
     g.rect(-3, -28, 6, 28).fill({ color: 0x8ad0ff, alpha: 0.10 + 0.06 * p });
   }
 
+  /** „duch” portalu nad światem: mocny błękitny kontur widoczny, gdy portal zasłania budynek lub drzewo */
+  readonly ghost = new Graphics();
+
+  /** occluded – czy coś zasłania portal; rysuje kontur w warstwie nad światem */
+  setOccluded(occluded: boolean, t: number) {
+    const g = this.ghost.clear();
+    g.visible = occluded && this.view.visible;
+    if (!g.visible) return;
+    g.position.copyFrom(this.view.position);
+    const p = (Math.sin(t * 3.2) + 1) / 2;
+    g.ellipse(0, 0, 13, 6.5).fill({ color: 0x3a9aff, alpha: 0.22 + 0.1 * p });
+    g.ellipse(0, 0, 13 + p * 2, 6.5 + p).stroke({ width: 2, color: 0x5ad8ff, alpha: 1 });
+    g.ellipse(0, 0, 8, 4).stroke({ width: 1, color: 0xc8f4ff, alpha: 0.9 });
+    g.rect(-7, -30, 14, 30).stroke({ width: 1, color: 0x5ad8ff, alpha: 0.55 + 0.3 * p });
+    g.rect(-6, -30, 12, 30).fill({ color: 0x3a9aff, alpha: 0.12 });
+  }
+
   /** czy postać w (u, v) wchodzi w portal; po wyjściu z promienia portal się „uzbraja” */
   check(u: number, v: number): boolean {
     const d = Math.hypot(u - this.u, v - this.v);

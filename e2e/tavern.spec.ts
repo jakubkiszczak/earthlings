@@ -25,7 +25,7 @@ test('karczma: wejście przez portal, karczmarz mówi w dymku, wyjście; dym z k
   await expect(page.locator('.wbubble')).toContainText('Karczmarz', { timeout: 30_000 });
   await page.screenshot({ path: 'test-results/karczma_rozmowa.png' });
   // wyjście portalem → miasto
-  expect(await page.evaluate(() => window.__game!.goTo(352, 292))).toBe(true);
+  expect(await page.evaluate(() => window.__game!.goTo(414, 370))).toBe(true);
   await page.waitForFunction(() => window.__game!.cell().name === 'Miasto' && !window.__game!.busy(), null, { timeout: 40_000 });
   expect(errors).toEqual([]);
 });

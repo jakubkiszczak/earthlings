@@ -60,7 +60,8 @@ export class World {
   constructor(readonly info: WorldInfo, private readonly atlas: Atlas) {
     this.all = [...info.cells];
     Object.entries(info.interiors ?? {}).forEach(([, it], i) => {
-      this.all.push({ cx: INTERIOR_BASE + i, cy: INTERIOR_BASE, name: it.name, biome: 'interior', dir: it.dir });
+      this.all.push({ cx: INTERIOR_BASE + i * 10, cy: INTERIOR_BASE,   // co 10 – wnętrza nie są sąsiadami (bez „doklejonego” drugiego budynku)
+        name: it.name, biome: 'interior', dir: it.dir });
     });
     this.layer.sortableChildren = true;
     this.view.addChild(this.waterLayer, this.groundLayer, this.layer);

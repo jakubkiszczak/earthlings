@@ -562,51 +562,166 @@ def barrel():
     return p.done(), (9, 21)
 
 
+def scale2x(a):
+    """powiększenie ×2 algorytmem Scale2x (EPX) – gładsze skosy niż zwykłe podwojenie pikseli"""
+    h, w = a.shape[:2]
+    key = a[..., 0].astype(np.int64) << 24 | a[..., 1].astype(np.int64) << 16 | a[..., 2].astype(np.int64) << 8 | a[..., 3]
+    pad = np.pad(key, 1, mode='edge'); apad = np.pad(a, ((1, 1), (1, 1), (0, 0)), mode='edge')
+    P = pad[1:-1, 1:-1]; A = pad[:-2, 1:-1]; B = pad[1:-1, 2:]; C = pad[1:-1, :-2]; D = pad[2:, 1:-1]
+    out = np.zeros((h * 2, w * 2, 4), np.uint8)
+    srcA, srcB, srcC, srcD = apad[:-2, 1:-1], apad[1:-1, 2:], apad[1:-1, :-2], apad[2:, 1:-1]
+    e0 = np.where(((C == A) & (C != D) & (A != B))[..., None], srcA, a)
+    e1 = np.where(((A == B) & (A != C) & (B != D))[..., None], srcB, a)
+    e2 = np.where(((D == C) & (D != B) & (C != A))[..., None], srcC, a)
+    e3 = np.where(((B == D) & (B != A) & (D != C))[..., None], srcD, a)
+    out[0::2, 0::2] = e0; out[0::2, 1::2] = e1; out[1::2, 0::2] = e2; out[1::2, 1::2] = e3
+    return out
+
+
+def big(fn):
+    """sprite ×2 (Scale2x) z kotwicą ×2"""
+    def g(*args):
+        a, (ax, ay) = fn(*args)
+        return scale2x(a), (ax * 2 + 1, ay * 2 + 1)
+    return g
+
+
+def _chair(g, u, v, face):
+    """krzesło z oparciem; face – strona, w którą siedzi gość (oparcie po przeciwnej): 'u+', 'u-', 'v+', 'v-'"""
+    seat, side, dark = '#c08a50', '#9a6230', '#5a3418'
+    for (du, dv) in ((0, 0), (7, 0), (0, 7), (7, 7)):                    # nogi
+        g.box(u + du, u + du + 1.2, v + dv, v + dv + 1.2, 0, 8, side, side, dark)
+    g.box(u, u + 8.2, v, v + 8.2, 8, 10, seat, side, dark,
+          lambda f, a, b: '#d8a060' if f == 't' and (int(a) + int(b)) % 4 == 0 else None)
+    if face == 'u+':                                                     # oparcie od strony -u
+        g.box(u, u + 1.6, v, v + 8.2, 10, 22, '#b07840', '#8a5626', dark, lambda f, a, b: dark if f == 'u' and int(b) % 4 == 3 else None)
+    elif face == 'u-':
+        g.box(u + 6.6, u + 8.2, v, v + 8.2, 10, 22, '#b07840', '#8a5626', dark, lambda f, a, b: dark if f == 'u' and int(b) % 4 == 3 else None)
+    elif face == 'v+':
+        g.box(u, u + 8.2, v, v + 1.6, 10, 22, '#b07840', '#a06a34', dark, lambda f, a, b: dark if f == 'v' and int(b) % 4 == 3 else None)
+    else:
+        g.box(u, u + 8.2, v + 6.6, v + 8.2, 10, 22, '#b07840', '#a06a34', dark, lambda f, a, b: dark if f == 'v' and int(b) % 4 == 3 else None)
+
+
 def tavern_table(seed):
-    """drewniany stół z czterema taboretami w izometrii; na blacie kufle i talerz"""
-    g = Iso(64, 50, 32, 30)
+    """duży stół karczemny (ok. 4× większy): gruby blat z desek, cztery toczone nogi, sześć krzeseł z oparciami,
+    na blacie kufle, talerze z jedzeniem, dzban i świeca"""
+    TL, TW = 40, 26                                                       # długość (u), szerokość (v)
+    g = Iso(TL + TW + 60, 110, TW + 30, 70)
     r = np.random.default_rng(seed)
-    st = ('#9a6230', '#7a4a20', '#4a2c14')
-    for (u, v) in ((-6, 4), (16, 4), (4, -6), (4, 16)):                     # taborety
-        g.box(u, u + 5, v, v + 5, 0, 7, '#b07840', '#8a5626', '#5a3418')
-    for (u, v) in ((0, 0), (12, 0), (0, 12), (12, 12)):                     # nogi stołu
-        g.box(u, u + 1.5, v, v + 1.5, 0, 11, *st)
-    g.box(-2, 15.5, -2, 15.5, 11, 13, '#c08a50', '#9a6230', '#6a4220',
-          lambda f, a, b: '#ad7034' if f == 't' and int(a) % 5 == 0 else None)
-    for _ in range(int(r.integers(2, 4))):                                   # kufle
-        u, v = r.uniform(1, 11), r.uniform(1, 11)
-        g.box(u, u + 2.5, v, v + 2.5, 13, 17, '#fbf6ea', '#c8ccd6', '#8a92a0')
-    u, v = r.uniform(2, 9), r.uniform(2, 9)
-    g.box(u, u + 4, v, v + 4, 13, 13.5, '#e8e0d0', '#c8c0b0', '#a8a090')       # talerz
-    g.dot(u + 2, v + 2, 14, '#c0603a')
+    # krzesła za stołem (dalsze) – rysowane przed stołem
+    for u in (4, 16, 28):
+        _chair(g, u, -12, 'v+')
+    _chair(g, -12, 9, 'u+')
+    leg = ('#8a5626', '#6a4220', '#3a2414')
+    for (u, v) in ((2, 2), (TL - 4, 2), (2, TW - 4), (TL - 4, TW - 4)):
+        g.box(u, u + 2.5, v, v + 2.5, 0, 16, *leg)
+        g.box(u - 0.5, u + 3, v - 0.5, v + 3, 6, 7.5, '#a06a34', '#7a4a20', '#4a2c14')
+    g.box(0, TL, 0, TW, 16, 19, '#c08a50', '#9a6230', '#5a3418',
+          lambda f, a, b: ('#a06a34' if f == 't' and int(b) % 6 == 0 else '#d09a5a' if f == 't' and int(b) % 6 == 2 else None))
+    # na blacie
+    for _ in range(5):
+        u, v = r.uniform(3, TL - 6), r.uniform(3, TW - 6)
+        g.box(u, u + 3, v, v + 3, 19, 24, '#fbf6ea', '#d8dce4', '#8a92a0')
+        g.box(u + 3, u + 4, v + 1, v + 2, 20, 23, '#9aa2ae', '#9aa2ae', '#6a7280')
+    for _ in range(3):
+        u, v = r.uniform(4, TL - 9), r.uniform(4, TW - 9)
+        g.box(u, u + 6, v, v + 6, 19, 19.6, '#f0e8d8', '#c8c0b0', '#a8a090')
+        food = ['#c0603a', '#e8c050', '#8a4a2a', '#7ac040'][int(r.integers(0, 4))]
+        g.box(u + 1.5, u + 4.5, v + 1.5, v + 4.5, 19.6, 21, food, food, '#5a2a14')
+    u, v = TL / 2 - 2, TW / 2 - 2
+    g.box(u, u + 4, v, v + 4, 19, 27, '#b06a3a', '#d88a50', '#8a4a24')    # dzban
+    g.box(u + 8, u + 10, v + 4, v + 6, 19, 24, '#f4ecd8', '#e8e0cc', '#b8b0a0')  # świeca
+    g.dot(u + 9, v + 5, 25, '#ffd040'); g.dot(u + 9, v + 5, 26, '#ff8a2a')
+    # krzesła przed stołem (bliższe)
+    for u in (4, 16, 28):
+        _chair(g, u, TW + 4, 'v-')
+    _chair(g, TL + 4, 9, 'u-')
     a = g.p.done()
-    return a, g.P(7, 7, 0)
+    return a, g.P(TL / 2, TW / 2, 0)
 
 
 def hearth(frame):
-    """kominek: kamienny portal z półką, palenisko z polanami i ogniem (3 klatki)"""
-    p = Px(56, 64)
-    p.put(0, 0, 56, 64, '#7a7682')
-    for y in range(0, 64, 6):                                               # kamienie
-        off = 0 if (y // 6) % 2 else 7
-        for x in range(-off, 56, 14):
-            p.put(x + 1, y + 1, x + 13, y + 5, '#8a8692' if (x + y) % 3 else '#6a6672')
-    p.put(0, 22, 56, 26, '#5a3418'); p.put(0, 22, 56, 23, '#8a5626')                # półka (gzyms)
-    p.put(10, 30, 46, 64, '#1a1214')                                         # otwór
-    p.put(12, 32, 44, 64, '#2a1a16')
-    p.put(14, 58, 42, 61, '#6a4220'); p.put(16, 55, 40, 58, '#8a5626')       # polana
-    fl = [['#ff5a1a', '#ffb030', '#fff0a0'], ['#ff6a1a', '#ffc040', '#fffbd0'], ['#ff4a10', '#ffa020', '#fff4b0']][frame]
-    r = np.random.default_rng(frame * 7 + 1)
-    for i in range(9):
-        x = 16 + i * 3
-        h = int(8 + r.integers(0, 12))
-        p.put(x, 55 - h, x + 3, 56, fl[0]); p.put(x + 1, 55 - int(h * 0.7), x + 2, 56, fl[1])
-        if h > 12:
-            p.px(x + 1, 55 - int(h * 0.4), fl[2])
-    p.put(24, 46, 32, 55, fl[2])
-    for (x, y) in ((6, 12), (44, 12)):                                       # świeczniki na półce
-        p.put(x, y, x + 3, y + 10, '#f4ecd8'); p.px(x + 1, y - 2, '#ffd040'); p.px(x + 1, y - 1, '#ff8a2a')
-    return p.done(), (28, 63)
+    """duży kominek: kamienny portal z łukiem i zwornikiem, gzyms z dzbanem, świecami i rogiem, osmalone wnętrze z cegły,
+    żeliwne koziołki, polana, kocioł na haku, ogień z żarem i iskrami (3 klatki)"""
+    W, H = 96, 112
+    p = Px(W, H)
+    r = np.random.default_rng(3)
+    # kamienna obudowa z nieregularnymi ciosami
+    p.put(0, 0, W, H, '#6a6672')
+    y = 0
+    while y < H:
+        hh = int(r.integers(6, 9)); x = -int(r.integers(0, 10))
+        while x < W:
+            ww = int(r.integers(10, 18))
+            c = ['#8a8692', '#7e7a88', '#948f9c', '#76727e'][int(r.integers(0, 4))]
+            p.put(x + 1, y + 1, x + ww, y + hh, c); p.put(x + 1, y + 1, x + ww, y + 2, '#a8a4b0')
+            p.put(x + ww - 1, y + 1, x + ww, y + hh, '#5a5662')
+            x += ww
+        y += hh
+    # gzyms (półka) z drewna na wspornikach
+    p.put(0, 40, W, 46, '#5a3418'); p.put(0, 40, W, 41, '#ad7034'); p.put(0, 45, W, 46, '#3a2414')
+    for x in (6, 84):
+        p.put(x, 46, x + 6, 52, '#4a2c14'); p.put(x, 46, x + 2, 52, '#7a4a20')
+    # przedmioty na gzymsie: świece, dzban, róg, czaszka jelenia
+    for x in (8, 82):
+        p.put(x, 26, x + 4, 40, '#f4ecd8'); p.put(x, 26, x + 1, 40, '#ffffff'); p.put(x - 1, 38, x + 5, 40, '#c8a040')
+        p.px(x + 1, 23, '#ffd040'); p.px(x + 2, 23, '#ffd040'); p.px(x + 1, 22, '#ff8a2a'); p.px(x + 2, 24, '#fff0a0')
+    p.put(24, 28, 33, 40, '#b06a3a'); p.put(26, 25, 31, 28, '#b06a3a'); p.put(24, 28, 26, 40, '#d88a50'); p.put(33, 30, 35, 36, '#8a4a24')
+    p.line(58, 38, 70, 30, '#e8dcc0'); p.line(58, 39, 70, 31, '#c8b8a0'); p.line(70, 30, 73, 26, '#e8dcc0'); p.put(56, 37, 60, 40, '#c8a040')
+    # łuk paleniska ze zwornikiem
+    ox0, ox1, top = 16, 80, 60
+    cx = (ox0 + ox1) / 2
+    for yy in range(top - 10, H):
+        for xx in range(ox0 - 6, ox1 + 6):
+            rx = (ox1 - ox0) / 2 + 6
+            ins = abs(xx - cx) <= rx and (yy >= top or ((xx - cx) / rx) ** 2 + ((yy - top) / 12) ** 2 <= 1)
+            if ins:
+                p.px(xx, yy, '#a8a4b0' if (xx + yy) % 7 else '#8a8692')
+    p.put(cx - 4, top - 13, cx + 5, top - 3, '#b8b4c0'); p.put(cx - 3, top - 12, cx + 4, top - 11, '#d0ccd8')
+    # osmalone wnętrze z cegły
+    for yy in range(top - 4, H):
+        for xx in range(ox0, ox1):
+            rx = (ox1 - ox0) / 2
+            if abs(xx - cx) < rx and (yy >= top + 2 or ((xx - cx) / rx) ** 2 + ((yy - top - 2) / 8) ** 2 <= 1):
+                brick = (yy // 4) % 2 == 0 and (xx + (yy // 4) * 3) % 8 == 0 or yy % 4 == 0
+                depth = (yy - top) / (H - top)
+                base = (40 + int(30 * depth), 22 + int(12 * depth), 18 + int(6 * depth))
+                c = tuple(int(v * (0.7 if brick else 1.0)) for v in base)
+                p.a[yy, xx, :3] = c; p.a[yy, xx, 3] = 255
+    # kocioł na haku
+    p.line(cx, top + 2, cx, top + 16, '#3a3640')
+    for yy in range(top + 16, top + 30):
+        w = 9 - abs(yy - (top + 22)) * 0.5
+        p.put(cx - w, yy, cx + w, yy + 1, '#2a2830' if yy > top + 18 else '#4a4652')
+    p.put(cx - 9, top + 16, cx + 9, top + 18, '#5a5662'); p.px(cx - 6, top + 20, '#6a6672')
+    # koziołki i polana
+    for xx in (ox0 + 8, ox1 - 11):
+        p.put(xx, H - 14, xx + 3, H - 3, '#2a2830'); p.put(xx - 1, H - 15, xx + 4, H - 13, '#4a4652')
+    p.put(ox0 + 6, H - 10, ox1 - 6, H - 6, '#6a4220'); p.put(ox0 + 6, H - 10, ox1 - 6, H - 9, '#8a5626')
+    p.put(ox0 + 12, H - 13, ox1 - 14, H - 10, '#5a3418'); p.put(ox0 + 12, H - 13, ox1 - 14, H - 12, '#7a4a24')
+    # żar
+    for xx in range(ox0 + 4, ox1 - 4):
+        if (xx * 7 + frame * 3) % 5 < 3:
+            p.px(xx, H - 5, ['#ff6a1a', '#ffb030', '#c03a10'][(xx + frame) % 3])
+    p.put(ox0 + 4, H - 4, ox1 - 4, H - 2, '#3a1a10')
+    # ogień: warstwy płomieni + iskry
+    fr = np.random.default_rng(frame * 11 + 5)
+    cols = ['#c8300a', '#ff6a1a', '#ffb030', '#fff0a0']
+    for layer, c in enumerate(cols):
+        for i in range(14 - layer * 3):
+            x = int(ox0 + 10 + fr.integers(0, ox1 - ox0 - 20))
+            h = int((26 - layer * 6) + fr.integers(-4, 6))
+            w = 4 - layer // 2
+            for k in range(h):
+                ww = max(1, int(w * (1 - k / h)))
+                sway = int(round(np.sin(k * 0.35 + frame * 2 + i) * 1.5 * k / h))
+                p.put(x + sway - ww // 2, H - 12 - k, x + sway + (ww + 1) // 2, H - 11 - k, c)
+    for i in range(6):
+        x = int(ox0 + 14 + fr.integers(0, ox1 - ox0 - 28)); yy = int(top + 6 + fr.integers(0, 18))
+        p.px(x, yy, '#ffd060')
+    # palenisko z płyt przed kominkiem
+    return p.done(), (W // 2, H - 1)
 
 
 def chimney():
@@ -620,3 +735,30 @@ def chimney():
     g.box(-1, 10, -1, 10, 26, 29, '#2a2224', '#8a8692', '#5a5662')
     g.box(1.5, 7.5, 1.5, 7.5, 29, 29.5, '#1a1214', '#1a1214', '#1a1214')
     return g.p.done(), g.P(4.5, 4.5, 0)
+
+
+def bar_counter(length=180):
+    """lada baru wzdłuż v (front od strony +u): deski, ciemniejszy cokół, gruby blat z krawędzią, kufle, beczułka z kranem"""
+    D, Hh = 18, 26
+    g = Iso(length + D + 40, length // 2 + 80, length + 20, 60)
+    def planks(face, a, b):
+        if face == 'u':
+            if b < 3:
+                return '#3a2414'
+            if b > Hh - 3:
+                return '#d09a5a'
+            return '#6a3e1c' if int(a) % 7 == 0 else ('#9a6230' if int(a) % 7 < 4 else '#8a5626')
+        if face == 'v':
+            return '#7a4a20' if b < Hh - 3 else '#b07840'
+        return '#c08a50' if int(b) % 9 else '#9a6230'
+    g.box(0, D, 0, length, 0, Hh, '#c08a50', '#8a5626', '#7a4a20', planks)
+    g.box(-1, D + 2, -1, length + 1, Hh, Hh + 2, '#d8a060', '#a06a34', '#b07840')
+    r = np.random.default_rng(9)
+    for v in range(12, length - 10, 22):
+        u = r.uniform(4, D - 6)
+        g.box(u, u + 3, v, v + 3, Hh + 2, Hh + 7, '#fbf6ea', '#d8dce4', '#8a92a0')
+    v = length * 0.55
+    g.box(3, 13, v, v + 10, Hh + 2, Hh + 12, '#8a5626', '#ad7034', '#6a4220',
+          lambda f, a, b: '#4a4652' if f != 't' and int(b) in (2, 7) else None)
+    g.box(13, 15, v + 4, v + 6, Hh + 5, Hh + 7, '#c8a040', '#c8a040', '#8a6a20')
+    return g.p.done(), g.P(D / 2, length / 2, 0)

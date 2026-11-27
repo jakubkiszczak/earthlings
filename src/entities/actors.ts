@@ -5,8 +5,8 @@ import { CharSheet, type FrameSource } from '../chars/sheet';
 import { nameLabel } from '../ui/worldlabel';
 import type { WorldGrid } from '../world/grid';
 
-const HERO_SPEED = 59;   // +15%   // jednostek świata na sekundę
-const DOG_SPEED = 69;
+const HERO_SPEED = 74;   // jednostek świata na sekundę (+15%, potem +25%)   // jednostek świata na sekundę
+const DOG_SPEED = 86;
 const TRAIL_MAX = 120;
 const DOG_LAG = 18;      // ile próbek śladu pies zostaje w tyle
 

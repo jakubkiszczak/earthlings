@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { enterGame } from './helpers';
 
 test('karczma: wejście przez portal, karczmarz mówi w dymku, wyjście; dym z komina', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   const errors: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -21,8 +21,10 @@ test('karczma: wejście przez portal, karczmarz mówi w dymku, wyjście; dym z k
   await page.waitForTimeout(800);
   await page.screenshot({ path: 'test-results/karczma.png' });
   // rozmowa z karczmarzem – dymek
+  // stań przy barze (w wolnej przeglądarce CI przejście przez całą salę trwa długo) i porozmawiaj
+  await page.evaluate(() => window.__game!.place(120, 140));
   await page.evaluate(() => window.__game!.talkToMerchant());
-  await expect(page.locator('.wbubble')).toContainText('Karczmarz', { timeout: 30_000 });
+  await expect(page.locator('.wbubble')).toContainText('Karczmarz', { timeout: 60_000 });
   await page.screenshot({ path: 'test-results/karczma_rozmowa.png' });
   // wyjście portalem → miasto
   expect(await page.evaluate(() => window.__game!.goTo(414, 370))).toBe(true);

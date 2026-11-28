@@ -10,11 +10,20 @@ export type Build = 'thin' | 'normal' | 'stocky';
 export type Beard = 'short' | 'long' | 'mustache' | 'none';
 
 /** skala rysowania względem siatki projektu */
-export const K = 1.5;
+export let K = 1.5;
 const DW = 28, DH = 42;                       // siatka projektu
-export const CW = Math.round(DW * K);         // 42
-export const CH = Math.round(DH * K);         // 63
-export const ANCHOR: [number, number] = [Math.round(14 * K), CH - 1];
+export let CW = Math.round(DW * K);         // 42
+export let CH = Math.round(DH * K);         // 63
+export let ANCHOR: [number, number] = [Math.round(14 * K), CH - 1];
+
+/** generowanie w innej skali (np. potwory ×1,2 → K = 1,8): kształty rysowane natywnie w większej siatce,
+ *  bez rozciągania gotowych klatek (piksele zostają równe) */
+export function withScale<T>(k: number, fn: () => T): T {
+  const old = K;
+  const set = (v: number) => { K = v; CW = Math.round(DW * K); CH = Math.round(DH * K); ANCHOR = [Math.round(14 * K), CH - 1]; };
+  set(k);
+  try { return fn(); } finally { set(old); }
+}
 export const DIRS = ['S', 'SE', 'E', 'NE', 'N'] as const;
 export type Dir = (typeof DIRS)[number];
 export const FRAMES = ['walk0', 'walk1', 'walk2', 'walk3', 'idle0', 'idle1'] as const;

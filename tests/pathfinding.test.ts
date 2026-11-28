@@ -52,3 +52,25 @@ describe('nearestWalkable', () => {
     expect(nearestWalkable(cellH, 0, 0, 2)).toBeNull();
   });
 });
+
+describe('smoothPath', () => {
+  it('na otwartym terenie zostaje start i cel (bez zygzaków)', async () => {
+    const { smoothPath } = await import('../src/logic/pathfinding');
+    const { size, cellH } = gridFrom(['......', '......', '......', '......', '......', '......']);
+    const p = findPath(cellH, 0, 0, 5, 2, { size })!;
+    expect(smoothPath(cellH, p)).toEqual([[0, 0], [5, 2]]);
+  });
+  it('nie przechodzi przez ścianę ani nie ścina narożnika', async () => {
+    const { smoothPath } = await import('../src/logic/pathfinding');
+    const { size, cellH } = gridFrom(['......', '.####.', '......', '......']);
+    const p = smoothPath(cellH, findPath(cellH, 0, 0, 3, 2, { size })!);
+    for (let k = 1; k < p.length; k++) {
+      const [i0, j0] = p[k - 1], [i1, j1] = p[k];
+      for (let s = 0; s <= 20; s++) {
+        const x = i0 + 0.5 + ((i1 - i0) * s) / 20, y = j0 + 0.5 + ((j1 - j0) * s) / 20;
+        expect(cellH(Math.floor(x), Math.floor(y))).toBeGreaterThan(0);
+      }
+    }
+    expect(p.length).toBeLessThan(5);
+  });
+});

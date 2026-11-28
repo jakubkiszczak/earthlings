@@ -64,6 +64,8 @@ export const CANVAS_W = 82, CANVAS_H = 93, PAD = 20;
 const DEATH_FRAME = 14;
 /** kolor cięciwy (docs/CHARACTER_SPEC.md) */
 const STRING_RGB = [0xe6, 0xe1, 0xd2];
+/** cięciwa luźna (łuk w ręce, poza strzałem) – ciemniejsza, żeby nie rysowała jasnej kreski przez postać */
+const STRING_REST = [0x8c, 0x80, 0x6c];
 /** tony skóry w ciałach z paczki (jasny → ciemny): człowiek i elf; ten sam indeks = to samo miejsce cieniowania */
 export const SKIN_TONES: Record<Skin, string[]> = { warm: ['#eeb779', '#da945c', '#ba895b'], fair: ['#f6d4aa', '#e2b284', '#c89a72'] };
 export const SKINS: Skin[] = ['warm', 'fair'];
@@ -163,8 +165,8 @@ export function drawOrder(
   const out: Layer[] = ['hair_back'];
   const bow = !!look.bow && !!eq.weapon;
   const zw = f.z.weapon ?? 'front', zs = f.z.shield ?? 'front';
-  // poza strzałem łuk przewieszony przez plecy: widoczny na plecach (kierunki N), z przodu za ciałem (wystają końce)
-  const zb = look.shoot ? f.z.bow ?? 'front' : look.back ? 'front' : 'behind';
+  // poza strzałem łuk w lewej ręce, przed albo za ciałem jak tarcza
+  const zb = look.shoot ? f.z.bow ?? 'front' : zs;
   const sword = !!eq.weapon && !bow, shield = !!eq.shield && !bow;
   if (shield && zs === 'behind') out.push('shield');
   if (sword && zw === 'behind') out.push('weapon');
@@ -292,9 +294,11 @@ function prepared(A: DollAssets, file: string, variant: string, make: () => Img)
 /** łuk + cięciwa + strzała w lewej ręce (docs/CHARACTER_SPEC.md, „Łuk i animacja strzału”) */
 function drawBow(A: DollAssets, c: Img, bow: ItemDef, d: Dir8, f: AnchorFrame, shoot: boolean) {
   const pv = bow.pivot ?? [3, 11];
-  // poza strzałem łuk przewieszony ukośnie przez plecy (środek łuku między łopatkami)
-  const ang = shoot ? f.hand_l.angle : 40;
-  const gx = (shoot ? f.hand_l.x : f.head.x) + PAD, gy = (shoot ? f.hand_l.y : f.head.y + 21) + PAD;
+  // poza strzałem łuk trzymany w lewej ręce za majdan, pionowo z lekkim pochyleniem, brzuścem w stronę patrzenia
+  const back = Math.cos((f.hand_l.angle * Math.PI) / 180) < -0.01;
+  const ang = shoot ? f.hand_l.angle : back ? 180 + 12 : -12;
+  // w ręce łuk zwisa niżej (dłoń w górnej części majdanu), żeby górny koniec nie zasłaniał twarzy
+  const gx = f.hand_l.x + PAD, gy = f.hand_l.y + PAD + (shoot ? 0 : 5);
   const { img, c: pc } = rotated(A.images[bow.files[d]], pv, ang);
   blit(c, img, gx - pc, gy - pc);
   const t0 = rotPt(1, 0, pv, ang, gx, gy), t1 = rotPt(1, 22, pv, ang, gx, gy);
@@ -302,7 +306,7 @@ function drawBow(A: DollAssets, c: Img, bow: ItemDef, d: Dir8, f: AnchorFrame, s
   if (shoot && (i === 1 || i === 2)) {
     const hx = f.hand_r.x + PAD, hy = f.hand_r.y + PAD;
     line(c, t0[0], t0[1], hx, hy, STRING_RGB); line(c, t1[0], t1[1], hx, hy, STRING_RGB);
-  } else line(c, t0[0], t0[1], t1[0], t1[1], STRING_RGB);
+  } else line(c, t0[0], t0[1], t1[0], t1[1], shoot ? STRING_RGB : STRING_REST);
   if (shoot && i <= 2 && bow.ammo) {
     const r = (ang * Math.PI) / 180;
     const [nx, ny] = i === 0 ? [gx - 12 * Math.cos(r), gy - 12 * Math.sin(r)] : [f.hand_r.x + PAD, f.hand_r.y + PAD];

@@ -245,7 +245,7 @@ export class PlayerCombat {
   private hit(m: Mob, dmg: number, opts: { stun?: boolean; push?: boolean } = {}) {
     if (m.state === 'dead') return;
     const [x, y] = this.d.world.toScreenGlobal(m.pos[0], m.pos[1]);
-    this.d.floaters.add(x, y - (m.kind === 'wolf' ? 22 : 44), String(dmg), opts.stun || opts.push ? '#ffd84a' : '#fff6e0', dmg >= 30);
+    this.d.floaters.add(x, y - (m.kind === 'wolf' ? 26 : 53), String(dmg), opts.stun || opts.push ? '#ffd84a' : '#fff6e0', dmg >= 30);
     if (damageMob(m, dmg)) { this.kill(m); return; }
     if (opts.stun) { m.stun = STUN_TIME; this.d.floaters.add(x, y - 56, 'powalony!', '#b0b0ff'); }
     if (opts.push) {

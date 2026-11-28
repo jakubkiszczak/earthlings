@@ -344,31 +344,23 @@ def rect(cu, cv, hu, hv):
 
 TOWN_WALL = (C + 120, 2 * C - 120)       # mur miejski: kwadrat (oś muru)
 GATE = 44                                # połowa szerokości bramy
-# Domy: (środek u, v względem środka miasta, pół-wymiary hu, hv, wysokość okapu, dach, paleta dachu,
+# Domy: (środek u, v względem środka miasta, pół-wymiary hu, hv, wysokość okapu (przed skalą BLD_HS), dach, paleta dachu,
 #        ściany, ściana z drzwiami ('u' = +u, 'v' = +v), okna na ścianie +v, okna na ścianie +u, znacznik)
-# dach: gable_u – dwuspadowy z kalenicą wzdłuż u, gable_v – wzdłuż v, hip – czterospadowy; palety: 0 dachówka, 1 gont, 2 łupek
+# dach: gable_u – dwuspadowy z kalenicą wzdłuż u, gable_v – wzdłuż v, hip – czterospadowy; palety: TR.ROOF_PAL
+# Pierwsza linia wokół fontanny: tylko sklep i karczma. Domy (styl drewniany z paczki domy_drewniane: chata z bali,
+# dom z desek, dom kupca, mur pruski na kamiennym parterze) – w drugiej linii zabudowy.
 HOUSES = [
-    (-255, -100, 56, 44, 67, 'gable_v', 0, 'stone', 'u', 2, 2, 'shop'),
-    (-420, -300, 40, 56, 56, 'gable_u', 1, 'plaster', 'v', 1, 2, None),
-    (-250, -360, 32, 32, 50, 'hip', 2, 'plaster', 'u', 1, 1, None),
-    (-440, 380, 36, 48, 56, 'gable_v', 1, 'plaster', 'v', 2, 1, None),
-    (-210, 420, 30, 30, 48, 'gable_u', 0, 'plaster', 'u', 1, 1, None),
-    (-410, 110, 36, 28, 53, 'hip', 1, 'plaster', 'u', 1, 1, None),
-    (240, 250, 48, 36, 62, 'gable_u', 2, 'stone', 'v', 2, 1, None),
-    (420, 230, 34, 52, 87, 'gable_v', 0, 'plaster', 'u', 1, 3, None),
-    (300, 430, 56, 30, 56, 'hip', 1, 'plaster', 'v', 3, 1, None),
-    (230, -405, 40, 40, 67, 'hip', 0, 'plaster', 'v', 2, 2, None),
-    (415, -230, 30, 44, 53, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
-    (220, 110, 30, 26, 48, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
-    # pierzeje rynku: kamienice wokół placu z fontanną
-    (-200, -215, 34, 30, 70, 'gable_u', 0, 'plaster', 'v', 2, 1, None),
-    (-110, -210, 28, 26, 62, 'gable_v', 0, 'plaster', 'v', 1, 1, None),
-    (110, -210, 34, 28, 74, 'gable_u', 1, 'plaster', 'v', 2, 1, None),
-    (210, -200, 28, 30, 60, 'hip', 0, 'plaster', 'v', 1, 1, None),
-    (215, -100, 44, 42, 104, 'gable_u', 0, 'plaster', 'v', 3, 2, 'tavern'),     # karczma „Pod Złotym Kuflem” (2 piętra)
-    (-205, 110, 30, 34, 64, 'gable_v', 0, 'plaster', 'u', 1, 2, None),
-    (-100, 215, 34, 30, 70, 'gable_u', 0, 'plaster', 'u', 2, 1, None),
-    (100, 210, 30, 30, 58, 'hip', 2, 'plaster', 'u', 1, 1, None),
+    (-255, -100, 56, 44, 67, 'gable_v', 'terracotta', 'stone', 'u', 2, 2, 'shop'),
+    (215, -100, 44, 42, 104, 'gable_u', 'terracotta', 'plaster', 'v', 3, 2, 'tavern'),     # karczma „Pod Złotym Kuflem” (2 piętra)
+    (-420, -300, 40, 46, 54, 'gable_u', 'orange', 'logs', 'v', 1, 2, None),
+    (-250, -390, 38, 34, 78, 'gable_v', 'blue', 'merchant', 'u', 1, 1, None),
+    (-440, 380, 36, 46, 56, 'gable_v', 'teal', 'planks', 'v', 2, 1, None),
+    (-410, 110, 40, 32, 80, 'gable_u', 'purple', 'timber_stone', 'u', 1, 1, None),
+    (250, 300, 44, 36, 80, 'gable_u', 'purple', 'timber_stone', 'v', 2, 1, None),
+    (420, 230, 34, 46, 54, 'gable_v', 'orange', 'logs', 'u', 1, 2, None),
+    (300, 440, 46, 30, 56, 'gable_u', 'teal', 'planks', 'v', 2, 1, None),
+    (230, -405, 40, 38, 78, 'gable_v', 'blue', 'merchant', 'v', 2, 1, None),
+    (415, -240, 30, 42, 54, 'gable_u', 'orange', 'logs', 'u', 1, 2, None),
 ]
 CHURCH_TOWER_H = 200                     # wieża katedry (okap)
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
@@ -384,9 +376,10 @@ def town_buildings():
     bs = []
     for (cu, cv, hu, hv, eave, roof, pal, walls, door, wu, wv, tag) in HOUSES:
         r = rect(cu, cv, hu, hv)
-        bs.append(dict(r, base=BASE, eave=BASE + int(eave * BLD_HS), roof=roof, roofpal=pal, walls=walls, door=door,
+        bs.append(dict(r, base=BASE, eave=BASE + int(eave * BLD_HS), roof=roof, roofpal=TR.ROOF_PAL[pal], walls=walls, door=door,
+                       lowh=60,
                        wins_u=wu, wins_v=wv, winz=WIN_Z, winw=WIN_W, winh=WIN_H, wingap=WIN_GAP, doorw=DOOR_W, doorh=DOOR_H,
-                       mat=TR.ROOF, tag=tag, pitch=1.3))      # stromsze dachy (wyższe ściany)
+                       mat=TR.ROOF, tag=tag, pitch=1.3 if tag else 1.6))      # domy drewniane: strome dachy jak w paczce
     # katedra: wysoka nawa z dwuspadowym dachem, duże łukowe drzwi od strony placu, okna z witrażami; wieża z iglicą z tyłu
     nave = rect(-300, 240, 64, 34)
     bs.append(dict(nave, base=BASE, eave=BASE + int(86 * BLD_HS), roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,

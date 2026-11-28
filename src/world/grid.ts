@@ -1,6 +1,6 @@
 // Siatka chodzenia (walk.png), mapa wyboru (pick.png) i przeliczanie świat ↔ ekran.
 import { readPixels } from '../assets';
-import { findPath, nearestWalkable } from '../logic/pathfinding';
+import { findPath, nearestWalkable, smoothPath } from '../logic/pathfinding';
 import type { CellMeta } from '../types';
 import { rotLocal } from './view';
 
@@ -35,14 +35,15 @@ export class WorldGrid {
   }
 
   /** współrzędne świata (u, v) → piksele obrazu świata */
-  toScreen(u: number, v: number): [number, number] {
-    return this.toScreenAt(u, v, this.heightAt(u, v));
+  toScreen(u: number, v: number, exact = false): [number, number] {
+    return this.toScreenAt(u, v, this.heightAt(u, v), exact);
   }
 
   /** jak toScreen, ale z podaną wysokością (dla punktów poza siatką chodzenia) */
-  toScreenAt(u: number, v: number, h: number): [number, number] {
+  toScreenAt(u: number, v: number, h: number, exact = false): [number, number] {
     const [p, q] = rotLocal(u, v, this.M.size, this.M.rot ?? 0);      // obraz komórki w bieżącym widoku
-    return [p - q + this.M.X0, Math.floor((p + q) / 2) - h + this.M.Y0];
+    const y = (p + q) / 2;
+    return [p - q + this.M.X0, (exact ? y : Math.floor(y)) - h + this.M.Y0];
   }
 
   /** piksel obrazu świata → punkt (u, v) z mapy wyboru, albo null (puste tło) */
@@ -63,6 +64,6 @@ export class WorldGrid {
     const start = nearestWalkable(this.cellH, ...this.cellOf(u, v));
     if (!start) return null;
     const p = findPath(this.cellH, start[0], start[1], target[0], target[1], { size: this.M.NC });
-    return p ? p.slice(1).map(([i, j]) => this.cellCenter(i, j)) : null;
+    return p ? smoothPath(this.cellH, p).slice(1).map(([i, j]) => this.cellCenter(i, j)) : null;
   }
 }

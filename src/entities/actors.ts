@@ -8,6 +8,8 @@ import type { WorldGrid } from '../world/grid';
 
 const HERO_SPEED = 96;   // jednostek świata na sekundę (+15%, +25%, potem ×1,3)
 const DOG_SPEED = 112;
+/** droga (jednostki świata) na jedną klatkę chodu – kroki zsynchronizowane z ruchem, bez ślizgania stóp */
+const WALK_STRIDE = 9;
 const TRAIL_MAX = 120;
 const DOG_LAG = 18;      // ile próbek śladu pies zostaje w tyle
 
@@ -97,6 +99,9 @@ export class Hero {
     this.flip = oct >= 3 && oct <= 5;
   }
 
+  /** przebyta droga (do klatek chodu) */
+  private walkDist = 0;
+
   attack() { this.attackT = 0; this.path = []; }
 
   /** czas żółtej poświaty broni (umiejętność) */
@@ -112,6 +117,7 @@ export class Hero {
       const [tu, tv] = this.path[0];
       const du = tu - this.u, dv = tv - this.v, dist = Math.hypot(du, dv);
       const sp = HERO_SPEED * speed * dt;
+      this.walkDist += Math.min(sp, dist);
       if (dist <= sp) { this.u = tu; this.v = tv; this.path.shift(); }
       else { this.u += (du / dist) * sp; this.v += (dv / dist) * sp; }
       const [sdx, sdy] = screenDir(du, dv);
@@ -127,14 +133,16 @@ export class Hero {
     // z łukiem (arkusz ma klatki strzału) atak i umiejętności to strzał: 4 klatki
     const atkF = e8 && 'has' in this.sheet && (this.sheet as { has(n: string): boolean }).has(`hero_${this.dir}_shoot0`) ? `shoot${k4}` : e8 && this.glowT > 0 ? `pow${k4}` : this.attackT < 0.14 ? `${e8 ? 'atk' : g}0` : `${e8 ? 'atk' : g}1`;
     const fi = this.attackT >= 0 ? atkF
-      : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
+      : this.moving ? `walk${Math.floor(this.walkDist / WALK_STRIDE) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
     this.frameName = this.dead ? (e8 ? `hero_${this.dir}_dead` : 'hero_dead') : this.sitting ? `hero_${this.dir}_sit${Math.floor(at * 1.2) % 2}` : `hero_${this.dir}_${fi}`;
     this.sheet.setFrame(this.a.s, this.frameName);
     this.a.s.scale.x = this.flip && !this.dead ? -1 : 1;
     this.headMark.visible = !this.dead;
-    const [x, y] = grid.toScreen(this.u, this.v);
-    this.sx = Math.round(x);
-    this.sy = Math.round(y);
+    // pozycja bez zaokrąglania do pikseli świata: przy zoomie ×3 krok co 1 piksel świata to skok o 3 px ekranu
+    // (postać „przeskakuje”); roundPixels i tak przyciąga do pikseli ekranu
+    const [x, y] = grid.toScreen(this.u, this.v, true);
+    this.sx = x;
+    this.sy = y;
     this.a.c.position.set(this.sx, this.sy);
     this.a.c.zIndex = actorZ(this.u, this.v);
     this.headMark.position.set(0, -74 + Math.round(Math.sin(t * 4)));
@@ -171,8 +179,8 @@ export class Dog {
       }
     }
     this.atlas.setFrame(this.a.s, frame);
-    const [x, y] = grid.toScreen(this.u, this.v);
-    this.a.c.position.set(Math.round(x), Math.round(y));
+    const [x, y] = grid.toScreen(this.u, this.v, true);
+    this.a.c.position.set(x, y);
     this.a.c.zIndex = actorZ(this.u, this.v);
   }
 }

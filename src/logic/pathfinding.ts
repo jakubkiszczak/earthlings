@@ -88,3 +88,34 @@ export function nearestWalkable(cellH: CellHeight, i: number, j: number, maxR = 
       if (cellH(i + di, j + dj)) return [i + di, j + dj];
   return null;
 }
+
+/** Wygładzenie ścieżki (naciąganie sznurka): z każdego punktu skok do najdalszej komórki widocznej w linii prostej,
+ *  gdy cały odcinek (z marginesem 0,35 komórki na boki) prowadzi przez przechodnie komórki, a sąsiednie próbki
+ *  nie różnią się wysokością o więcej niż maxStep. Mniej zakrętów → postać idzie prosto, bez zygzaków po siatce. */
+export function smoothPath(cellH: CellHeight, path: [number, number][], maxStep = 8): [number, number][] {
+  if (path.length <= 2) return path;
+  const clear = ([i0, j0]: [number, number], [i1, j1]: [number, number]) => {
+    const n = Math.ceil(Math.hypot(i1 - i0, j1 - j0) * 4);
+    let prev = cellH(i0, j0);
+    for (let s = 1; s <= n; s++) {
+      const x = i0 + 0.5 + ((i1 - i0) * s) / n, y = j0 + 0.5 + ((j1 - j0) * s) / n;
+      const h = cellH(Math.floor(x), Math.floor(y));
+      if (!h || Math.abs(h - prev) > maxStep) return false;
+      for (const [ox, oy] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+        const hc = cellH(Math.floor(x + ox), Math.floor(y + oy));
+        if (!hc || Math.abs(hc - h) > maxStep) return false;
+      }
+      prev = h;
+    }
+    return true;
+  };
+  const out: [number, number][] = [path[0]];
+  let a = 0;
+  while (a < path.length - 1) {
+    let b = path.length - 1;
+    while (b > a + 1 && !clear(path[a], path[b])) b--;
+    out.push(path[b]);
+    a = b;
+  }
+  return out;
+}

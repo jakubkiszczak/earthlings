@@ -13,7 +13,17 @@ CLIFF_KIND = 10
 RF = K.hexs(['#2e1610', '#4e2216', '#72301c', '#963f22', '#b4522a', '#cc6a34', '#e08844', '#f0aa62'])   # dachówka (ciepła terakota)
 RB = K.hexs(['#1c140e', '#33241a', '#4a3424', '#62462e', '#7a5a3a', '#94704a', '#ae885a'])   # gont brązowy
 RS = K.hexs(['#14161e', '#22263a', '#323a52', '#46506a', '#5c6882', '#76829a', '#929eb2'])   # łupek
-ROOF_PALS = [RF, RB, RS]
+# dachy w stylu domów drewnianych (paczka domy_drewniane): pomarańczowo-czerwona dachówka, niebieska, turkusowa, fioletowa
+RO = K.hexs(['#3a1410', '#6a2418', '#9a3420', '#c44a2a', '#dc6238', '#ec7c4c', '#f69a66', '#ffb886'])
+RBL = K.hexs(['#0e1636', '#18285e', '#203c86', '#2a52ac', '#3668c8', '#4e84dc', '#70a0ec', '#94bcf6'])
+RT = K.hexs(['#0a2626', '#104040', '#185a5a', '#207876', '#2a948e', '#40b0a4', '#62c8ba', '#8cdece'])
+RP = K.hexs(['#1c0e2e', '#341856', '#4c227e', '#642ea2', '#7c42bc', '#965cd0', '#ae7ae0', '#c69cee'])
+ROOF_PALS = [RF, RB, RS, RO, RBL, RT, RP]
+ROOF_PAL = {'terracotta': 0, 'shingle': 1, 'slate': 2, 'orange': 3, 'blue': 4, 'teal': 5, 'purple': 6}
+# ściany: kamień, tynk z murem pruskim, bale, deski pionowe, kamienny parter + mur pruski, dom kupca (deski + mur pruski)
+STYLE = {'stone': 0, 'plaster': 1, 'logs': 2, 'planks': 3, 'timber_stone': 4, 'merchant': 5}
+LOG = K.hexs(['#2a160c', '#4a2814', '#6c3c1c', '#8c5226', '#a86a32', '#c28444', '#d8a060'])     # bale (ciepły brąz)
+PLK = K.hexs(['#26160c', '#422814', '#5e3a1c', '#7a4e26', '#966432', '#b07c42', '#c89656'])     # deski
 PL = K.hexs(['#4e4234', '#7c6c56', '#a8987c', '#c8ba9c', '#ded2b6', '#eee6d0', '#f8f2e2'])    # tynk (złamana biel)
 IVY = K.hexs(['#1a3a1c', '#24522a', '#356a32', '#4c8a3a', '#6aa848'])                      # bluszcz
 SHUT = [K.hexs(['#1e3a2c', '#2c5a40', '#3e7a54']), K.hexs(['#1e2e4a', '#2e4a72', '#4a6a96']), K.hexs(['#3a2416', '#5a3a22', '#7a5230'])]   # okiennice
@@ -120,7 +130,9 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     beave = np.array([b.get('eave', b.get('top', 0)) for b in buildings] + [0], np.float32)
     broof = np.array([ROOFS[b.get('roof', 'flat')] for b in buildings] + [0], np.int8)
     bpal = barr('roofpal', 0, np.int8)
-    bplaster = np.array([b.get('walls', 'stone') == 'plaster' for b in buildings] + [False])
+    bstyle = np.array([STYLE.get(b.get('walls', 'stone'), 0) for b in buildings] + [0], np.int8)
+    bplaster = np.isin(bstyle, (1, 4, 5))                        # część tynkowana (mur pruski)
+    blow = barr('lowh', 0)                                       # wysokość parteru (kamień / deski pod murem pruskim)
     bdoorf = np.array([{'u': 1, 'v': 2}.get(b.get('door'), 0) for b in buildings] + [0], np.int8)
     bwu, bwv = barr('wins_u', 0, np.int8), barr('wins_v', 0, np.int8)
     bwinz = barr('winz', 18)
@@ -375,6 +387,31 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         stone = (mat == WALL) | (mat == PAVE) | (mat == PATH) | (mat == ROOF)
         col = np.where(stone[:, None], wall, col)
         col = np.where((wallpx & bplaster[bid] & ~plinth)[:, None], plcol, col)
+        # domy drewniane: bale (poziome, zaokrąglone, końce na narożnikach) i deski pionowe
+        sty = bstyle[bid]
+        lowh = blow[bid]
+        lz = (zb % 7) / 7
+        lrow = np.floor(zb / 7)
+        grain = vnoise(alongF * 0.5, zb, 5, 120) - 0.5
+        lgi = 1.3 + 3.4 * np.sin(np.pi * np.clip(lz, 0, 1)) + 0.8 * grain + 0.7 * (hsh(lrow, np.floor(alongF / 28), 121) - 0.5) - 0.8 * (~fl) + 0.5 * fls
+        lgi = np.where(lz < 0.15, 0.3, lgi)                                         # szczelina między balami
+        ring = np.hypot(cornerF - 2.2, (zb % 7) - 3.5)
+        lend = cornerF < 4.4
+        lgi = np.where(lend, 4.0 - 1.1 * (ring % 2 < 0.8) - 2.6 * (ring > 3.3) - 0.6 * (~fl), lgi)   # słoje na końcach bali
+        logcol = ramp(LOG, lgi, True, xs, ys)
+        bp = (alongF % 6) / 6
+        board = np.floor(alongF / 6)
+        pki = 2.8 + 1.1 * (hsh(board, 122) - 0.5) + 0.8 * (vnoise(alongF, zb * 0.25, 6, 123) - 0.5) - 0.8 * (~fl) + 0.5 * fls
+        pki = np.where(bp < 0.17, 0.5, pki)                                          # szpara między deskami
+        pki = np.where(cornerF < 3, 1.4 + 0.5 * fl, pki)                              # słupy narożne
+        pki = np.where((zb % 32 < 2.5) & (zb > 8), 1.0 + 0.6 * fl, pki)               # listwy poziome
+        plkcol = ramp(PLK, pki, True, xs, ys)
+        lower = zb < lowh
+        col = np.where((wallpx & (sty == 2) & ~plinth)[:, None], logcol, col)
+        col = np.where((wallpx & ((sty == 3) | ((sty == 5) & lower)) & ~plinth)[:, None], plkcol, col)
+        col = np.where((wallpx & (sty == 4) & lower)[:, None], wall, col)               # kamienny parter
+        sill = wallpx & np.isin(sty, (4, 5)) & (np.abs(zb - lowh) < 2.5)               # belka nad parterem
+        col = np.where(sill[:, None], ramp(WD, 1.0 + 0.8 * fl, True, xs, ys), col)
         # cień pod okapem na kamiennych ścianach
         col = np.where((wallpx & ~bplaster[bid] & ((eaveb - zb) < 6) & (zb < eaveb))[:, None], col * 0.72, col)
         # bluszcz: pnie się od ziemi przy narożnikach i w losowych miejscach (część domów)
@@ -385,7 +422,7 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         col = np.where(roofpx[:, None], rcol_, col)
         woodf = mat == WOOD
         col = np.where(woodf[:, None], ramp(WD, 2.2 + 1.0 * (z % 6 < 1) - 0.8 * fl, True, xs, ys), col)
-        col = np.where(frame[:, None] | wfr[:, None], np.where(bplaster[bid][:, None], ramp(WD, np.full(n_, 1.6), True, xs, ys), ramp(K.WL, np.full(n_, 5.6), True, xs, ys)), col)
+        col = np.where(frame[:, None] | wfr[:, None], np.where((bstyle[bid] != 0)[:, None], ramp(WD, np.full(n_, 1.6), True, xs, ys), ramp(K.WL, np.full(n_, 5.6), True, xs, ys)), col)
         col = np.where(door[:, None], dcol, col)
         col = np.where(knob[:, None], K.WL[6][None], col)
         col = np.where(iron[:, None], np.array([40, 36, 44], np.float32), col)

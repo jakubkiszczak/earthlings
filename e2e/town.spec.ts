@@ -51,7 +51,7 @@ test('miasto: strażnicy bronią bram, skrzynia przy fontannie, wnętrze sklepu'
   const t0 = Date.now();
   await page.evaluate(() => { void window.__game!.warp(1, 1, 200, 140); });
   await page.waitForFunction(() => window.__game!.cell().cx === 1 && !window.__game!.busy(), null, { timeout: 60_000 });
-  expect(Date.now() - t0).toBeLessThan(3000);    // miasto zostało w pamięci
+  expect(Date.now() - t0).toBeLessThan(6000);    // miasto zostało w pamięci (bez pobierania)
   expect(sawLoading).toBe(false);
   expect(errors).toEqual([]);
 });

@@ -14,6 +14,7 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 - `npm run dev` – podgląd na żywo; `npm run build` – `dist/` (sprawdza typy); `npm test` – Vitest (`tests/`); `npm run test:e2e` – Playwright (`e2e/`).
 - Grafiki (Python, środowisko `.venv`): `.venv/bin/python tools/ui2.py` → `assets/generated/ui2/`; `.venv/bin/python tools/worldgen.py [cx,cy ...]` → `assets/generated/world/` (świat 3×3, komórka 40×40 kafli + margines 128 tekseli; miasto w 1,1).
 - Obrót widoku co 90° (klawisze `,` `.`): generator rysuje każdą komórkę z 4 stron (`ground_rN.webp`, `bands_rN`, `pick_rN`, `water_*_rN`, `meta_rN.json`; `walk.png` wspólny). Logika gry zawsze w układzie świata (u, v); rzut, zIndex i kierunek postaci przez `src/world/view.ts` (zgodny z `rot_pt` w `tools/worldgen.py`, test `tests/view.test.ts`). Mapa wyboru zawsze w układzie świata. Wnętrza tylko widok 0. Obiekty kierunkowe (stragany, szyldy, most) mają warianty na każdy widok.
+- Miasto: w pierwszej linii wokół fontanny tylko sklep i karczma; 9 domów w drugiej linii w stylu paczki `domy_drewniane` (wzorzec, nie sprite'y – te mają drzwi ~8 px): ściany `walls` = `logs` (bale), `planks` (deski), `merchant` (deski + mur pruski), `timber_stone` (kamienny parter + mur pruski), dachy `TR.ROOF_PAL` (orange, blue, teal, purple), lista `HOUSES` w `tools/worldgen.py`, rysowanie w `tools/terrain.py`.
 - Budynki miasta w skali postaci 42×63: wysokości ×1,5 (`BLD_HS`, drzwi `DOOR_H`, okna, piętro muru pruskiego co 60) w `tools/worldgen.py` / `tools/terrain.py`; `MAXH` = zapas wysokości obrazu.
 - Przejścia: wejście do budynku odkłada komórki świata (ukryte, nie zwalniane) – wyjście bez wczytywania; przejście do wczytanego sąsiada bez ekranu wczytywania; obrót widoku – przenikanie zdjęcia starego widoku, pozostałe widoki bieżącej komórki pobierane w tle (`World.prefetchViews`). Ekran wczytywania tylko, gdy cel nie jest w pamięci.
 - Świat w grze: w pamięci tylko bieżąca komórka (`src/world/world.ts`), przejście przez krawędź wczytuje sąsiada (`src/logic/cells.ts`). Teren = `ground.webp` pod wszystkim + `bands.webp` (pasma głębi tylko dla murów, klifów i dachów).
@@ -33,7 +34,8 @@ Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `te
 - Gra: `src/game/mobs.ts` (30 potworów na komórkę poza miastem, deterministyczne rozmieszczenie, widoki), `src/game/combat.ts` (cel, auto-atak, strzały, umiejętności, śmierć).
 - Start: wojownik – Krótki miecz (+10 obrażeń), łowca – Krótki łuk (+10) i 200 strzał. Łowca strzela (atak i umiejętności) tylko z łukiem; bez łuku walczy wręcz pięściami (`Combat.ranged`). Po najechaniu na potwora: nazwa, HP liczbowo i pasek.
 - Współrzędne potworów są globalne (teksele świata); `World.toScreenGlobal/walkableGlobal` przeliczają na bieżącą komórkę.
-- Grafika potworów: szkielet i zombie z `chargen.ts` (`kind`), wilk z `wolfgen.ts`.
+- Grafika potworów: szkielet i zombie z `chargen.ts` (`kind`), wilk z `wolfgen.ts`; o 20% większe od postaci – klatki rysowane natywnie w skali K × 1,2 (`withScale`, `MOB_SCALE` w `src/game/mobs.ts`).
+- Ruch postaci: ścieżka A* wygładzana (`smoothPath`), pozycja bez zaokrąglania do pikseli świata (roundPixels przyciąga do pikseli ekranu), klatki chodu wg przebytej drogi (`WALK_STRIDE`).
 
 ## Przedmioty i ekwipunek
 - Logika: `src/logic/items.ts` (20 przedmiotów, łup, statystyki z ekwipunku) – testy `tests/items.test.ts`.

@@ -4,6 +4,10 @@ import { nameLabel } from '../ui/worldlabel';
 import { depthOf, screenDir } from '../world/view';
 import { CharSheet } from '../chars/sheet';
 import { wolfFrames } from '../chars/wolfgen';
+import { K, withScale } from '../chars/chargen';
+
+/** potwory o 20% większe od postaci */
+const MOB_SCALE = 1.2;
 import {
   CORPSE_TIME, MOBS, makeMob, pickKind, seeded, spawnPoints, updateMob, type Mob, type MobEvent, type MobKind, type Rng, type Vec,
 } from '../logic/combat';
@@ -28,11 +32,12 @@ export class MobManager {
   private t = 0;
 
   constructor(private readonly world: World, private readonly atlas: Atlas) {
-    this.sheets = {
+    // potwory o 20% większe od postaci: klatki rysowane natywnie w skali K × 1,2
+    this.sheets = withScale(K * MOB_SCALE, () => ({
       wolf: new CharSheet(wolfFrames()),
       skeleton: new CharSheet({ race: 'human', cls: 'warrior', hair: 'bald', build: 'thin', beard: 'none', kind: 'skeleton' }, 'skeleton'),
       zombie: new CharSheet({ race: 'human', cls: 'warrior', hair: 'black', build: 'stocky', beard: 'none', kind: 'zombie' }, 'zombie'),
-    };
+    }));
   }
 
   sheet(kind: MobKind) { return this.sheets[kind]; }
@@ -151,7 +156,7 @@ export class MobManager {
       if (m.stun > 0 && !dead) v.s.tint = 0xb0b0ff; else v.s.tint = 0xffffff;
       // pasek HP i znacznik celu
       const def = MOBS[m.kind];
-      const top = m.kind === 'wolf' ? -38 : -70;
+      const top = Math.round((m.kind === 'wolf' ? -38 : -70) * MOB_SCALE);
       v.bar.clear();
       if (!dead && (m.hp < def.hp || this.target === m.id || hover)) {
         v.bar.rect(-11, top, 22, 4).fill(0x0a0706);
@@ -160,7 +165,7 @@ export class MobManager {
       v.ring.clear();
       if (!dead && this.target === m.id) {
         // wyraźny czerwony okrąg pod atakowanym celem: wypełnienie, gruby pierścień i pulsujący zewnętrzny
-        const rx = m.kind === 'wolf' ? 17 : 13, ry = m.kind === 'wolf' ? 7 : 6, p = 0.5 + 0.5 * Math.sin(this.t * 6);
+        const rx = Math.round((m.kind === 'wolf' ? 17 : 13) * MOB_SCALE), ry = Math.round((m.kind === 'wolf' ? 7 : 6) * MOB_SCALE), p = 0.5 + 0.5 * Math.sin(this.t * 6);
         v.ring.ellipse(0, 0, rx, ry).fill({ color: 0xff2020, alpha: 0.22 })
           .ellipse(0, 0, rx, ry).stroke({ width: 2, color: 0xff2a2a, alpha: 0.95 })
           .ellipse(0, 0, rx + 3 + p * 2, ry + 1.5 + p).stroke({ width: 1, color: 0xff6a4a, alpha: 0.35 + 0.4 * p });

@@ -2,7 +2,7 @@
 // Współrzędne gry są lokalne dla bieżącej komórki; sąsiedzi są przesunięci o (dx, dy) komórek.
 // Przejście przez krawędź przestawia środek bez przeładowania obrazu (płynnie), brakujących sąsiadów doczytuje w tle.
 import { Container, Graphics, ImageSource, Sprite, Texture } from 'pixi.js';
-import { loadCell, type CellAssets } from '../assets';
+import { loadCell, prefetchCell, type CellAssets } from '../assets';
 import { subTexture, type Atlas } from '../render/atlas';
 import { createWater } from '../render/water';
 import type { CellInfo, CellMeta, WorldInfo } from '../types';
@@ -145,11 +145,18 @@ export class World {
   /** Ustawia środek na (cx, cy): czeka na tę komórkę, sąsiadów doczytuje w tle. */
   async center(cx: number, cy: number): Promise<void> {
     this.want = { cx, cy };
-    // wnętrza zawsze w widoku 0 (ściany tylne z wystrojem); świat w widoku wybranym klawiszami Q/E
-    const r = cx >= INTERIOR_BASE ? 0 : this.rot;
-    if (r !== VIEW.r) { this.dropAll(); VIEW.r = r; }
+    const toInterior = cx >= INTERIOR_BASE;
+    // wejście do budynku: świat zostaje w pamięci (ukryty) – wyjście jest natychmiastowe; odkładany dopiero po
+    // wczytaniu wnętrza, żeby bieżąca komórka istniała przez cały czas
+    const parkWorld = toInterior && !this.inInterior && this.cells.size > 0;
+    // wnętrza zawsze w widoku 0 (ściany tylne z wystrojem); świat w widoku wybranym klawiszami , .
+    const r = toInterior ? 0 : this.rot;
+    if (r !== VIEW.r) { if (!parkWorld) this.dropAll(); VIEW.r = r; }
+    if (!toInterior) this.unpark(r);
     VIEW.C = this.size;
+    const worldRot = this.rot;
     await this.ensure(cx, cy);
+    if (parkWorld) this.park(worldRot);
     this.cx = cx;
     this.cy = cy;
     // zwolnij komórki dalsze niż 1 od środka
@@ -162,6 +169,17 @@ export class World {
         void this.ensure(cx + dx, cy + dy).catch((e) => { if (!(e instanceof StaleCell)) console.error(e); });
       }
     }
+    // pozostałe widoki bieżącej komórki – w tle, po sąsiadach
+    clearTimeout(this.prefetchT);
+    this.prefetchT = setTimeout(() => this.prefetchViews(), 2500);
+  }
+  private prefetchT: ReturnType<typeof setTimeout> | undefined;
+
+  /** czy przejście do komórki nie wymaga wczytywania (wczytana albo odłożona na czas pobytu we wnętrzu) */
+  isReady(cx: number, cy: number): boolean {
+    if (this.cells.has(key(cx, cy))) return true;
+    const r = cx >= INTERIOR_BASE ? 0 : this.rot;
+    return !!this.parked && this.parked.r === r && this.parked.cells.some((c) => c.info.cx === cx && c.info.cy === cy);
   }
 
   /** wybrany obrót widoku świata (0–3, co 90°) */
@@ -171,6 +189,51 @@ export class World {
   async rotate(dir: 1 | -1): Promise<void> {
     this.rot = (this.rot + dir + 4) % 4;
     await this.center(this.cx, this.cy);
+  }
+
+  /** pliki pozostałych widoków bieżącej komórki do pamięci podręcznej przeglądarki (szybszy obrót) */
+  prefetchViews() {
+    const info = this.cellAt(this.cx, this.cy);
+    if (!info || this.inInterior) return;
+    for (let r = 0; r < 4; r++) if (r !== this.rot) prefetchCell(info, r);
+  }
+
+  /** komórki świata odłożone na czas pobytu we wnętrzu (ukryte, nie zwalniane) */
+  private parked: { cells: LoadedCell[]; r: number } | null = null;
+
+  private showCell(c: LoadedCell, on: boolean) {
+    c.ground.visible = on;
+    c.water.sprite.visible = on;
+    for (const it of c.items) it.obj.visible = on;
+  }
+
+  private park(r: number) {
+    this.dropParked();
+    const world = [...this.cells.values()].filter((c) => c.info.cx < INTERIOR_BASE);
+    this.parked = { cells: world, r };
+    for (const c of world) { this.showCell(c, false); this.cells.delete(key(c.info.cx, c.info.cy)); }
+    this.loading.clear();
+    this.hashDirty = true;
+  }
+
+  /** przywraca odłożone komórki świata (ten sam widok); inny widok – zwalnia je */
+  private unpark(r: number) {
+    const p = this.parked;
+    if (!p) return;
+    this.parked = null;
+    if (p.r !== r) { for (const c of p.cells) this.unload(c); return; }
+    for (const c of p.cells) {
+      const k = key(c.info.cx, c.info.cy);
+      if (this.cells.has(k)) { this.unload(c); continue; }
+      this.showCell(c, true);
+      this.cells.set(k, c);
+    }
+    this.hashDirty = true;
+  }
+
+  private dropParked() {
+    if (this.parked) for (const c of this.parked.cells) this.unload(c);
+    this.parked = null;
   }
 
   /** usuwa wszystkie wczytane komórki (zmiana widoku) */

@@ -103,7 +103,9 @@ export class PlayerCombat {
   }
 
   /** zasięg ataku: wręcz albo łuk (zależny od Zręczności) */
-  get range() { return this.cls === 'warrior' ? MELEE_RANGE : bowRange(this.inv.stats.attrs.dex); }
+  /** łowca strzela tylko z łukiem; bez łuku walczy wręcz */
+  get ranged() { return this.cls === 'hunter' && this.inv.stats.bow; }
+  get range() { return this.ranged ? bowRange(this.inv.stats.attrs.dex) : MELEE_RANGE; }
 
   /** usiądź / wstań */
   toggleSit() { if (this.sitting) this.stand(); else this.sit(); }
@@ -159,6 +161,7 @@ export class PlayerCombat {
     const s = SKILLS[this.cls][i];
     if (this.cds[i] > 0) return;
     if (this.mana < s.mana) { this.d.hud.float('Za mało many', '#8ab0ff'); return; }
+    if (this.cls === 'hunter' && !this.ranged) { this.d.hud.float('Załóż łuk', '#ffb08a'); return; }
     if (this.cls === 'hunter' && this.arrows < (s.id === 'double' ? 2 : 1)) { this.d.hud.float('Brak strzał', '#ffb08a'); return; }
     if (!this.mob()) {
       // bez celu: najbliższy żywy potwór w zasięgu
@@ -270,6 +273,7 @@ export class PlayerCombat {
     const idx = q ? SKILLS[this.cls].findIndex((s) => s.id === q) : -1;
     if (q && idx >= 0) {
       const s = SKILLS[this.cls][idx];
+      if ((q === 'double' || q === 'push') && !this.ranged) { this.queued = null; this.d.hud.float('Załóż łuk', '#ffb08a'); return; }
       if (this.mana < s.mana) { this.queued = null; this.d.hud.float('Za mało many', '#8ab0ff'); return; }
       this.mana -= s.mana;
       this.cds[idx] = s.cd;
@@ -285,12 +289,11 @@ export class PlayerCombat {
       return;
     }
     if (this.atkCd > 0) return;
-    if (this.cls === 'hunter' && !st.bow) { this.d.hud.float('Załóż łuk', '#ffb08a'); this.setTarget(null); return; }
-    if (this.cls === 'hunter' && this.arrows <= 0) { this.d.hud.float('Brak strzał', '#ffb08a'); this.setTarget(null); return; }
+    if (this.ranged && this.arrows <= 0) { this.d.hud.float('Brak strzał', '#ffb08a'); this.setTarget(null); return; }
     hero.attack();
     this.atkCd = PLAYER_ATTACK_EVERY;
-    if (this.cls === 'warrior') this.hit(m, roll());
-    else this.shoot(m, roll(), false);
+    if (this.ranged) this.shoot(m, roll(), false);
+    else this.hit(m, roll());   // wojownik albo łowca bez łuku (pięści)
   }
 
   update(dt: number) {

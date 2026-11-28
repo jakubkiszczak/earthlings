@@ -32,10 +32,10 @@ export interface ItemDef {
 
 const I = (d: ItemDef) => d;
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
-  I({ id: 'sword1', name: 'Krótki miecz', slot: 'weapon', tier: 1, level: 1, cls: 'warrior', min: 8, max: 12, value: 40 }),
+  I({ id: 'sword1', name: 'Krótki miecz', slot: 'weapon', tier: 1, level: 1, cls: 'warrior', min: 10, max: 10, value: 40 }),
   I({ id: 'sword2', name: 'Miecz żołnierski', slot: 'weapon', tier: 2, level: 3, cls: 'warrior', min: 14, max: 20, value: 160 }),
   I({ id: 'sword3', name: 'Ostrze Świtu', slot: 'weapon', tier: 3, level: 5, cls: 'warrior', min: 22, max: 30, value: 480 }),
-  I({ id: 'bow1', name: 'Krótki łuk', slot: 'weapon', tier: 1, level: 1, cls: 'hunter', bow: true, min: 8, max: 12, value: 40 }),
+  I({ id: 'bow1', name: 'Krótki łuk', slot: 'weapon', tier: 1, level: 1, cls: 'hunter', bow: true, min: 10, max: 10, value: 40 }),
   I({ id: 'bow2', name: 'Łuk myśliwski', slot: 'weapon', tier: 2, level: 3, cls: 'hunter', bow: true, min: 14, max: 20, value: 160 }),
   I({ id: 'bow3', name: 'Łuk elficki', slot: 'weapon', tier: 3, level: 5, cls: 'hunter', bow: true, min: 22, max: 30, value: 480 }),
   I({ id: 'shield1', name: 'Drewniana tarcza', slot: 'shield', tier: 1, level: 1, cls: 'warrior', armor: 5, value: 30 }),
@@ -59,7 +59,7 @@ export const RARITY_COLOR = (d: ItemDef) => (d.special ? '#a86af0' : d.tier === 
 /** opis przedmiotu do podpowiedzi (HTML) */
 export function describe(d: ItemDef, level: number, cls: ClassId): string {
   const lines: string[] = [`<b style="color:${RARITY_COLOR(d)}">${d.name}</b>`, `<span class="t-dim">${SLOT_NAMES[d.slot]}${d.bow ? ' (łuk)' : ''}</span>`];
-  if (d.min != null) lines.push(`Obrażenia ${d.min}–${d.max}`);
+  if (d.min != null) lines.push(d.min === d.max ? `+${d.min} obrażeń` : `Obrażenia ${d.min}–${d.max}`);
   if (d.armor) lines.push(`Pancerz ${d.armor}`);
   if (d.speed) lines.push(`+${Math.round(d.speed * 100)}% szybkości ruchu`);
   if (d.dex) lines.push(`+${d.dex} Zręczność`);

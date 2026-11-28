@@ -1,14 +1,14 @@
 // Glastemia – punkt wejścia: wczytanie danych, świat 3×3 (bieżąca komórka), pętla gry.
-import { Application, Container, TextureStyle } from 'pixi.js';
+import { Application, Container, Rectangle, Sprite, TextureStyle } from 'pixi.js';
 import { loadAssets, type Assets } from './assets';
 import { CharSheet, type FrameSource } from './chars/sheet';
 import { ITEMS, sanitizeInventory } from './logic/items';
 import { EXP_TO_NEXT } from './logic/character';
 import { SaveStore, type SavedChar } from './logic/save';
 import { loadArtManifest } from './ui/art';
-import { dollReady, loadDoll, playerSheet } from './chars/doll';
+import { dollReady, loadDoll, playerSheet, prepareLook } from './chars/doll';
 import { nameLabel } from './ui/worldlabel';
-import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
+import { createMenu, legacyLook, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
 import { Dog, Hero, Npc } from './entities/actors';
 import { PointerInput } from './input';
@@ -72,6 +72,17 @@ const DOG_OFFSET: [number, number] = [-22, 6];
 
 const AUTOSAVE = 10;  // s
 let loadingScreen: LoadingScreen;
+
+/** krótkie wygaszenie ekranu (przejście bez wczytywania, np. drzwi budynku) */
+const fader = (() => {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .16s linear;z-index:40';
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  return {
+    async out() { if (!d.isConnected) document.body.append(d); d.style.opacity = '1'; await wait(170); },
+    async in() { d.style.opacity = '0'; await wait(170); },
+  };
+})();
 
 const itemName = (id: string) => ITEMS[id]?.name ?? id;
 /** poziomy widocznego ekwipunku z zapisu (przed utworzeniem kontrolera) */
@@ -143,9 +154,9 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
 
   const start = info.start;
   const pos = char.pos ?? start;
-  await world.center(pos.cx, pos.cy);
+  await Promise.all([world.center(pos.cx, pos.cy), prepareLook(lookOf(char))]);
   // postać gracza: paper doll (8 kierunków, wymienne wyposażenie); bez paczki grafik – dawny generator
-  const heroSheet = (gear: ReturnType<typeof invGear>) => (dollReady() ? playerSheet(lookOf(char), gear) : new CharSheet({ ...lookOf(char), gear }));
+  const heroSheet = (gear: ReturnType<typeof invGear>) => (dollReady() ? playerSheet(lookOf(char), gear) : new CharSheet({ ...legacyLook(char), gear }));
   const sheet = heroSheet(invGear(char));
   const hero = new Hero(atlas, world.layer, [pos.u, pos.v], sheet);
   const dog = new Dog(atlas, world.layer, [pos.u + DOG_OFFSET[0], pos.v + DOG_OFFSET[1]]);
@@ -352,7 +363,8 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   async function cross(dx: number, dy: number) {
     const nx = world.cx + dx, ny = world.cy + dy;
     busy = true;
-    loadingScreen.show(world.cellAt(nx, ny)?.name ?? '');
+    // sąsiad zwykle jest już wczytany w tle – wtedy przejście bez ekranu wczytywania
+    if (!world.isReady(nx, ny)) loadingScreen.show(world.cellAt(nx, ny)?.name ?? '');
     try {
       await world.center(nx, ny);
       const C = world.size;
@@ -376,8 +388,10 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   async function rotateView(dir: 1 | -1) {
     if (busy || world.inInterior) return;
     busy = true;
-    loadingScreen.show('Obracanie widoku');
-    await wait(FADE);
+    // bez ekranu wczytywania: zdjęcie obecnego widoku zostaje na wierzchu i płynnie przenika w nowy widok
+    const snap = app.renderer.generateTexture({ target: app.stage, frame: new Rectangle(0, 0, app.screen.width, app.screen.height) });
+    const veil = new Sprite(snap);
+    app.stage.addChild(veil);
     try {
       await world.rotate(dir);
       hero.teleport([hero.u, hero.v]);
@@ -390,8 +404,15 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     } catch (err) {
       console.error(err);
     } finally {
-      await loadingScreen.hide();
       busy = false;
+      const t0 = performance.now();
+      const fade = () => {
+        veil.alpha = 1 - (performance.now() - t0) / 350;
+        if (veil.alpha > 0) return;
+        app.ticker.remove(fade);
+        veil.destroy({ texture: true, textureSource: true });
+      };
+      app.ticker.add(fade);
     }
   }
   addEventListener('keydown', (e) => {
@@ -404,8 +425,9 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   async function jump(cx: number, cy: number, pos: [number, number]) {
     if (busy) return;
     busy = true;
-    loadingScreen.show(world.cellAt(cx, cy)?.name ?? '');
-    await wait(FADE);
+    // wczytane miejsce (np. miasto po wyjściu z budynku) – tylko krótkie wygaszenie, bez ekranu wczytywania
+    const quick = world.isReady(cx, cy) || cx >= 100;   // wnętrza są małe – wczytują się w ułamku sekundy
+    if (quick) await fader.out(); else { loadingScreen.show(world.cellAt(cx, cy)?.name ?? ''); await wait(FADE); }
     try {
       const moved = cx !== world.cx || cy !== world.cy;
       await world.center(cx, cy);
@@ -431,7 +453,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     } catch (err) {
       console.error(err);
     } finally {
-      await loadingScreen.hide();
+      if (quick) await fader.in(); else await loadingScreen.hide();
       busy = false;
     }
   }

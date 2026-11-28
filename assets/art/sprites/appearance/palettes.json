@@ -1,0 +1,61 @@
+{
+ "base": [
+  "#5e2318",
+  "#863e23",
+  "#a5532a",
+  "#b9622f",
+  "#cd7a40",
+  "#351310"
+ ],
+ "note": "hair/ and beard/ PNGs use exactly the 6 \"base\" colours (5 tones dark->light + outline). Recolour = replace base[k] with palette[k], keep alpha. Other colours stay as they are.",
+ "palettes": {
+  "brown": [
+   "#5e2318",
+   "#863e23",
+   "#a5532a",
+   "#b9622f",
+   "#cd7a40",
+   "#351310"
+  ],
+  "black": [
+   "#22202a",
+   "#32303e",
+   "#444254",
+   "#5a586c",
+   "#747288",
+   "#100e14"
+  ],
+  "blond": [
+   "#9c6e36",
+   "#c29246",
+   "#deb460",
+   "#f0d082",
+   "#fce8ac",
+   "#5c3a1e"
+  ],
+  "red": [
+   "#702818",
+   "#9e3e1e",
+   "#c65a28",
+   "#e07a38",
+   "#f29c56",
+   "#3e140e"
+  ],
+  "platinum": [
+   "#9e9686",
+   "#bab29c",
+   "#d4ceb6",
+   "#eae6d0",
+   "#f9f7ea",
+   "#685e56"
+  ],
+  "gray": [
+   "#64646c",
+   "#82828a",
+   "#a2a2a8",
+   "#bebec4",
+   "#dadade",
+   "#36343c"
+  ]
+ }
+}

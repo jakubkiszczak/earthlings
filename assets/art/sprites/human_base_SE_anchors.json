@@ -394,7 +394,7 @@
  "draw_order": [
   "shield(if behind)",
   "weapon(if behind)",
-  "body_nohair",
+  "body",
   "boots",
   "hair",
   "helmet",

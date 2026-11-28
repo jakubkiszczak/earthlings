@@ -1,0 +1,155 @@
+{
+ "direction": "N",
+ "body": "female",
+ "anim": "shoot",
+ "cell": [
+  42,
+  63
+ ],
+ "feet": [
+  21,
+  62
+ ],
+ "frame_count": 4,
+ "angles": "screen degrees, 0=right, 90=down, clockwise; bow and arrow rotate by hand_l.angle (aim line = string hand -> grip)",
+ "frames": [
+  {
+   "index": 0,
+   "anim": "shoot",
+   "frame": 0,
+   "hand_l": {
+    "x": 8,
+    "y": 32,
+    "angle": -169
+   },
+   "hand_r": {
+    "x": 29,
+    "y": 34,
+    "angle": -169
+   },
+   "head": {
+    "x": 20,
+    "y": 7,
+    "angle": 0
+   },
+   "z": {
+    "bow": "behind",
+    "arrow": "behind"
+   }
+  },
+  {
+   "index": 1,
+   "anim": "shoot",
+   "frame": 1,
+   "hand_l": {
+    "x": 6,
+    "y": 32,
+    "angle": -169
+   },
+   "hand_r": {
+    "x": 32,
+    "y": 33,
+    "angle": -169
+   },
+   "head": {
+    "x": 21,
+    "y": 7,
+    "angle": 0
+   },
+   "z": {
+    "bow": "behind",
+    "arrow": "behind"
+   }
+  },
+  {
+   "index": 2,
+   "anim": "shoot",
+   "frame": 2,
+   "hand_l": {
+    "x": 5,
+    "y": 32,
+    "angle": -169
+   },
+   "hand_r": {
+    "x": 25,
+    "y": 36,
+    "angle": -169
+   },
+   "head": {
+    "x": 20,
+    "y": 6,
+    "angle": 0
+   },
+   "z": {
+    "bow": "behind",
+    "arrow": "behind"
+   }
+  },
+  {
+   "index": 3,
+   "anim": "shoot",
+   "frame": 3,
+   "hand_l": {
+    "x": 5,
+    "y": 31,
+    "angle": -169
+   },
+   "hand_r": {
+    "x": 32,
+    "y": 32,
+    "angle": -169
+   },
+   "head": {
+    "x": 20,
+    "y": 6,
+    "angle": 0
+   },
+   "z": {
+    "bow": "behind",
+    "arrow": "behind"
+   }
+  }
+ ],
+ "items": {
+  "bow_short.png": {
+   "anchor": "hand_l",
+   "pivot": [
+    3,
+    11
+   ],
+   "rotate": true,
+   "tips_local": [
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     22
+    ]
+   ],
+   "string": "line from both tips to hand_r in frames 1-2, to the grip in frames 0 and 3"
+  },
+  "arrow.png": {
+   "anchor": "hand_r",
+   "pivot": [
+    0,
+    1
+   ],
+   "rotate": true,
+   "visible_frames": [
+    0,
+    1,
+    2
+   ],
+   "frame0": "nock 12 px behind the grip along the aim line"
+  }
+ },
+ "draw_order": [
+  "bow+string+arrow (if z.bow behind)",
+  "body",
+  "hair (male)",
+  "helmet",
+  "bow+string+arrow (if z.bow front)"
+ ]
+}

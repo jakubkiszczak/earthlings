@@ -51,9 +51,15 @@ export async function loadCell(c: CellInfo, r = 0): Promise<CellAssets> {
   return { meta: meta as CellMeta, img: Object.fromEntries(keys.map((k, i) => [k, imgs[i]])) as Record<CellImage, HTMLImageElement> };
 }
 
-/** pobiera pliki komórki do pamięci podręcznej przeglądarki (szybsze przejście) */
-export function prefetchCell(c: CellInfo): void {
-  for (const f of ['meta.json', ...Object.values(CELL_IMAGES)]) fetch(assetUrl(cellPath(c, f))).catch(() => undefined);
+const prefetched = new Set<string>();
+/** pobiera pliki komórki (widok r) do pamięci podręcznej przeglądarki (szybsze przejście / obrót), raz na plik */
+export function prefetchCell(c: CellInfo, r = 0): void {
+  for (const f of ['meta.json', ...Object.values(CELL_IMAGES)]) {
+    const url = assetUrl(cellPath(c, rotFile(f, r)));
+    if (prefetched.has(url)) continue;
+    prefetched.add(url);
+    fetch(url, { priority: 'low' } as RequestInit).catch(() => prefetched.delete(url));
+  }
 }
 
 export const UI2_IMAGES = [

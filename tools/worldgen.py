@@ -33,7 +33,7 @@ GRID = 3
 BASE = 48               # poziom gruntu (poziomy co 24)
 CELLW = 4               # rozdzielczość siatki chodzenia (tekseli)
 BW = 8                  # grubość pasma głębi
-MAXH = 240              # zapas na najwyższe obiekty (wieża)
+MAXH = 300              # zapas na najwyższe obiekty (wieża katedry, karczma)
 X0 = N
 Y0 = MAXH
 W = 2 * N
@@ -298,7 +298,7 @@ def town_flags():
     fl = [(CTR + s_ * g_, w, BASE + GATE_TH) for s_ in (-1, 1) for w in (a0, a1)] + [(w, CTR + s_ * g_, BASE + GATE_TH) for s_ in (-1, 1) for w in (a0, a1)]
     fl += [(x, y, BASE + CORNER_TH) for x in (a0, a1) for y in (a0, a1)]
     fl += [
-          (CTR + TOWER[0], CTR + TOWER[1], BASE + 8 + 150), (CTR - 378, CTR + 240, BASE + 150 + 40)]
+          (CTR + TOWER[0], CTR + TOWER[1], BASE + 8 + 150), (CTR - 378, CTR + 240, BASE + CHURCH_TOWER_H + 40)]
     return [(float(u), float(v), int(h)) for (u, v, h) in fl]
 
 
@@ -370,23 +370,30 @@ HOUSES = [
     (-100, 215, 34, 30, 70, 'gable_u', 0, 'plaster', 'u', 2, 1, None),
     (100, 210, 30, 30, 58, 'hip', 2, 'plaster', 'u', 1, 1, None),
 ]
+CHURCH_TOWER_H = 200                     # wieża katedry (okap)
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
 SPAWN = (CTR - 100, CTR + 92)          # na placu, z dala od fontanny i donic
+
+
+# skala wysokości budynków względem dawnej postaci 28×42: postać ma dziś 42×63 (×1,5), więc ściany, drzwi i okna też ×1,5
+BLD_HS = 1.5
+DOOR_W, DOOR_H, WIN_W, WIN_H, WIN_Z, WIN_GAP = 14, 56, 8, 24, 27, 30
 
 
 def town_buildings():
     bs = []
     for (cu, cv, hu, hv, eave, roof, pal, walls, door, wu, wv, tag) in HOUSES:
         r = rect(cu, cv, hu, hv)
-        bs.append(dict(r, base=BASE, eave=BASE + eave, roof=roof, roofpal=pal, walls=walls, door=door,
-                       wins_u=wu, wins_v=wv, winz=18, mat=TR.ROOF, tag=tag, pitch=1.05))      # stromsze dachy
+        bs.append(dict(r, base=BASE, eave=BASE + int(eave * BLD_HS), roof=roof, roofpal=pal, walls=walls, door=door,
+                       wins_u=wu, wins_v=wv, winz=WIN_Z, winw=WIN_W, winh=WIN_H, wingap=WIN_GAP, doorw=DOOR_W, doorh=DOOR_H,
+                       mat=TR.ROOF, tag=tag, pitch=1.3))      # stromsze dachy (wyższe ściany)
     # katedra: wysoka nawa z dwuspadowym dachem, duże łukowe drzwi od strony placu, okna z witrażami; wieża z iglicą z tyłu
     nave = rect(-300, 240, 64, 34)
-    bs.append(dict(nave, base=BASE, eave=BASE + 86, roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
-                   winz=14, winw=6, winh=32, stained=True, doorw=18, doorh=46, pitch=1.0, mat=TR.ROOF, tag='church'))
+    bs.append(dict(nave, base=BASE, eave=BASE + int(86 * BLD_HS), roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
+                   winz=21, winw=8, winh=48, wingap=WIN_GAP, stained=True, doorw=24, doorh=69, pitch=1.2, mat=TR.ROOF, tag='church'))
     tw_ = rect(-378, 240, 14, 14)
-    bs.append(dict(tw_, base=BASE, eave=BASE + 150, roof='hip', roofpal=2, walls='stone', door=None, wins_u=1, wins_v=1,
-                   winz=96, winw=3, winh=14, stained=True, pitch=3.0, mat=TR.ROOF, tag='church_tower'))
+    bs.append(dict(tw_, base=BASE, eave=BASE + CHURCH_TOWER_H, roof='hip', roofpal=2, walls='stone', door=None, wins_u=1, wins_v=1,
+                   winz=150, winw=4, winh=20, stained=True, pitch=3.0, mat=TR.ROOF, tag='church_tower'))
     r = rect(TOWER[0], TOWER[1], TOWER[2], TOWER[3])
     bs.append(dict(r, base=BASE + 8, top=BASE + 8 + 150, eave=BASE + 8 + 150, roof='flat', walls='stone', door='u',
                    wins_u=1, wins_v=0, winz=60, mat=TR.WALL, tag='tower', plinth=8))
@@ -857,7 +864,7 @@ def gen_cell(ci, cj, sizes):
                 return [names[0]] if n == (1, 0) else [names[1]] if n == (0, 1) else None
             return f
         tsign = sign(('tavernsign', 'tavernsign_m'))
-        add('prop', lambda r: tsign(r, (0, 1)), (tav['u0'] + tav['u1']) / 2 + 20, tav['v1'] + 2, h=BASE + 44, dz=2)
+        add('prop', lambda r: tsign(r, (0, 1)), (tav['u0'] + tav['u1']) / 2 + 20, tav['v1'] + 2, h=BASE + DOOR_H + 10, dz=2)
         ridge = tav['eave'] + int((tav['v1'] - tav['v0']) / 2 * tav.get('pitch', 0.8))
         cu_, cv_ = tav['u1'] - 18, (tav['v0'] + tav['v1']) / 2
         add('prop', ['chimney'], cu_, cv_, h=ridge - 6, zfront=(tav, 4))
@@ -867,7 +874,7 @@ def gen_cell(ci, cj, sizes):
             if ch and hsh(b_['u0'], b_['v0'], 402) > 0.4:             # z części kominów leci dym
                 add('smoke', [], (ch[0] + ch[1]) / 2, (ch[2] + ch[3]) / 2, h=ch[4] + 2, zfront=(b_, 5))
         ssign = sign(('shopsign', 'shopsign_m'))
-        add('prop', lambda r: ssign(r, (1, 0)), shop['u1'] + 2, (shop['v0'] + shop['v1']) / 2 - 18, h=BASE + 42, dz=2)
+        add('prop', lambda r: ssign(r, (1, 0)), shop['u1'] + 2, (shop['v0'] + shop['v1']) / 2 - 18, h=BASE + DOOR_H + 8, dz=2)
 
     under_bridge = (np.abs(gu - CTR) < BR_HALF_W + 14) & (gv > BRIDGE['v0'] - 6) & (gv < BRIDGE['v1'] + 6)
     bcx, bcy = int(((BRIDGE['u0'] + BRIDGE['u1']) / 2) // C), int(((BRIDGE['v0'] + BRIDGE['v1']) / 2) // C)

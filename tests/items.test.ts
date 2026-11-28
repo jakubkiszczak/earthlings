@@ -53,7 +53,7 @@ describe('ekwipunek', () => {
     expect(s.luck).toBe(5);
     expect(s.hpMax).toBe(Math.round((100 + 220) * 1.1));
     expect(s.speed).toBeCloseTo(1.1);
-    expect(s.weapon).toMatchObject({ min: 8, max: 12 });
+    expect(s.weapon).toMatchObject({ min: 10, max: 10 });
     inv.eq.weapon = null;
     expect(computeStats(base, inv).weapon).toMatchObject({ min: 1, max: 3 });
   });

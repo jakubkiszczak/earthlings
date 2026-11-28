@@ -179,8 +179,8 @@ export function damageMob(m: Mob, dmg: number): boolean {
 // ------------------------------------------------------------------ gracz: obrażenia, umiejętności, exp
 export interface Weapon { name: string; min: number; max: number }
 export const START_WEAPON: Record<ClassId, Weapon> = {
-  warrior: { name: 'Krótki miecz', min: 8, max: 12 },
-  hunter: { name: 'Krótki łuk', min: 8, max: 12 },
+  warrior: { name: 'Krótki miecz', min: 10, max: 10 },
+  hunter: { name: 'Krótki łuk', min: 10, max: 10 },
 };
 
 /** obrażenia jednego ciosu/strzału: broń + Siła/2 (wręcz) albo Zręczność/2 (łuk) */

@@ -16,5 +16,5 @@ export async function loadArtManifest(): Promise<void> {
 
 /** adres grafiki, jeśli jest w assets/art/, inaczej null */
 export const artUrl = (name: string): string | null => (files.has(name) ? assetUrl('art/' + name) : null);
-/** awatar rasy i klasy w natywnej siatce 96×96: avatars/<rasa>_<klasa>_96.png (np. avatars/elf_hunter_96.png) */
-export const portraitArt = (race: string, cls: string): string | null => artUrl(`avatars/${race}_${cls}_96.png`);
+/** awatar rasy, klasy i płci w natywnej siatce 96×96: avatars/<rasa>_<klasa>_<płeć>_96.png (np. avatars/elf_hunter_female_96.png) */
+export const portraitArt = (race: string, cls: string, gender = 'male'): string | null => artUrl(`avatars/${race}_${cls}_${gender}_96.png`);

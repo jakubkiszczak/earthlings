@@ -11,6 +11,7 @@ test('obrót widoku co 90°: 4 widoki miasta, postać zostaje w miejscu i może 
   const start = await page.evaluate(() => window.__game!.hero());
   for (let i = 1; i <= 4; i++) {
     await page.keyboard.press('.');
+    expect(await page.locator('.loading-screen.on').count()).toBe(0);   // obrót bez ekranu wczytywania (przenikanie)
     await page.waitForFunction((r) => window.__game!.rot() === r % 4 && !window.__game!.busy(), i, { timeout: 60_000 });
     const h = await page.evaluate(() => window.__game!.hero());
     expect(Math.hypot(h.u - start.u, h.v - start.v)).toBeLessThan(1);

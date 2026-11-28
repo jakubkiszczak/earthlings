@@ -36,14 +36,23 @@ describe('nazwa i wygląd', () => {
     expect(nameError('Aren', ['aren'])).toMatch(/już/);
   });
 
-  it('elf nie ma brody', () => {
-    expect(normalizeLook('elf', { hair: 'blond', build: 'thin', beard: 'long' }).beard).toBe('none');
-    expect(normalizeLook('human', { hair: 'blond', build: 'thin', beard: 'none' }).beard).toBe('short');
+  it('elfy i kobiety nie mają brody; fryzura z listy danej płci', () => {
+    const m = { gender: 'male', skin: 'warm', hair: 'long', hairColor: 'red', beard: 'medium', beardColor: 'gray' } as const;
+    expect(normalizeLook('human', m)).toEqual(m);
+    expect(normalizeLook('elf', m).beard).toBe('none');
+    expect(normalizeLook('human', { ...m, gender: 'female' }).beard).toBe('none');
+    expect(normalizeLook('human', { ...m, gender: 'female', hair: 'buzz' }).hair).toBe('long');
+    expect(normalizeLook('elf', { gender: 'female' }).skin).toBe('fair');
+  });
+
+  it('stary zapis wyglądu (kolor w polu hair, budowa ciała) zamieniany na nowy', () => {
+    expect(normalizeLook('human', { hair: 'white', build: 'thin', beard: 'short' } as never))
+      .toEqual({ gender: 'male', skin: 'warm', hair: 'short', hairColor: 'platinum', beard: 'medium', beardColor: 'platinum' });
   });
 });
 
 const char = (id: string, name = 'Aren'): SavedChar => ({
-  id, name, race: 'human', cls: 'warrior', look: { hair: 'brown', build: 'normal', beard: 'short' },
+  id, name, race: 'human', cls: 'warrior', look: { gender: 'male', skin: 'warm', hair: 'short', hairColor: 'brown', beard: 'none', beardColor: 'brown' },
   alloc: { str: 5, dex: 0, vit: 5, ene: 0 }, level: 1, exp: 0, gold: 0, pos: null, created: 1, played: 1,
 });
 

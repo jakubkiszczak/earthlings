@@ -6,8 +6,8 @@ import { nameLabel } from '../ui/worldlabel';
 import { depthOf, screenDir } from '../world/view';
 import type { WorldGrid } from '../world/grid';
 
-const HERO_SPEED = 74;   // jednostek świata na sekundę (+15%, potem +25%)   // jednostek świata na sekundę
-const DOG_SPEED = 86;
+const HERO_SPEED = 96;   // jednostek świata na sekundę (+15%, +25%, potem ×1,3)
+const DOG_SPEED = 112;
 const TRAIL_MAX = 120;
 const DOG_LAG = 18;      // ile próbek śladu pies zostaje w tyle
 
@@ -123,7 +123,9 @@ export class Hero {
     const e8 = this.eightDir;
     const g = this.glowT > 0 ? 'atkg' : 'atk';
     // atak: 2 klatki; umiejętność (poświata) w postaci paper doll – mocne uderzenie, 4 klatki
-    const atkF = e8 && this.glowT > 0 ? `pow${Math.min(3, Math.floor((this.attackT / 0.35) * 4))}` : this.attackT < 0.14 ? `${e8 ? 'atk' : g}0` : `${e8 ? 'atk' : g}1`;
+    const k4 = Math.min(3, Math.floor((this.attackT / 0.35) * 4));
+    // z łukiem (arkusz ma klatki strzału) atak i umiejętności to strzał: 4 klatki
+    const atkF = e8 && 'has' in this.sheet && (this.sheet as { has(n: string): boolean }).has(`hero_${this.dir}_shoot0`) ? `shoot${k4}` : e8 && this.glowT > 0 ? `pow${k4}` : this.attackT < 0.14 ? `${e8 ? 'atk' : g}0` : `${e8 ? 'atk' : g}1`;
     const fi = this.attackT >= 0 ? atkF
       : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
     this.frameName = this.dead ? (e8 ? `hero_${this.dir}_dead` : 'hero_dead') : this.sitting ? `hero_${this.dir}_sit${Math.floor(at * 1.2) % 2}` : `hero_${this.dir}_${fi}`;

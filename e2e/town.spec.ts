@@ -34,12 +34,24 @@ test('miasto: strażnicy bronią bram, skrzynia przy fontannie, wnętrze sklepu'
   await page.waitForFunction((id) => window.__game!.mobState(id) === 'dead', mob.id, { timeout: 60_000 });
   await page.screenshot({ path: 'test-results/straznik.png' });
 
-  // wnętrze sklepu z wyposażeniem; przy wejściu widać ekran wczytywania
+  // wnętrze sklepu z wyposażeniem; wejście i wyjście bez ekranu wczytywania (krótkie wygaszenie)
+  let sawLoading = false;
+  await page.exposeFunction('__sawLoading', () => { sawLoading = true; });
+  await page.evaluate(() => {
+    const ls = document.querySelector('.loading-screen')!;
+    new MutationObserver(() => { if (ls.classList.contains('on')) (window as unknown as { __sawLoading(): void }).__sawLoading(); }).observe(ls, { attributes: true });
+  });
+  await page.evaluate(() => { void window.__game!.warp(1, 1, 200, 140); });
+  await page.waitForFunction(() => window.__game!.cell().cx === 1 && !window.__game!.busy(), null, { timeout: 60_000 });
+  sawLoading = false;
   await page.evaluate(() => { void window.__game!.warp(100, 100, 200, 140); });
-  await expect(page.locator('.loading-screen.on')).toBeVisible();
-  await expect(page.locator('.loading-screen .ls-place')).toHaveText('Sklep');
   await page.waitForFunction(() => window.__game!.cell().name === 'Sklep' && !window.__game!.busy(), null, { timeout: 60_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'test-results/sklep_wnetrze.png' });
+  const t0 = Date.now();
+  await page.evaluate(() => { void window.__game!.warp(1, 1, 200, 140); });
+  await page.waitForFunction(() => window.__game!.cell().cx === 1 && !window.__game!.busy(), null, { timeout: 60_000 });
+  expect(Date.now() - t0).toBeLessThan(3000);    // miasto zostało w pamięci
+  expect(sawLoading).toBe(false);
   expect(errors).toEqual([]);
 });

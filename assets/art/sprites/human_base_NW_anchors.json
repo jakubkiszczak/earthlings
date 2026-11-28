@@ -265,8 +265,8 @@
     "angle": 225
    },
    "head": {
-    "x": 28,
-    "y": 6,
+    "x": 17,
+    "y": 8,
     "angle": 0
    },
    "z": {
@@ -409,7 +409,7 @@
  "draw_order": [
   "shield(if behind)",
   "weapon(if behind)",
-  "body_nohair",
+  "body",
   "boots",
   "hair",
   "helmet",

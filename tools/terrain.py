@@ -126,6 +126,7 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     bwinz = barr('winz', 18)
     bdw, bdh = barr('doorw', 11), barr('doorh', 36)          # pół-szerokość i wysokość drzwi (do łuku)
     bww, bwh = barr('winw', 6), barr('winh', 16)            # pół-szerokość i wysokość okna (do łuku)
+    bwgap = barr('wingap', 20)                                # odstęp między rzędami okien
     bst = np.array([b.get('stained', False) for b in buildings] + [False])   # witraże
 
     # dach: rzędy dachówek prostopadle do spadku, połać od światła jaśniejsza
@@ -276,16 +277,16 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         # komin (mur ponad okapem wewnątrz budynku) – kamień, nie dach
         chim = isb & (mat == WALL) & (zb >= eaveb) & ~gable_end
         roofpx = roofpx & ~chim
-        # mur pruski: słupy co 18, oczep pod okapem i belki stropowe co piętro, ukośne zastrzały w części pól
+        # mur pruski: słupy co 24, oczep pod okapem i belki stropowe co piętro, ukośne zastrzały w części pól
         cornerF = np.where(fl, np.minimum(U_ - bu0[bid], bu1[bid] - U_), np.minimum(V_ - bv0[bid], bv1[bid] - V_))
-        fh = np.where(eaveb >= 70, 40.0, 1e9)                          # wysokość piętra (belka stropowa)
+        fh = np.where(eaveb >= 105, 60.0, 1e9)                         # wysokość piętra (belka stropowa; skala postaci 42×63)
         zf_ = np.where(zb >= 8, zb - 8, -1)                            # nad kamienną podmurówką
         fin = zf_ % fh
-        panel = np.floor((alongF + 9) / 18)
-        pa_ = (alongF + 9) % 18
+        panel = np.floor((alongF + 12) / 24)
+        pa_ = (alongF + 12) % 24
         brace = (hsh(panel, np.floor(zf_ / fh), 72) > 0.45) & (zf_ >= 0)
-        diag = brace & (np.abs(pa_ - fin * 18 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.7) & (zb < eaveb)
-        diag2 = brace & (hsh(panel, 73) > 0.5) & (np.abs((18 - pa_) - fin * 18 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.7) & (zb < eaveb)
+        diag = brace & (np.abs(pa_ - fin * 24 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.9) & (zb < eaveb)
+        diag2 = brace & (hsh(panel, 73) > 0.5) & (np.abs((24 - pa_) - fin * 24 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.9) & (zb < eaveb)
         beam = (cornerF < 3) | ((zb >= 8) & (zb < 11)) | ((np.abs(zb - eaveb) < 2.5) & (zb < eaveb + 1)) | (pa_ < 2.5)
         beam |= (fin < 2.5) & (zf_ > 4) & (zb < eaveb - 4)
         beam |= diag | diag2
@@ -334,8 +335,8 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         win = np.zeros(n_, bool); wfr = np.zeros(n_, bool); wcol = np.zeros((n_, 3), np.float32)
         for row in (0, 1):
             ww, wh, aw = bww[bid], bwh[bid], alongF - wc
-            zw = zb - bwinz[bid] - row * (wh + 20)
-            ok_row = wface & ((row == 0) | (eaveb >= 80)) & (zw + wh + ww + 2 < eaveb)
+            zw = zb - bwinz[bid] - row * (wh + bwgap[bid])
+            ok_row = wface & ((row == 0) | (eaveb >= bwinz[bid] + 2 * wh + bwgap[bid] + 12)) & (zw + wh + ww + 2 < eaveb)
             stb = bst[bid]
             arch = (zw < wh) | (stb & (aw ** 2 + (zw - wh) ** 2 < ww ** 2))
             w_ = ok_row & (np.abs(aw) < ww) & (zw >= 0) & arch

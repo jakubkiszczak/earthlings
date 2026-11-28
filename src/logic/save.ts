@@ -1,6 +1,6 @@
 // Zapis postaci w przeglądarce (localStorage): format wersjonowany, walidacja przy odczycie, maks. 3 postacie.
 import {
-  BEARDS, BUILDS, CLASSES, HAIRS, MAX_LEVEL, RACES, type Attributes, type ClassId, type Look, type Race,
+  CLASSES, MAX_LEVEL, RACES, normalizeLook, type Attributes, type ClassId, type Look, type Race,
 } from './character';
 import type { CellPos } from '../types';
 
@@ -42,8 +42,7 @@ function validChar(c: unknown): c is SavedChar {
   const alloc = o.alloc as Record<string, unknown> | undefined;
   return typeof o.id === 'string' && typeof o.name === 'string'
     && oneOf(o.race, Object.keys(RACES) as Race[]) && oneOf(o.cls, Object.keys(CLASSES) as ClassId[])
-    && !!look && oneOf(look.hair, HAIRS.map((h) => h.id)) && oneOf(look.build, BUILDS.map((b) => b.id))
-    && oneOf(look.beard, [...BEARDS.map((b) => b.id), 'none'])
+    && !!look && typeof look === 'object'
     && !!alloc && ['str', 'dex', 'vit', 'ene'].every((k) => isNum(alloc[k]))
     && isNum(o.level) && o.level >= 1 && o.level <= MAX_LEVEL && isNum(o.exp) && isNum(o.gold)
     && (o.points === undefined || isNum(o.points)) && (o.arrows === undefined || isNum(o.arrows));
@@ -55,7 +54,9 @@ export function parseSave(text: string | null): SaveFile {
   try {
     const raw = JSON.parse(text) as { version?: unknown; chars?: unknown };
     if (raw.version !== SAVE_VERSION || !Array.isArray(raw.chars)) return { version: SAVE_VERSION, chars: [] };
-    return { version: SAVE_VERSION, chars: raw.chars.filter(validChar).slice(0, MAX_CHARS) };
+    // wygląd poprawiany przy odczycie (także zapisy sprzed fryzur i koloru skóry)
+    const chars = raw.chars.filter(validChar).slice(0, MAX_CHARS).map((c) => ({ ...c, look: normalizeLook(c.race, c.look) }));
+    return { version: SAVE_VERSION, chars };
   } catch {
     return { version: SAVE_VERSION, chars: [] };
   }

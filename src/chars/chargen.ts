@@ -2,7 +2,12 @@
 // Kształty opisane są w jednostkach projektu 28×42, a rysowane w skali K = 1,5 (42×63 px), potem przebiegi detali:
 // faktura i fałdy materiału, odblaski metalu, pasma włosów, wewnętrzne kontury.
 // 5 kierunków (S, SE, E, NE, N; zachodnie to lustro), chód 4 klatki, oddech 2.
-import type { Beard, Build, ClassId, Hair, Race } from '../logic/character';
+import type { ClassId, Race } from '../logic/character';
+
+/** wygląd dawnego generatora (NPC, potwory, portret zastępczy) */
+export type Hair = 'black' | 'white' | 'blond' | 'brown' | 'bald';
+export type Build = 'thin' | 'normal' | 'stocky';
+export type Beard = 'short' | 'long' | 'mustache' | 'none';
 
 /** skala rysowania względem siatki projektu */
 export const K = 1.5;

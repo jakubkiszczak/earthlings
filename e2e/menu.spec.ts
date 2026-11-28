@@ -12,12 +12,18 @@ test('ekran startowy → kreator → gra; zapis postaci i usuwanie', async ({ pa
   await expect(page.locator('.slot.empty')).toHaveCount(3);
   await page.getByRole('button', { name: 'Nowa postać' }).click();
 
-  // kreator: elf łowca, blond, chudy; broda zablokowana dla elfa
+  // kreator: bez budowy ciała; kolor skóry, fryzura, kolor włosów, broda
+  await expect(page.getByText('Budowa ciała')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Zarost', exact: true }).click();
+  await expect(page.locator('.opt.on', { hasText: 'Zarost' })).toHaveCount(1);
+  // elfka łowczyni, kok, blond, jasna skóra; broda zablokowana (elfy i kobiety)
   await page.getByRole('button', { name: 'Elf' }).click();
   await page.getByRole('button', { name: 'Łowca' }).click();
-  await page.getByRole('button', { name: 'Blond' }).click();
-  await page.getByRole('button', { name: 'Chudy' }).click();
-  await expect(page.getByRole('button', { name: 'Długa' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Kobieta' }).click();
+  await page.getByRole('button', { name: 'Kok', exact: true }).click();
+  await page.getByRole('button', { name: 'Blond' }).first().click();
+  await expect(page.locator('.opt.on', { hasText: 'Jasna' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Długa', exact: true })).toBeDisabled();
   // bez nazwy i bez rozdzielonych punktów – błędy
   await page.getByRole('button', { name: 'Utwórz postać' }).click();
   await expect(page.locator('.err')).toContainText('3 znaki');
@@ -35,6 +41,8 @@ test('ekran startowy → kreator → gra; zapis postaci i usuwanie', async ({ pa
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 60_000 });
   await expect(page.locator('.pname')).toContainText('Lirael');
   await expect(page.locator('.pname')).toContainText('Elf · Łowca · poz. 1');
+  const look = await page.evaluate(() => JSON.parse(localStorage.getItem('earthlings.saves')!).chars[0].look);
+  expect(look).toMatchObject({ gender: 'female', hair: 'bun', hairColor: 'blond', beard: 'none', skin: 'fair' });
   await page.screenshot({ path: 'test-results/menu_gra.png' });
 
   // zapis: po odświeżeniu postać jest na liście, z zapisaną pozycją

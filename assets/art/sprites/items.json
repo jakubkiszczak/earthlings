@@ -91,28 +91,45 @@
     "W": "boots_leather_W.png",
     "SW": "boots_leather_SW.png"
    }
+  },
+  {
+   "id": "bow_short",
+   "slot": "weapon",
+   "type": "bow",
+   "attach": "hand_l",
+   "rotate": true,
+   "pivot": [
+    3,
+    11
+   ],
+   "two_handed": true,
+   "disables": [
+    "shield"
+   ],
+   "uses_animation": "shoot",
+   "ammo": "arrow.png",
+   "files": {
+    "S": "bow_short.png",
+    "SE": "bow_short.png",
+    "E": "bow_short.png",
+    "NE": "bow_short.png",
+    "N": "bow_short.png",
+    "NW": "bow_short.png",
+    "W": "bow_short.png",
+    "SW": "bow_short.png"
+   }
   }
  ],
  "body": {
-  "nohair": {
-   "S": "human_base_S_anim_nohair.png",
-   "SE": "human_base_SE_anim_nohair.png",
-   "E": "human_base_E_anim_nohair.png",
-   "NE": "human_base_NE_anim_nohair.png",
-   "N": "human_base_N_anim_nohair.png",
-   "NW": "human_base_NW_anim_nohair.png",
-   "W": "human_base_W_anim_nohair.png",
-   "SW": "human_base_SW_anim_nohair.png"
-  },
-  "hair": {
-   "S": "human_hair_S.png",
-   "SE": "human_hair_SE.png",
-   "E": "human_hair_E.png",
-   "NE": "human_hair_NE.png",
-   "N": "human_hair_N.png",
-   "NW": "human_hair_NW.png",
-   "W": "human_hair_W.png",
-   "SW": "human_hair_SW.png"
+  "base": {
+   "S": "appearance/body/human_male_S_anim.png",
+   "SE": "appearance/body/human_male_SE_anim.png",
+   "E": "appearance/body/human_male_E_anim.png",
+   "NE": "appearance/body/human_male_NE_anim.png",
+   "N": "appearance/body/human_male_N_anim.png",
+   "NW": "appearance/body/human_male_NW_anim.png",
+   "W": "appearance/body/human_male_W_anim.png",
+   "SW": "appearance/body/human_male_SW_anim.png"
   },
   "anchors": {
    "S": "human_base_S_anchors.json",
@@ -123,7 +140,30 @@
    "NW": "human_base_NW_anchors.json",
    "W": "human_base_W_anchors.json",
    "SW": "human_base_SW_anchors.json"
-  }
+  },
+  "shoot": {
+   "base": {
+    "S": "appearance/body/human_male_S_shoot.png",
+    "SE": "appearance/body/human_male_SE_shoot.png",
+    "E": "appearance/body/human_male_E_shoot.png",
+    "NE": "appearance/body/human_male_NE_shoot.png",
+    "N": "appearance/body/human_male_N_shoot.png",
+    "NW": "appearance/body/human_male_NW_shoot.png",
+    "W": "appearance/body/human_male_W_shoot.png",
+    "SW": "appearance/body/human_male_SW_shoot.png"
+   },
+   "anchors": {
+    "S": "human_base_S_shoot_anchors.json",
+    "SE": "human_base_SE_shoot_anchors.json",
+    "E": "human_base_E_shoot_anchors.json",
+    "NE": "human_base_NE_shoot_anchors.json",
+    "N": "human_base_N_shoot_anchors.json",
+    "NW": "human_base_NW_shoot_anchors.json",
+    "W": "human_base_W_shoot_anchors.json",
+    "SW": "human_base_SW_shoot_anchors.json"
+   }
+  },
+  "note": "bald body (scalp = skin colours); hair, beard and elf ears are separate layers, see \"appearance\""
  },
  "animations": {
   "idle": {
@@ -178,20 +218,32 @@
    ],
    "fps": 1,
    "loop": false
+  },
+  "shoot": {
+   "sheet": "separate: *_shoot_nohair.png (4 frames)",
+   "frames": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "fps": 8,
+   "loop": false,
+   "then": "idle",
+   "note": "used instead of attack when a bow is equipped"
   }
  },
  "body_female": {
-  "nohair": {
-   "S": "human_female_S_anim_nohair.png",
-   "SE": "human_female_SE_anim_nohair.png",
-   "E": "human_female_E_anim_nohair.png",
-   "NE": "human_female_NE_anim_nohair.png",
-   "N": "human_female_N_anim_nohair.png",
-   "NW": "human_female_NW_anim_nohair.png",
-   "W": "human_female_W_anim_nohair.png",
-   "SW": "human_female_SW_anim_nohair.png"
+  "base": {
+   "S": "appearance/body/human_female_S_anim.png",
+   "SE": "appearance/body/human_female_SE_anim.png",
+   "E": "appearance/body/human_female_E_anim.png",
+   "NE": "appearance/body/human_female_NE_anim.png",
+   "N": "appearance/body/human_female_N_anim.png",
+   "NW": "appearance/body/human_female_NW_anim.png",
+   "W": "appearance/body/human_female_W_anim.png",
+   "SW": "appearance/body/human_female_SW_anim.png"
   },
-  "hair": null,
   "anchors": {
    "S": "human_female_S_anchors.json",
    "SE": "human_female_SE_anchors.json",
@@ -202,18 +254,117 @@
    "W": "human_female_W_anchors.json",
    "SW": "human_female_SW_anchors.json"
   },
-  "note": "female base: tight hair cap baked in, no separate hair layer yet; same items, same draw order, own anchors per frame"
+  "shoot": {
+   "base": {
+    "S": "appearance/body/human_female_S_shoot.png",
+    "SE": "appearance/body/human_female_SE_shoot.png",
+    "E": "appearance/body/human_female_E_shoot.png",
+    "NE": "appearance/body/human_female_NE_shoot.png",
+    "N": "appearance/body/human_female_N_shoot.png",
+    "NW": "appearance/body/human_female_NW_shoot.png",
+    "W": "appearance/body/human_female_W_shoot.png",
+    "SW": "appearance/body/human_female_SW_shoot.png"
+   },
+   "anchors": {
+    "S": "human_female_S_shoot_anchors.json",
+    "SE": "human_female_SE_shoot_anchors.json",
+    "E": "human_female_E_shoot_anchors.json",
+    "NE": "human_female_NE_shoot_anchors.json",
+    "N": "human_female_N_shoot_anchors.json",
+    "NW": "human_female_NW_shoot_anchors.json",
+    "W": "human_female_W_shoot_anchors.json",
+    "SW": "human_female_SW_shoot_anchors.json"
+   }
+  },
+  "note": "bald body (scalp = skin colours); hair, beard and elf ears are separate layers, see \"appearance\""
  },
  "draw_order": [
+  "hair_back",
   "shield(if behind)",
   "weapon(if behind)",
-  "body_nohair",
+  "body (appearance/body: human or elf, bald)",
   "boots",
-  "hair",
-  "helmet",
+  "beard (human male only)",
+  "hair_front",
+  "elf ears (elf only)",
+  "helmet (hidden in frame 14)",
   "shield(if front)",
   "weapon(if front)",
   "weapon clipped to shield pixels (if weapon behind AND shield front) - sword is always visible over the shield"
  ],
- "rule_sword_over_shield": true
+ "rule_sword_over_shield": true,
+ "appearance": {
+  "races": [
+   "human",
+   "elf"
+  ],
+  "genders": [
+   "male",
+   "female"
+  ],
+  "hair_styles": {
+   "male": [
+    "short",
+    "buzz",
+    "long",
+    "ponytail"
+   ],
+   "female": [
+    "long",
+    "ponytail",
+    "bob",
+    "bun"
+   ]
+  },
+  "beard_styles": {
+   "male": [
+    "none",
+    "stubble",
+    "medium",
+    "long",
+    "mustache"
+   ],
+   "female": [
+    "none"
+   ]
+  },
+  "beard_races": [
+   "human"
+  ],
+  "colors": [
+   "brown",
+   "black",
+   "blond",
+   "red",
+   "platinum",
+   "gray"
+  ],
+  "palettes": "appearance/palettes.json",
+  "defaults": {
+   "male": {
+    "race": "human",
+    "hair": "short",
+    "hair_color": "brown",
+    "beard": "none",
+    "beard_color": "brown"
+   },
+   "female": {
+    "race": "human",
+    "hair": "long",
+    "hair_color": "brown",
+    "beard": "none"
+   }
+  },
+  "files": {
+   "body": "appearance/body/{race}_{gender}_{dir}_{sheet}.png",
+   "elf_ears": "appearance/body/elf_{gender}_{dir}_{sheet}_ears.png",
+   "hair_back": "appearance/hair/{gender}_{hair}_{dir}_{sheet}_back.png",
+   "hair_front": "appearance/hair/{gender}_{hair}_{dir}_{sheet}_front.png",
+   "beard": "appearance/beard/male_{beard}_{dir}_{sheet}.png",
+   "sheet": "anim (630x63, 15 frames) | shoot (168x63, 4 frames)"
+  },
+  "anchors": "the same per-gender anchor files as the body (body.anchors / body_female.anchors, and their shoot variants); elves use the human anchors",
+  "recolor": "hair and beard PNGs use the 6 \"base\" colours from palettes.json; at load time replace base[k] with palette[k] (exact RGB match, keep alpha) and cache one texture per (layer, colour)",
+  "beard_note": "beard layers are empty in N, NE, NW (face not visible)"
+ }
 }

@@ -119,7 +119,10 @@ export class MobManager {
         this.views.set(m.id, v);
       }
       const dead = m.state === 'dead';
-      v.label.visible = this.hoverId === m.id && !dead;
+      const hover = this.hoverId === m.id && !dead;
+      v.label.visible = hover;
+      // po najechaniu myszką: nazwa i punkty zdrowia
+      if (hover) { const t = `${MOBS[m.kind].name} ${Math.ceil(m.hp)}/${MOBS[m.kind].hp}`; if (v.label.text !== t) v.label.text = t; }
       if (dead && m.deadT > CORPSE_TIME) { v.c.visible = false; continue; }
       v.c.visible = true;
       v.c.alpha = dead ? Math.max(0, Math.min(1, (CORPSE_TIME - m.deadT) / 0.6)) : 1;
@@ -150,7 +153,7 @@ export class MobManager {
       const def = MOBS[m.kind];
       const top = m.kind === 'wolf' ? -38 : -70;
       v.bar.clear();
-      if (!dead && (m.hp < def.hp || this.target === m.id)) {
+      if (!dead && (m.hp < def.hp || this.target === m.id || hover)) {
         v.bar.rect(-11, top, 22, 4).fill(0x0a0706);
         v.bar.rect(-10, top + 1, Math.max(0, Math.round((20 * m.hp) / def.hp)), 2).fill(0xd8384a);
       }

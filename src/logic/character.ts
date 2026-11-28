@@ -2,14 +2,16 @@
 
 export type Race = 'human' | 'elf';
 export type ClassId = 'warrior' | 'hunter';
-export type Hair = 'black' | 'white' | 'blond' | 'brown' | 'bald';
-export type Build = 'thin' | 'normal' | 'stocky';
-export type Beard = 'short' | 'long' | 'mustache' | 'none';
+/** kolor włosów i brody (palety z assets/art/sprites/appearance/palettes.json) */
+export type HairColor = 'brown' | 'black' | 'blond' | 'red' | 'platinum' | 'gray';
+/** kolor skóry z grafik paczki: tony ciała człowieka albo elfa */
+export type Skin = 'warm' | 'fair';
 export type AttrId = 'str' | 'dex' | 'vit' | 'ene';
 
 export interface Attributes { str: number; dex: number; vit: number; ene: number }
 export type Gender = 'male' | 'female';
-export interface Look { hair: Hair; build: Build; beard: Beard; gender?: Gender }
+/** wygląd postaci gracza (paper doll, items.json → appearance); hair i beard to nazwy fryzury i brody */
+export interface Look { gender: Gender; skin: Skin; hair: string; hairColor: HairColor; beard: string; beardColor: HairColor }
 
 export const RACES: Record<Race, { name: string; bonus: Partial<Attributes> }> = {
   human: { name: 'Człowiek', bonus: { str: 2, vit: 2 } },
@@ -28,16 +30,24 @@ export const ATTRS: { id: AttrId; name: string; hint: string }[] = [
   { id: 'ene', name: 'Energia', hint: 'mana i jej odnawianie' },
 ];
 
-export const HAIRS: { id: Hair; name: string }[] = [
-  { id: 'black', name: 'Czarne' }, { id: 'white', name: 'Białe' }, { id: 'blond', name: 'Blond' },
-  { id: 'brown', name: 'Brązowe' }, { id: 'bald', name: 'Łysy' },
-];
-export const BUILDS: { id: Build; name: string }[] = [
-  { id: 'thin', name: 'Chudy' }, { id: 'normal', name: 'Normalny' }, { id: 'stocky', name: 'Krępy' },
-];
 export const GENDERS: { id: Gender; name: string }[] = [{ id: 'male', name: 'Mężczyzna' }, { id: 'female', name: 'Kobieta' }];
-export const BEARDS: { id: Beard; name: string }[] = [
-  { id: 'short', name: 'Krótka' }, { id: 'long', name: 'Długa' }, { id: 'mustache', name: 'Wąsy' },
+export const SKINS: { id: Skin; name: string; swatch: string }[] = [
+  { id: 'warm', name: 'Śniada', swatch: '#da945c' }, { id: 'fair', name: 'Jasna', swatch: '#f6d4aa' },
+];
+/** fryzury z paczki (kolejność i nazwy plików jak w items.json → appearance.hair_styles) */
+export const HAIR_STYLES: Record<Gender, { id: string; name: string }[]> = {
+  male: [{ id: 'short', name: 'Krótkie' }, { id: 'buzz', name: 'Na jeża' }, { id: 'long', name: 'Długie' }, { id: 'ponytail', name: 'Kucyk' }],
+  female: [{ id: 'long', name: 'Długie' }, { id: 'ponytail', name: 'Kucyk' }, { id: 'bob', name: 'Bob' }, { id: 'bun', name: 'Kok' }],
+};
+export const HAIR_COLORS: { id: HairColor; name: string; swatch: string }[] = [
+  { id: 'brown', name: 'Brązowe', swatch: '#a5532a' }, { id: 'black', name: 'Czarne', swatch: '#444254' },
+  { id: 'blond', name: 'Blond', swatch: '#deb460' }, { id: 'red', name: 'Rude', swatch: '#c65a28' },
+  { id: 'platinum', name: 'Platynowe', swatch: '#d4ceb6' }, { id: 'gray', name: 'Siwe', swatch: '#a2a2a8' },
+];
+/** brody (tylko człowiek-mężczyzna) */
+export const BEARDS: { id: string; name: string }[] = [
+  { id: 'none', name: 'Bez brody' }, { id: 'stubble', name: 'Zarost' }, { id: 'medium', name: 'Średnia' },
+  { id: 'long', name: 'Długa' }, { id: 'mustache', name: 'Wąsy' },
 ];
 
 /** punkty do rozdzielenia przy tworzeniu postaci */
@@ -87,8 +97,24 @@ export function nameError(name: string, taken: string[] = []): string | null {
   return null;
 }
 
-/** elf nie ma brody – poprawia wygląd do zgodnego z rasą */
-export function normalizeLook(race: Race, look: Look): Look {
-  const gender = look.gender ?? 'male';
-  return race === 'elf' || gender === 'female' ? { ...look, gender, beard: 'none' } : { ...look, gender, beard: look.beard === 'none' ? 'short' : look.beard };
+const OLD_COLOR: Record<string, HairColor> = { black: 'black', white: 'platinum', blond: 'blond', brown: 'brown', bald: 'brown' };
+const OLD_BEARD: Record<string, string> = { short: 'medium', long: 'long', mustache: 'mustache', none: 'none' };
+export const canHaveBeard = (race: Race, gender: Gender) => race === 'human' && gender === 'male';
+export const defaultLook = (race: Race, gender: Gender = 'male'): Look =>
+  ({ gender, skin: race === 'elf' ? 'fair' : 'warm', hair: HAIR_STYLES[gender][0].id, hairColor: 'brown', beard: 'none', beardColor: 'brown' });
+
+/** wygląd zgodny z rasą i płcią: elfy i kobiety bez brody, fryzura z listy danej płci; zapis w starym formacie
+ *  (kolor włosów w polu hair, budowa ciała) zamieniany na nowy */
+export function normalizeLook(race: Race, look0: Partial<Look> | object): Look {
+  const look = look0 as Partial<Look> & Record<string, unknown>;
+  const gender: Gender = look.gender === 'female' ? 'female' : 'male';
+  const d = defaultLook(race, gender);
+  const isColor = (c: unknown): c is HairColor => HAIR_COLORS.some((h) => h.id === c);
+  const old = !('hairColor' in look) && typeof look.hair === 'string' && look.hair in OLD_COLOR;
+  const hairColor = old ? OLD_COLOR[look.hair as string] : isColor(look.hairColor) ? look.hairColor : d.hairColor;
+  const hair = !old && HAIR_STYLES[gender].some((h) => h.id === look.hair) ? (look.hair as string) : d.hair;
+  const beardId = old ? OLD_BEARD[look.beard as string] ?? 'none' : (look.beard as string);
+  const beard = canHaveBeard(race, gender) && BEARDS.some((b) => b.id === beardId) ? beardId : 'none';
+  const skin: Skin = look.skin === 'warm' || look.skin === 'fair' ? look.skin : d.skin;
+  return { gender, skin, hair, hairColor, beard, beardColor: isColor(look.beardColor) ? look.beardColor : hairColor };
 }

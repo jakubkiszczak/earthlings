@@ -8,7 +8,8 @@ export type Beard = 'short' | 'long' | 'mustache' | 'none';
 export type AttrId = 'str' | 'dex' | 'vit' | 'ene';
 
 export interface Attributes { str: number; dex: number; vit: number; ene: number }
-export interface Look { hair: Hair; build: Build; beard: Beard }
+export type Gender = 'male' | 'female';
+export interface Look { hair: Hair; build: Build; beard: Beard; gender?: Gender }
 
 export const RACES: Record<Race, { name: string; bonus: Partial<Attributes> }> = {
   human: { name: 'Człowiek', bonus: { str: 2, vit: 2 } },
@@ -34,6 +35,7 @@ export const HAIRS: { id: Hair; name: string }[] = [
 export const BUILDS: { id: Build; name: string }[] = [
   { id: 'thin', name: 'Chudy' }, { id: 'normal', name: 'Normalny' }, { id: 'stocky', name: 'Krępy' },
 ];
+export const GENDERS: { id: Gender; name: string }[] = [{ id: 'male', name: 'Mężczyzna' }, { id: 'female', name: 'Kobieta' }];
 export const BEARDS: { id: Beard; name: string }[] = [
   { id: 'short', name: 'Krótka' }, { id: 'long', name: 'Długa' }, { id: 'mustache', name: 'Wąsy' },
 ];
@@ -87,5 +89,6 @@ export function nameError(name: string, taken: string[] = []): string | null {
 
 /** elf nie ma brody – poprawia wygląd do zgodnego z rasą */
 export function normalizeLook(race: Race, look: Look): Look {
-  return race === 'elf' ? { ...look, beard: 'none' } : { ...look, beard: look.beard === 'none' ? 'short' : look.beard };
+  const gender = look.gender ?? 'male';
+  return race === 'elf' || gender === 'female' ? { ...look, gender, beard: 'none' } : { ...look, gender, beard: look.beard === 'none' ? 'short' : look.beard };
 }

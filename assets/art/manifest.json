@@ -1,99 +1,1616 @@
 {
- "version": 1,
- "project": "Glastemia",
- "created": "2026-11-26",
- "assets": [
-  {
-   "path": "assets/art/avatars/elf_warrior_96.png",
-   "role": "avatar",
-   "size": [
-    96,
-    96
-   ],
-   "filter": "nearest",
-   "source": {
-    "kind": "ai-generated",
-    "tool": "CellCog (cellcog.ai)",
-    "post": "downscaled with box filter to the game pixel grid"
-   },
-   "logo_overlay": null,
-   "status": "approved-draft",
-   "sha256": "a5c7935c6d47cd66"
-  },
-  {
-   "path": "assets/art/avatars/elf_hunter_96.png",
-   "role": "avatar",
-   "size": [
-    96,
-    96
-   ],
-   "filter": "nearest",
-   "source": {
-    "kind": "ai-generated",
-    "tool": "CellCog (cellcog.ai)",
-    "post": "downscaled with box filter to the game pixel grid"
-   },
-   "logo_overlay": null,
-   "status": "approved-draft",
-   "sha256": "4074c66375556ced"
-  },
-  {
-   "path": "assets/art/avatars/human_warrior_96.png",
-   "role": "avatar",
-   "size": [
-    96,
-    96
-   ],
-   "filter": "nearest",
-   "source": {
-    "kind": "ai-generated",
-    "tool": "CellCog (cellcog.ai)",
-    "post": "downscaled with box filter to the game pixel grid"
-   },
-   "logo_overlay": null,
-   "status": "approved-draft",
-   "sha256": "f9539955eea781f2"
-  },
-  {
-   "path": "assets/art/avatars/human_hunter_96.png",
-   "role": "avatar",
-   "size": [
-    96,
-    96
-   ],
-   "filter": "nearest",
-   "source": {
-    "kind": "ai-generated",
-    "tool": "CellCog (cellcog.ai)",
-    "post": "downscaled with box filter to the game pixel grid"
-   },
-   "logo_overlay": null,
-   "status": "approved-draft",
-   "sha256": "71d58304b0978ad4"
-  },
-  {
-   "path": "assets/art/loading/loading_dragon_480x270.png",
-   "role": "loading_screen",
-   "size": [
-    480,
-    270
-   ],
-   "filter": "nearest",
-   "source": {
-    "kind": "ai-generated",
-    "tool": "CellCog (cellcog.ai)",
-    "post": "downscaled with box filter to the game pixel grid"
-   },
-   "logo_overlay": "emblem drawn in code (Claude)",
-   "status": "approved-draft",
-   "sha256": "db61174d416622d4"
-  },
-  {
-   "path": "assets/art/loading.webp",
-   "role": "loading-fallback",
-   "source": {
-    "kind": "code-generated"
-   }
-  }
- ]
+  "version": 1,
+  "project": "Glastemia",
+  "created": "2026-11-26",
+  "assets": [
+    {
+      "path": "assets/art/avatars/elf_warrior_96.png",
+      "role": "avatar",
+      "size": [
+        96,
+        96
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "a5c7935c6d47cd66"
+    },
+    {
+      "path": "assets/art/avatars/elf_warrior_96x4.png",
+      "role": "avatar",
+      "size": [
+        384,
+        384
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "93f612969f1b8498"
+    },
+    {
+      "path": "assets/art/source/elf_warrior_ai_original.png",
+      "role": "source",
+      "size": [
+        1013,
+        1013
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "eca659ea3c21df0c"
+    },
+    {
+      "path": "assets/art/avatars/elf_hunter_96.png",
+      "role": "avatar",
+      "size": [
+        96,
+        96
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "4074c66375556ced"
+    },
+    {
+      "path": "assets/art/avatars/elf_hunter_96x4.png",
+      "role": "avatar",
+      "size": [
+        384,
+        384
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "abcc844d7c1300d7"
+    },
+    {
+      "path": "assets/art/source/elf_hunter_ai_original.png",
+      "role": "source",
+      "size": [
+        1013,
+        1013
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "87db3cb0d1d2153e"
+    },
+    {
+      "path": "assets/art/avatars/human_warrior_96.png",
+      "role": "avatar",
+      "size": [
+        96,
+        96
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "f9539955eea781f2"
+    },
+    {
+      "path": "assets/art/avatars/human_warrior_96x4.png",
+      "role": "avatar",
+      "size": [
+        384,
+        384
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "b0a79c4092e22727"
+    },
+    {
+      "path": "assets/art/source/human_warrior_ai_original.png",
+      "role": "source",
+      "size": [
+        1013,
+        1013
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "449229fc2e247208"
+    },
+    {
+      "path": "assets/art/avatars/human_hunter_96.png",
+      "role": "avatar",
+      "size": [
+        96,
+        96
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "71d58304b0978ad4"
+    },
+    {
+      "path": "assets/art/avatars/human_hunter_96x4.png",
+      "role": "avatar",
+      "size": [
+        384,
+        384
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "0420315e1423b463"
+    },
+    {
+      "path": "assets/art/source/human_hunter_ai_original.png",
+      "role": "source",
+      "size": [
+        1013,
+        1013
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "4f99d100f145e59a"
+    },
+    {
+      "path": "assets/art/loading/loading_dragon_480x270.png",
+      "role": "loading_screen",
+      "size": [
+        480,
+        270
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": "emblem drawn in code (Claude)",
+      "status": "approved-draft",
+      "sha256": "db61174d416622d4"
+    },
+    {
+      "path": "assets/art/loading/loading_dragon_1920x1080.png",
+      "role": "loading_screen",
+      "size": [
+        1920,
+        1080
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "downscaled with box filter to the game pixel grid"
+      },
+      "logo_overlay": "emblem drawn in code (Claude)",
+      "status": "approved-draft",
+      "sha256": "0a761bbf1d5b8e6a"
+    },
+    {
+      "path": "assets/art/source/loading_dragon_ai_original.png",
+      "role": "source",
+      "size": [
+        2560,
+        1440
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "c4dd46aa6979407d"
+    },
+    {
+      "path": "assets/art/source/character_portraits_grid_ai_original.png",
+      "role": "source",
+      "size": [
+        2048,
+        2048
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original output"
+      },
+      "logo_overlay": null,
+      "status": "approved-draft",
+      "sha256": "be3bd8e8a7f82718"
+    },
+    {
+      "path": "assets/art/source/human_warrior_SE_idle_ai_magenta.png",
+      "role": "source",
+      "size": [
+        42,
+        63
+      ],
+      "filter": "nearest",
+      "anchor": [
+        21,
+        62
+      ],
+      "cell": [
+        42,
+        63
+      ],
+      "directions": [
+        "SE"
+      ],
+      "anim": "idle(1 frame)",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original 1x output on magenta"
+      },
+      "status": "draft",
+      "sha256": "e3c3bef0a46c4a4a"
+    },
+    {
+      "path": "assets/art/source/human_warrior_idle_5dir_ai_magenta.png",
+      "role": "source",
+      "size": [
+        210,
+        63
+      ],
+      "filter": "nearest",
+      "anchor": [
+        21,
+        62
+      ],
+      "cell": [
+        42,
+        63
+      ],
+      "directions": [
+        "S",
+        "SE",
+        "E",
+        "NE",
+        "N"
+      ],
+      "anim": "idle(1 frame)",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog (cellcog.ai)",
+        "post": "original 1x output on magenta"
+      },
+      "status": "draft",
+      "sha256": "6117ed2916496a97"
+    },
+    {
+      "path": "assets/art/logo/emblem_native.png",
+      "role": "logo",
+      "size": [
+        75,
+        78
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "32886460cb506408"
+    },
+    {
+      "path": "assets/art/logo/emblem_x4.png",
+      "role": "logo",
+      "size": [
+        300,
+        312
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "a136e408ec1322c6"
+    },
+    {
+      "path": "assets/art/logo/emblem_x8.png",
+      "role": "logo",
+      "size": [
+        600,
+        624
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "9aa926e60e05e6af"
+    },
+    {
+      "path": "assets/art/logo/logo_horizontal_native.png",
+      "role": "logo",
+      "size": [
+        201,
+        86
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "158b027cee06b790"
+    },
+    {
+      "path": "assets/art/logo/logo_horizontal_x4.png",
+      "role": "logo",
+      "size": [
+        804,
+        344
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "008fcc00a7400c50"
+    },
+    {
+      "path": "assets/art/logo/logo_horizontal_x8.png",
+      "role": "logo",
+      "size": [
+        1608,
+        688
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "01d9dc75d9cce16b"
+    },
+    {
+      "path": "assets/art/logo/logo_stacked_native.png",
+      "role": "logo",
+      "size": [
+        120,
+        108
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "bee7b29d3616b78a"
+    },
+    {
+      "path": "assets/art/logo/logo_stacked_x4.png",
+      "role": "logo",
+      "size": [
+        480,
+        432
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "d7b8fc5bfe6542fe"
+    },
+    {
+      "path": "assets/art/logo/logo_stacked_x8.png",
+      "role": "logo",
+      "size": [
+        960,
+        864
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "bb918936824949ec"
+    },
+    {
+      "path": "assets/art/marketing/glastemia_avatar_1024.png",
+      "role": "marketing",
+      "size": [
+        1024,
+        1024
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "ecceac92955278a8"
+    },
+    {
+      "path": "assets/art/marketing/glastemia_emblem_1024.png",
+      "role": "marketing",
+      "size": [
+        1024,
+        1024
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "c9d2f1711fe70fbc"
+    },
+    {
+      "path": "assets/art/marketing/glastemia_logo_1024.png",
+      "role": "marketing",
+      "size": [
+        1024,
+        1024
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade"
+      },
+      "status": "approved-draft",
+      "sha256": "ec54121d22c5b160"
+    },
+    {
+      "path": "assets/art/marketing/glastemia_patreon_banner_2560x640.png",
+      "role": "marketing",
+      "size": [
+        2560,
+        640
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "ai-generated + handmade logo"
+      },
+      "status": "approved-draft",
+      "sha256": "00616111f1fd52b6"
+    },
+    {
+      "path": "assets/art/sprites/human_female_E_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "d1312fe17aa9b538"
+    },
+    {
+      "path": "assets/art/sprites/human_female_E_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "dff40eb0af9c15d1",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_NE_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "c36cc28b74b8c1ee"
+    },
+    {
+      "path": "assets/art/sprites/human_female_NE_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "9b66ef9116f7af05",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_NW_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "d7fc0fda0da2953a"
+    },
+    {
+      "path": "assets/art/sprites/human_female_NW_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "4476d120a629270f",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_N_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "3461834dbaa397ca"
+    },
+    {
+      "path": "assets/art/sprites/human_female_N_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "bf6ba3dbcd3b9305",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_SE_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "0e3d9679048d200c"
+    },
+    {
+      "path": "assets/art/sprites/human_female_SE_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "1c303c5b3b81b697",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_SW_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "7c84b1e2e2e61f30"
+    },
+    {
+      "path": "assets/art/sprites/human_female_SW_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "b450d4933bfad49b",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_S_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "a37e98ac90b3e651"
+    },
+    {
+      "path": "assets/art/sprites/human_female_S_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "28953c57465cf2fd",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_female_W_anchors.json",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "2c8b2c871a608cf4"
+    },
+    {
+      "path": "assets/art/sprites/human_female_W_anim_nohair.png",
+      "role": "character-female",
+      "source": {
+        "kind": "ai-generated",
+        "tool": "CellCog",
+        "post": "N/NE/NW frames 6,7,10,11 mirrored (sword-arm fix)"
+      },
+      "status": "draft",
+      "sha256": "b6a2b3f94699768e",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/variants_draft/elf_back_male_SE.png",
+      "role": "variant-draft",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade (code) on AI base"
+      },
+      "status": "draft",
+      "sha256": "3650fee47e579344"
+    },
+    {
+      "path": "assets/art/variants_draft/elf_body_male_SE.png",
+      "role": "variant-draft",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade (code) on AI base"
+      },
+      "status": "draft",
+      "sha256": "690c8bc4caacd096"
+    },
+    {
+      "path": "assets/art/variants_draft/elf_ears_male_SE.png",
+      "role": "variant-draft",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade (code) on AI base"
+      },
+      "status": "draft",
+      "sha256": "b52c283ea464baa1"
+    },
+    {
+      "path": "assets/art/variants_draft/elf_front_male_SE.png",
+      "role": "variant-draft",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade (code) on AI base"
+      },
+      "status": "draft",
+      "sha256": "b6c528e24009e8d1"
+    },
+    {
+      "path": "assets/art/variants_draft/hair_buzz_male_SE.png",
+      "role": "variant-draft",
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest",
+      "source": {
+        "kind": "handmade (code) on AI base"
+      },
+      "status": "draft",
+      "sha256": "19aa258cc1e17770"
+    },
+    {
+      "path": "assets/art/legacy/human_base_idle_8dir.png",
+      "role": "legacy",
+      "status": "draft",
+      "sha256": "a869bdb6ad558459",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        336,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/legacy/human_warrior_SE_idle.png",
+      "role": "legacy",
+      "status": "draft",
+      "sha256": "bbfe179ecf657353",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        42,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/legacy/human_warrior_idle_5dir.png",
+      "role": "legacy",
+      "status": "draft",
+      "sha256": "70161ab3453b6ab9",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        210,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_E.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "9ce77bb55971c6a8",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_N.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "bcc9ce0bca3a0c44",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_NE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "c9f09d5847ea71ad",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_NW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "f65d1344be5dd824",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_S.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "dbdb53c3b67632f9",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_SE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "4de6c50445cbf7c0",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_SW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "29313625106613a7",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/boots_leather_W.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "a90b692377fbeec4",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_E.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "0b4344f5ff458f25",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_N.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "1eb2d74a868a2f18",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_NE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "1eb2d74a868a2f18",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_NW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "1eb2d74a868a2f18",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_S.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "83797cd1cd4ff9c8",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_SE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "79657ecb41d7a3aa",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_SW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "898bcde7843568a8",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/helmet_spangen_W.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "33710b2ba9a27dcf",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        30,
+        17
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_E_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "e9ed8effc78bc66e",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_E_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "70543b6e70c668c8",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_E_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "00564509e0f0cecc",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_NE_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "7442c7055e857489",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_NE_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "38cfcfca02860f59",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_NE_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "b13a1488c764ceb5",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_NW_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "e072538bf6eac0fa",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_NW_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "a7804920b0f09774",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_NW_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "a2d3d531ffded3b9",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_N_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "6bd3dea46c4817c7",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_N_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "1130a65deccf02c0",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_N_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "49b4cb6ea8d4b59a",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_SE_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "db0496046ca4fd99",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_SE_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "bc33997bc3a18de3",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_SE_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "0059cc704ff6555c",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_SW_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "2459a87e538c2873",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_SW_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "2de38a485d5f3cc3",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_SW_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "a685668cfa0c7a7f",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_S_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "0c39b6aad4a52889",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_S_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "1e63c58aca4982e5",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_S_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "7c37a380ae90ee26",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_W_anchors.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "aa6a85b0110e4207",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      }
+    },
+    {
+      "path": "assets/art/sprites/human_base_W_anim.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "dedbe3ac02f5c7ed",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_base_W_anim_nohair.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "4e5dc09f3b8168db",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_E.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "94ef695cc503d6d0",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_N.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "ec2ad731f9fa79a4",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_NE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "d405ea83ec49bace",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_NW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "0aeb8df4f073fe50",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_S.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "d69e048fb2906c6d",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_SE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "4767a554305938f4",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_SW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "2a3081ed60fd2353",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/human_hair_W.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "f07cebc457dc3840",
+      "source": {
+        "kind": "ai-generated (CellCog) + code post-processing"
+      },
+      "size": [
+        630,
+        63
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/items.json",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "75c58e90c7948dfe",
+      "source": {
+        "kind": "handmade (code)"
+      }
+    },
+    {
+      "path": "assets/art/sprites/shield_round_E.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "53c8713b6e643038",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        10,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_N.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "a0fc918545248b26",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        19,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_NE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "d320144ec070939d",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        17,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_NW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "eb051d1054c6a4d1",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        17,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_S.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "cc09edc56c2817f3",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        20,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_SE.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "fda31392c8d437cb",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        19,
+        21
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_SW.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "be5e8fef1aea51be",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        19,
+        21
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/shield_round_W.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "c13961f9475eeed3",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        12,
+        22
+      ],
+      "filter": "nearest"
+    },
+    {
+      "path": "assets/art/sprites/sword_short.png",
+      "role": "sprites",
+      "status": "draft",
+      "sha256": "2a4a5f44707a7368",
+      "source": {
+        "kind": "handmade (code)"
+      },
+      "size": [
+        19,
+        7
+      ],
+      "filter": "nearest"
+    }
+  ]
 }

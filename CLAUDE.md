@@ -20,7 +20,8 @@ Kooperacyjne MMORPG w przeglądarce, izometria pixel art. Pełny opis gry: `docs
 Po każdej zmianie: `npm run build`, `npm test`, `npm run test:e2e` (zrzut w `test-results/smoke.png`, brak błędów w konsoli).
 
 ## Postacie i menu
-- Wygląd postaci rysowany w przeglądarce: `src/chars/chargen.ts` (rasa, klasa, budowa, włosy, broda; 5 kierunków + lustro) → `CharSheet` (`src/chars/sheet.ts`). NPC (kupiec, mieszkańcy, strażnicy) też z generatora; obiekty świata z atlasu `sprites.png`.
+- Postać gracza: paper doll z paczki grafik (`src/chars/paperdoll.ts` – składanie klatek identyczne co do piksela z `tools/compose_preview.py`; `src/chars/doll.ts` – wczytanie i arkusz `PlayerSheet`, 8 kierunków bez odbić). Płeć w `Look.gender`. Strona testowa: `dev/character-test.html` (`npm run dev`).
+- Wygląd NPC i potworów rysowany w przeglądarce: `src/chars/chargen.ts` (rasa, klasa, budowa, włosy, broda; 5 kierunków + lustro) → `CharSheet` (`src/chars/sheet.ts`). NPC (kupiec, mieszkańcy, strażnicy) też z generatora; obiekty świata z atlasu `sprites.png`.
 - Grafiki malowane (AI, opis w `assets/art/README.md`): `assets/art/` + `assets/art/manifest.json` (`assets[].path`, czyta `src/ui/art.ts`). `avatars/<rasa>_<klasa>_96.png` zastępuje portret z kodu w HUD, wyborze postaci i kreatorze; `loading/loading_dragon_480x270.png` – ekran wczytywania. Oryginały i wersje ×4 tylko lokalnie w `art_source/` (poza repo). Nowy plik dopisz do manifestu.
 - Menu (`src/ui/menu.ts`): start → wybór (do 3 postaci) → kreator. Logika i zapis: `src/logic/character.ts`, `src/logic/save.ts` (localStorage `earthlings.saves`, wersja 1).
 - Testy w przeglądarce wchodzą do gry przez `enterGame()` z `e2e/helpers.ts`.
@@ -45,3 +46,11 @@ Logika gry w `src/logic/` bez zależności od grafiki – w etapie 2 przenosimy 
 
 ## Skille
 Zainstalowane z `gamedev-skills/awesome-gamedev-agent-skills`: używaj ich przy assetach, PixiJS, systemach RPG, shaderach, kamerze i projektowaniu poziomów.
+
+## Grafika 2D
+- Grafiki: assets/art/ (start: START_HERE.md, metadane: assets/art/manifest.json).
+- Postać gracza: docs/CHARACTER_SPEC.md + assets/art/sprites/items.json. Wzorzec: tools/compose_preview.py.
+- Pixel art: skala całkowita, nearest, roundPixels. Nie odbijać sprite'ów (tarcza zawsze w lewej ręce).
+- Miecz zawsze rysowany przed tarczą (kopia miecza z maską tarczy, gdy miecz jest za ciałem).
+- Nie zmieniać grafik ani JSON-ów w assets/art/ bez zgody. Nowe assety dopisywać do manifest.json.
+- Teksty UI zawsze kodem (Jersey 15), nigdy w bitmapach.

@@ -4,8 +4,9 @@ import { CharSheet } from '../chars/sheet';
 import { drawPortrait } from '../chars/portrait';
 import { CH, CW, type Gear } from '../chars/chargen';
 import { portraitArt } from './art';
+import { dollReady, playerSheet } from '../chars/doll';
 import {
-  ATTRS, BEARDS, BUILDS, CLASSES, HAIRS, RACES, START_POINTS, addAttrs, baseAttributes, derived, nameError, normalizeLook,
+  ATTRS, BEARDS, BUILDS, CLASSES, GENDERS, HAIRS, RACES, START_POINTS, addAttrs, baseAttributes, derived, nameError, normalizeLook,
   type AttrId, type Attributes, type ClassId, type Look, type Race,
 } from '../logic/character';
 import { MAX_CHARS, newId, type SaveStore, type SavedChar } from '../logic/save';
@@ -29,6 +30,10 @@ export const titleOf = (c: Pick<SavedChar, 'race' | 'cls'>) => `${RACES[c.race].
 const artImg = (src: string) => { const i = el('img', 'pvart'); if (src) i.src = src; else i.hidden = true; i.alt = ''; return i; };
 
 /** animowany podgląd postaci na płótnie (obrót strzałkami / automatycznie) */
+const DIRS8_ORDER: [string, boolean][] = ['S', 'SE', 'E', 'NE', 'N', 'NW', 'W', 'SW'].map((d) => [d, false]);
+/** wycinek klatki postaci paper doll (82×93) z marginesem na miecz */
+const DOLL_CROP: [number, number, number, number] = [8, 14, 66, 75];
+
 class Preview {
   readonly canvas = el('canvas', 'pv');
   private sheet: CharSheet | null = null;
@@ -40,20 +45,24 @@ class Preview {
   }
   set(look: ConstructorParameters<typeof CharSheet>[0]) {
     this.sheet?.destroy();
-    this.sheet = new CharSheet(look);
+    const doll = dollReady() && 'cls' in look;
+    this.sheet = doll ? playerSheet(look as Parameters<typeof playerSheet>[0]) : new CharSheet(look);
+    this.canvas.width = (doll ? DOLL_CROP[2] : CW) * this.scale;
+    this.canvas.height = (doll ? DOLL_CROP[3] : CH) * this.scale;
     this.draw();
   }
-  turn(d: number) { this.dir = (this.dir + d + DIR_ORDER.length) % DIR_ORDER.length; this.draw(); }
+  private get order() { return this.sheet && 'eightDir' in this.sheet ? DIRS8_ORDER : DIR_ORDER; }
+  turn(d: number) { const n = this.order.length; this.dir = (this.dir + d + n) % n; this.draw(); }
   tick(dt: number) { this.t += dt; this.draw(); }
   private draw() {
     if (!this.sheet) return;
     const ctx = this.canvas.getContext('2d')!;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const [d, flip] = DIR_ORDER[this.dir];
+    const [d, flip] = this.order[this.dir % this.order.length];
     const f = this.walk ? `walk${Math.floor(this.t * 8) % 4}` : `idle${Math.floor(this.t * 1.6) % 2}`;
     ctx.save();
     if (flip) { ctx.translate(this.canvas.width, 0); ctx.scale(-1, 1); }
-    this.sheet.drawTo(ctx, `hero_${d}_${f}`, 0, 0, this.scale);
+    this.sheet.drawTo(ctx, `hero_${d}_${f}`, 0, 0, this.scale, 'eightDir' in this.sheet ? DOLL_CROP : undefined);
     ctx.restore();
   }
   destroy() { this.sheet?.destroy(); }
@@ -170,7 +179,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
     root.innerHTML = '';
     const taken = store.list().map((c) => c.name);
     let race: Race = 'human', cls: ClassId = 'warrior';
-    let look: Look = { hair: 'brown', build: 'normal', beard: 'short' };
+    let look: Look = { hair: 'brown', build: 'normal', beard: 'short', gender: 'male' };
     let alloc: Attributes = { str: 0, dex: 0, vit: 0, ene: 0 };
     const box = el('div', 'mpanel panel9 mcreate');
     box.append(el('h2', '', 'Nowa postać'));
@@ -207,6 +216,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
     };
     const cRace = choice((Object.keys(RACES) as Race[]).map((id) => ({ id, name: RACES[id].name })), () => race, (v) => { race = v; });
     const cCls = choice((Object.keys(CLASSES) as ClassId[]).map((id) => ({ id, name: CLASSES[id].name })), () => cls, (v) => { cls = v; });
+    const cGender = choice(GENDERS, () => look.gender ?? 'male', (v) => { look = { ...look, gender: v }; });
     const cHair = choice(HAIRS, () => look.hair, (v) => { look = { ...look, hair: v }; }, HAIR_SWATCH);
     const cBuild = choice(BUILDS, () => look.build, (v) => { look = { ...look, build: v }; });
     const cBeard = choice(BEARDS, () => look.beard as never, (v) => { look = { ...look, beard: v }; });
@@ -234,6 +244,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
       group('Nazwa', nameIn),
       group('Rasa', cRace.w),
       group('Klasa', cCls.w),
+      group('Płeć', cGender.w),
       group('Włosy', cHair.w),
       group('Budowa ciała', cBuild.w),
       group('Broda', (() => { const d = el('div'); d.append(cBeard.w, beardNote); return d; })()),
@@ -247,7 +258,7 @@ export function createMenu(store: SaveStore, onPlay: (c: SavedChar) => void): Me
 
     function update() {
       look = normalizeLook(race, look);
-      cRace.sync(); cCls.sync(); cHair.sync(); cBuild.sync(); cBeard.sync(race === 'elf');
+      cRace.sync(); cCls.sync(); cGender.sync(); cHair.sync(); cBuild.sync(); cBeard.sync(race === 'elf' || look.gender === 'female');
       beardNote.textContent = race === 'elf' ? 'Elfy nie noszą brody.' : '';
       const base = baseAttributes(race, cls), total = addAttrs(base, alloc), dv = derived(total);
       for (const r of attrRows) {

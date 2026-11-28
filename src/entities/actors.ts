@@ -13,6 +13,8 @@ const DOG_LAG = 18;      // ile próbek śladu pies zostaje w tyle
 
 // oktant 0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE → klatki atlasu (W/SW/NW to odbicia)
 const OCT_DIR = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'] as const;
+/** oktant → kierunek w arkuszu 8-kierunkowym (paper doll) */
+const DIR8 = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'] as const;
 
 interface Actor { c: Container; s: Sprite }
 
@@ -33,7 +35,7 @@ export class Hero {
   u: number;
   v: number;
   path: [number, number][] = [];
-  dir: (typeof OCT_DIR)[number] = 'NE';
+  dir: string = 'NE';
   flip = false;
   moving = false;
   /** pozycja na obrazie świata (piksele, zaokrąglone) */
@@ -82,7 +84,15 @@ export class Hero {
   faceTo(u: number, v: number) {
     const du = u - this.u, dv = v - this.v, [sdx, sdy] = screenDir(du, dv);
     if (Math.hypot(sdx, sdy) < 0.2) return;
+    this.faceScreen(sdx, sdy);
+  }
+
+  /** arkusz z 8 kierunkami (postać paper doll) – bez odbić lustrzanych, tarcza zawsze w lewej ręce */
+  private get eightDir() { return 'eightDir' in this.sheet; }
+
+  private faceScreen(sdx: number, sdy: number) {
     const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
+    if (this.eightDir) { this.dir = DIR8[oct]; this.flip = false; return; }
     this.dir = OCT_DIR[oct];
     this.flip = oct >= 3 && oct <= 5;
   }
@@ -105,19 +115,18 @@ export class Hero {
       if (dist <= sp) { this.u = tu; this.v = tv; this.path.shift(); }
       else { this.u += (du / dist) * sp; this.v += (dv / dist) * sp; }
       const [sdx, sdy] = screenDir(du, dv);
-      if (Math.hypot(sdx, sdy) > 0.2) {
-        const oct = ((Math.round(Math.atan2(sdy, sdx) / (Math.PI / 4)) % 8) + 8) % 8;
-        this.dir = OCT_DIR[oct];
-        this.flip = oct >= 3 && oct <= 5;
-      }
+      if (Math.hypot(sdx, sdy) > 0.2) this.faceScreen(sdx, sdy);
       this.moving = true;
       this.trail.push([this.u, this.v]);
       if (this.trail.length > TRAIL_MAX) this.trail.shift();
     }
+    const e8 = this.eightDir;
     const g = this.glowT > 0 ? 'atkg' : 'atk';
-    const fi = this.attackT >= 0 ? (this.attackT < 0.14 ? `${g}0` : `${g}1`)
+    // atak: 2 klatki; umiejętność (poświata) w postaci paper doll – mocne uderzenie, 4 klatki
+    const atkF = e8 && this.glowT > 0 ? `pow${Math.min(3, Math.floor((this.attackT / 0.35) * 4))}` : this.attackT < 0.14 ? `${e8 ? 'atk' : g}0` : `${e8 ? 'atk' : g}1`;
+    const fi = this.attackT >= 0 ? atkF
       : this.moving ? `walk${Math.floor(at * 11 * speed ** 0.5) % 4}` : `idle${Math.floor(at * 1.6) % 2}`;
-    this.frameName = this.dead ? 'hero_dead' : this.sitting ? `hero_${this.dir}_sit${Math.floor(at * 1.2) % 2}` : `hero_${this.dir}_${fi}`;
+    this.frameName = this.dead ? (e8 ? `hero_${this.dir}_dead` : 'hero_dead') : this.sitting ? `hero_${this.dir}_sit${Math.floor(at * 1.2) % 2}` : `hero_${this.dir}_${fi}`;
     this.sheet.setFrame(this.a.s, this.frameName);
     this.a.s.scale.x = this.flip && !this.dead ? -1 : 1;
     this.headMark.visible = !this.dead;

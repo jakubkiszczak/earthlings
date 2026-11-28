@@ -1,0 +1,219 @@
+{
+ "version": 1,
+ "cell": [
+  42,
+  63
+ ],
+ "feet_anchor": [
+  21,
+  62
+ ],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "items": [
+  {
+   "id": "sword_short",
+   "slot": "weapon",
+   "attach": "hand_r",
+   "rotate": true,
+   "pivot": [
+    4,
+    3
+   ],
+   "files": {
+    "S": "sword_short.png",
+    "SE": "sword_short.png",
+    "E": "sword_short.png",
+    "NE": "sword_short.png",
+    "N": "sword_short.png",
+    "NW": "sword_short.png",
+    "W": "sword_short.png",
+    "SW": "sword_short.png"
+   }
+  },
+  {
+   "id": "shield_round",
+   "slot": "shield",
+   "attach": "hand_l",
+   "rotate": false,
+   "placement": "center_offset_from_hand_l (per direction, see anchors JSON)",
+   "files": {
+    "S": "shield_round_S.png",
+    "SE": "shield_round_SE.png",
+    "E": "shield_round_E.png",
+    "NE": "shield_round_NE.png",
+    "N": "shield_round_N.png",
+    "NW": "shield_round_NW.png",
+    "W": "shield_round_W.png",
+    "SW": "shield_round_SW.png"
+   }
+  },
+  {
+   "id": "helmet_spangen",
+   "slot": "helmet",
+   "attach": "head",
+   "rotate": true,
+   "pivot": [
+    15,
+    8
+   ],
+   "hides_hair": false,
+   "files": {
+    "S": "helmet_spangen_S.png",
+    "SE": "helmet_spangen_SE.png",
+    "E": "helmet_spangen_E.png",
+    "NE": "helmet_spangen_NE.png",
+    "N": "helmet_spangen_N.png",
+    "NW": "helmet_spangen_NW.png",
+    "W": "helmet_spangen_W.png",
+    "SW": "helmet_spangen_SW.png"
+   }
+  },
+  {
+   "id": "boots_leather",
+   "slot": "boots",
+   "type": "full_frame_overlay",
+   "files": {
+    "S": "boots_leather_S.png",
+    "SE": "boots_leather_SE.png",
+    "E": "boots_leather_E.png",
+    "NE": "boots_leather_NE.png",
+    "N": "boots_leather_N.png",
+    "NW": "boots_leather_NW.png",
+    "W": "boots_leather_W.png",
+    "SW": "boots_leather_SW.png"
+   }
+  }
+ ],
+ "body": {
+  "nohair": {
+   "S": "human_base_S_anim_nohair.png",
+   "SE": "human_base_SE_anim_nohair.png",
+   "E": "human_base_E_anim_nohair.png",
+   "NE": "human_base_NE_anim_nohair.png",
+   "N": "human_base_N_anim_nohair.png",
+   "NW": "human_base_NW_anim_nohair.png",
+   "W": "human_base_W_anim_nohair.png",
+   "SW": "human_base_SW_anim_nohair.png"
+  },
+  "hair": {
+   "S": "human_hair_S.png",
+   "SE": "human_hair_SE.png",
+   "E": "human_hair_E.png",
+   "NE": "human_hair_NE.png",
+   "N": "human_hair_N.png",
+   "NW": "human_hair_NW.png",
+   "W": "human_hair_W.png",
+   "SW": "human_hair_SW.png"
+  },
+  "anchors": {
+   "S": "human_base_S_anchors.json",
+   "SE": "human_base_SE_anchors.json",
+   "E": "human_base_E_anchors.json",
+   "NE": "human_base_NE_anchors.json",
+   "N": "human_base_N_anchors.json",
+   "NW": "human_base_NW_anchors.json",
+   "W": "human_base_W_anchors.json",
+   "SW": "human_base_SW_anchors.json"
+  }
+ },
+ "animations": {
+  "idle": {
+   "frames": [
+    0,
+    1
+   ],
+   "fps": 2,
+   "loop": true
+  },
+  "walk": {
+   "frames": [
+    2,
+    3,
+    4,
+    5
+   ],
+   "fps": 8,
+   "loop": true
+  },
+  "attack": {
+   "frames": [
+    6,
+    7
+   ],
+   "fps": 10,
+   "loop": false,
+   "then": "idle"
+  },
+  "sit": {
+   "frames": [
+    8,
+    9
+   ],
+   "fps": 2,
+   "loop": true
+  },
+  "power_strike": {
+   "frames": [
+    10,
+    11,
+    12,
+    13
+   ],
+   "fps": 10,
+   "loop": false,
+   "then": "idle"
+  },
+  "death": {
+   "frames": [
+    14
+   ],
+   "fps": 1,
+   "loop": false
+  }
+ },
+ "body_female": {
+  "nohair": {
+   "S": "human_female_S_anim_nohair.png",
+   "SE": "human_female_SE_anim_nohair.png",
+   "E": "human_female_E_anim_nohair.png",
+   "NE": "human_female_NE_anim_nohair.png",
+   "N": "human_female_N_anim_nohair.png",
+   "NW": "human_female_NW_anim_nohair.png",
+   "W": "human_female_W_anim_nohair.png",
+   "SW": "human_female_SW_anim_nohair.png"
+  },
+  "hair": null,
+  "anchors": {
+   "S": "human_female_S_anchors.json",
+   "SE": "human_female_SE_anchors.json",
+   "E": "human_female_E_anchors.json",
+   "NE": "human_female_NE_anchors.json",
+   "N": "human_female_N_anchors.json",
+   "NW": "human_female_NW_anchors.json",
+   "W": "human_female_W_anchors.json",
+   "SW": "human_female_SW_anchors.json"
+  },
+  "note": "female base: tight hair cap baked in, no separate hair layer yet; same items, same draw order, own anchors per frame"
+ },
+ "draw_order": [
+  "shield(if behind)",
+  "weapon(if behind)",
+  "body_nohair",
+  "boots",
+  "hair",
+  "helmet",
+  "shield(if front)",
+  "weapon(if front)",
+  "weapon clipped to shield pixels (if weapon behind AND shield front) - sword is always visible over the shield"
+ ],
+ "rule_sword_over_shield": true
+}

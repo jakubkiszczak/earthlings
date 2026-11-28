@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Postać – test</title>
+  <style>
+    body { margin: 0; background: #1e2a1e; color: #e8e2d4; font: 14px system-ui, sans-serif; }
+    header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 16px; background: #141a14; position: sticky; top: 0; }
+    label { display: flex; gap: 6px; align-items: center; }
+    canvas { image-rendering: pixelated; display: block; }
+    main { display: flex; flex-wrap: wrap; gap: 24px; padding: 16px; }
+    #grid { background: #2e482c; }
+    #one { background: #2e482c; }
+    small { color: #a8a090; }
+  </style>
+</head>
+<body>
+  <header id="ui"></header>
+  <main>
+    <section><canvas id="grid"></canvas><small>8 kierunków × 15 klatek (skala ×2; ?scale=1&bg=0 – zrzut do porównania)</small></section>
+    <section><canvas id="one"></canvas><small>strzałki / WASD – ruch, skala ×4</small></section>
+  </main>
+  <script type="module" src="/src/dev/characterTest.ts"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import { ITEMS, sanitizeInventory } from './logic/items';
 import { EXP_TO_NEXT } from './logic/character';
 import { SaveStore, type SavedChar } from './logic/save';
 import { loadArtManifest } from './ui/art';
+import { dollReady, loadDoll, playerSheet } from './chars/doll';
 import { nameLabel } from './ui/worldlabel';
 import { createMenu, lookOf, portraitOf, titleOf, type MenuApi } from './ui/menu';
 import { Camera } from './camera';
@@ -102,7 +103,7 @@ async function main() {
   document.body.classList.add('in-menu');
   loadingScreen = new LoadingScreen();
   let started = false;
-  await loadArtManifest();
+  await Promise.all([loadArtManifest(), loadDoll()]);
   const menu = createMenu(store, (c) => {
     if (started) return;
     started = true;
@@ -143,7 +144,9 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
   const start = info.start;
   const pos = char.pos ?? start;
   await world.center(pos.cx, pos.cy);
-  const sheet = new CharSheet({ ...lookOf(char), gear: invGear(char) });
+  // postać gracza: paper doll (8 kierunków, wymienne wyposażenie); bez paczki grafik – dawny generator
+  const heroSheet = (gear: ReturnType<typeof invGear>) => (dollReady() ? playerSheet(lookOf(char), gear) : new CharSheet({ ...lookOf(char), gear }));
+  const sheet = heroSheet(invGear(char));
   const hero = new Hero(atlas, world.layer, [pos.u, pos.v], sheet);
   const dog = new Dog(atlas, world.layer, [pos.u + DOG_OFFSET[0], pos.v + DOG_OFFSET[1]]);
   const effects = new Effects(world.layer);
@@ -230,7 +233,7 @@ async function runGame(app: Application, assets: Assets, sky: Sky, char: SavedCh
     if (g !== lastGear) {
       lastGear = g;
       const old = hero.sheet as CharSheet;
-      const ns = new CharSheet({ ...lookOf(char), gear: invc.gear() });
+      const ns = heroSheet(invc.gear());
       hero.sheet = ns;
       heroXray.source = ns;
       old.destroy();

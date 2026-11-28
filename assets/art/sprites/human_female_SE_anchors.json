@@ -1,0 +1,421 @@
+{
+ "direction": "SE",
+ "cell": [
+  42,
+  63
+ ],
+ "feet": [
+  21,
+  62
+ ],
+ "angles": "screen degrees, 0=right, 90=down, clockwise",
+ "frames": [
+  {
+   "index": 0,
+   "anim": "idle",
+   "hand_r": {
+    "x": 11,
+    "y": 45,
+    "angle": 35
+   },
+   "hand_l": {
+    "x": 27,
+    "y": 42,
+    "angle": 45
+   },
+   "head": {
+    "x": 21,
+    "y": 11,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 1,
+   "anim": "idle",
+   "hand_r": {
+    "x": 11,
+    "y": 45,
+    "angle": 35
+   },
+   "hand_l": {
+    "x": 26,
+    "y": 42,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 11,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 2,
+   "anim": "walk",
+   "hand_r": {
+    "x": 9,
+    "y": 43,
+    "angle": 45
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 38,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 10,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 3,
+   "anim": "walk",
+   "hand_r": {
+    "x": 16,
+    "y": 43,
+    "angle": 40
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 38,
+    "angle": 45
+   },
+   "head": {
+    "x": 22,
+    "y": 11,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 4,
+   "anim": "walk",
+   "hand_r": {
+    "x": 14,
+    "y": 43,
+    "angle": 40
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 39,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 10,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 5,
+   "anim": "walk",
+   "hand_r": {
+    "x": 17,
+    "y": 41,
+    "angle": 40
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 39,
+    "angle": 45
+   },
+   "head": {
+    "x": 23,
+    "y": 12,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 6,
+   "anim": "attack",
+   "hand_r": {
+    "x": 7,
+    "y": 25,
+    "angle": -135
+   },
+   "hand_l": {
+    "x": 26,
+    "y": 42,
+    "angle": 45
+   },
+   "head": {
+    "x": 22,
+    "y": 12,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "behind",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 7,
+   "anim": "attack",
+   "hand_r": {
+    "x": 9,
+    "y": 34,
+    "angle": 190
+   },
+   "hand_l": {
+    "x": 24,
+    "y": 40,
+    "angle": 45
+   },
+   "head": {
+    "x": 22,
+    "y": 13,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 8,
+   "anim": "sit",
+   "hand_r": {
+    "x": 14,
+    "y": 49,
+    "angle": 30
+   },
+   "hand_l": {
+    "x": 28,
+    "y": 50,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 21,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 9,
+   "anim": "sit",
+   "hand_r": {
+    "x": 15,
+    "y": 50,
+    "angle": 30
+   },
+   "hand_l": {
+    "x": 29,
+    "y": 50,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 20,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 10,
+   "anim": "power_strike",
+   "hand_r": {
+    "x": 15,
+    "y": 9,
+    "angle": -100
+   },
+   "hand_l": {
+    "x": 26,
+    "y": 36,
+    "angle": 45
+   },
+   "head": {
+    "x": 20,
+    "y": 11,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "behind",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 11,
+   "anim": "power_strike",
+   "hand_r": {
+    "x": 12,
+    "y": 7,
+    "angle": -80
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 32,
+    "angle": 45
+   },
+   "head": {
+    "x": 21,
+    "y": 6,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "behind",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 12,
+   "anim": "power_strike",
+   "hand_r": {
+    "x": 24,
+    "y": 57,
+    "angle": 60
+   },
+   "hand_l": {
+    "x": 25,
+    "y": 44,
+    "angle": 45
+   },
+   "head": {
+    "x": 28,
+    "y": 20,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 13,
+   "anim": "power_strike",
+   "hand_r": {
+    "x": 15,
+    "y": 41,
+    "angle": 50
+   },
+   "hand_l": {
+    "x": 26,
+    "y": 39,
+    "angle": 45
+   },
+   "head": {
+    "x": 25,
+    "y": 14,
+    "angle": 0
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  },
+  {
+   "index": 14,
+   "anim": "death",
+   "hand_r": {
+    "x": 11,
+    "y": 57,
+    "angle": 0
+   },
+   "hand_l": {
+    "x": 20,
+    "y": 58,
+    "angle": 90
+   },
+   "head": {
+    "x": 1,
+    "y": 48,
+    "angle": -90
+   },
+   "z": {
+    "weapon": "front",
+    "shield": "front"
+   },
+   "frame": null
+  }
+ ],
+ "items": {
+  "shield_round_SE.png": {
+   "anchor": "hand_l",
+   "rotate": false,
+   "center_offset_from_hand_l": [
+    6,
+    5
+   ],
+   "size": [
+    19,
+    21
+   ]
+  },
+  "helmet_spangen_SE.png": {
+   "pivot": [
+    15,
+    8
+   ],
+   "anchor": "head",
+   "rotate": true,
+   "hides": null
+  },
+  "boots_leather_SE.png": {
+   "type": "full_frame_overlay"
+  },
+  "sword_short.png": {
+   "pivot": [
+    4,
+    3
+   ],
+   "anchor": "hand_r",
+   "rotate": true,
+   "note": "one sword sprite for all directions"
+  }
+ },
+ "draw_order": [
+  "shield(if behind)",
+  "weapon(if behind)",
+  "body_nohair",
+  "boots",
+  "hair",
+  "helmet",
+  "shield(if front)",
+  "weapon(if front)",
+  "weapon clipped to shield pixels (if weapon behind AND shield front) - sword is always visible over the shield"
+ ],
+ "body": "female"
+}

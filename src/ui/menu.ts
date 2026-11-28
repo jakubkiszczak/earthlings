@@ -62,7 +62,12 @@ class Preview {
     const f = this.walk ? `walk${Math.floor(this.t * 8) % 4}` : `idle${Math.floor(this.t * 1.6) % 2}`;
     ctx.save();
     if (flip) { ctx.translate(this.canvas.width, 0); ctx.scale(-1, 1); }
-    this.sheet.drawTo(ctx, `hero_${d}_${f}`, 0, 0, this.scale, 'eightDir' in this.sheet ? DOLL_CROP : undefined);
+    const name = `hero_${d}_${f}`;
+    if ('eightDir' in this.sheet) {
+      // klatki przycięte do pikseli: ustawienie po kotwicy (stopy w tym samym miejscu płótna)
+      const [, , , , ax, ay] = this.sheet.frame(name);
+      this.sheet.drawTo(ctx, name, (41 - DOLL_CROP[0] - ax) * this.scale, (82 - DOLL_CROP[1] - ay) * this.scale, this.scale);
+    } else this.sheet.drawTo(ctx, name, 0, 0, this.scale);
     ctx.restore();
   }
   destroy() { this.sheet?.destroy(); }

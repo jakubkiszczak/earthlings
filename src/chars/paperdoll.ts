@@ -200,14 +200,26 @@ export function buildFrames(A: DollAssets, gender: Gender, eq: Equipment, prefix
     for (const [n, fi] of names) {
       let fd = cache.get(fi);
       if (!fd) {
-        const img = composeFrame(A, gender, eq, d, fi);
-        fd = { w: img.w, h: img.h, ax: FEET[0] + PAD, ay: FEET[1] + PAD, px: img.px };
+        fd = trim(composeFrame(A, gender, eq, d, fi), FEET[0] + PAD, FEET[1] + PAD);
         cache.set(fi, fd);
       }
       data.set(`${prefix}_${d}_${n}`, fd);
     }
   }
   return { names: [...data.keys()], data };
+}
+
+/** przycięcie klatki do zajętych pikseli (mniejszy prostokąt – dokładniejsze wykrywanie zasłaniania); kotwica przesunięta */
+export function trim(img: Img, ax: number, ay: number): FrameData {
+  let x0 = img.w, y0 = img.h, x1 = -1, y1 = -1;
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    if (!img.px[(y * img.w + x) * 4 + 3]) continue;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return { w: 1, h: 1, ax: 0, ay: 0, px: new Uint8ClampedArray(4) };
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) px.set(img.px.subarray(((y0 + y) * img.w + x0) * 4, ((y0 + y) * img.w + x1 + 1) * 4), y * w * 4);
+  return { w, h, ax: ax - x0, ay: ay - y0, px };
 }
 
 /** ekwipunek gry (poziomy przedmiotów w slotach) → 4 sloty postaci; brak odpowiednika = null */

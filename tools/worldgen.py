@@ -85,7 +85,7 @@ BRIDGE = dict(u0=int(CTR - BR_HALF_W), u1=int(CTR + BR_HALF_W), v0=int(river_v(C
 
 
 # ------------------------------------------------------------------ obrót widoku (4 widoki co 90°)
-ROTS = (0, 1, 2, 3)
+ROTS = tuple(int(x) for x in os.environ.get('WG_ROTS', '0,1,2,3').split(','))   # np. WG_ROTS=0 – szybki podgląd
 
 
 def rot_pt(u, v, r):
@@ -261,6 +261,23 @@ def town_wall(gu, gv):
     return Hw, walk, gate
 
 
+def house_chimney(b):
+    """komin domu: (u0, u1, v0, v1, wysokość szczytu) na kalenicy, bliżej jednego końca; None dla wież, katedry i karczmy"""
+    if b.get('roof', 'flat') == 'flat' or b['tag'] in ('tavern', 'church', 'church_tower', 'tower'):
+        return None
+    cu, cv = (b['u0'] + b['u1']) / 2, (b['v0'] + b['v1']) / 2
+    hu, hv = (b['u1'] - b['u0']) / 2, (b['v1'] - b['v0']) / 2
+    side = 1 if hsh(b['u0'], b['v0'], 401) > 0.5 else -1
+    if b['roof'] == 'gable_u':
+        pu, pv, d = cu + side * (hu - 12), cv, hv
+    elif b['roof'] == 'gable_v':
+        pu, pv, d = cu, cv + side * (hv - 12), hu
+    else:
+        pu, pv, d = cu + side * hu * 0.35, cv - hv * 0.25, min(hu, hv) * 0.6
+    ridge = b['eave'] + d * b.get('pitch', 0.8)
+    return (int(pu - 4), int(pu + 4), int(pv - 4), int(pv + 4), int(ridge + 14))
+
+
 def town_banners():
     """sztandary: przy wylotach ulic na plac i przy bramach (od środka miasta)"""
     a0, a1 = TOWN_WALL
@@ -340,17 +357,17 @@ HOUSES = [
     (240, 250, 48, 36, 62, 'gable_u', 2, 'stone', 'v', 2, 1, None),
     (420, 230, 34, 52, 87, 'gable_v', 0, 'plaster', 'u', 1, 3, None),
     (300, 430, 56, 30, 56, 'hip', 1, 'plaster', 'v', 3, 1, None),
-    (230, -405, 40, 40, 67, 'hip', 0, 'stone', 'v', 2, 2, None),
+    (230, -405, 40, 40, 67, 'hip', 0, 'plaster', 'v', 2, 2, None),
     (415, -230, 30, 44, 53, 'gable_u', 2, 'plaster', 'u', 1, 2, None),
     (220, 110, 30, 26, 48, 'gable_v', 1, 'plaster', 'v', 1, 1, None),
     # pierzeje rynku: kamienice wokół placu z fontanną
     (-200, -215, 34, 30, 70, 'gable_u', 0, 'plaster', 'v', 2, 1, None),
-    (-110, -210, 28, 26, 62, 'gable_v', 2, 'stone', 'v', 1, 1, None),
+    (-110, -210, 28, 26, 62, 'gable_v', 0, 'plaster', 'v', 1, 1, None),
     (110, -210, 34, 28, 74, 'gable_u', 1, 'plaster', 'v', 2, 1, None),
     (210, -200, 28, 30, 60, 'hip', 0, 'plaster', 'v', 1, 1, None),
     (215, -100, 44, 42, 104, 'gable_u', 0, 'plaster', 'v', 3, 2, 'tavern'),     # karczma „Pod Złotym Kuflem” (2 piętra)
     (-205, 110, 30, 34, 64, 'gable_v', 0, 'plaster', 'u', 1, 2, None),
-    (-100, 215, 34, 30, 70, 'gable_u', 1, 'stone', 'u', 2, 1, None),
+    (-100, 215, 34, 30, 70, 'gable_u', 0, 'plaster', 'u', 2, 1, None),
     (100, 210, 30, 30, 58, 'hip', 2, 'plaster', 'u', 1, 1, None),
 ]
 TOWER = (300, -280, 22, 22)              # wieża (jak w dawnym kadrze) w ćwiartce NE
@@ -362,7 +379,7 @@ def town_buildings():
     for (cu, cv, hu, hv, eave, roof, pal, walls, door, wu, wv, tag) in HOUSES:
         r = rect(cu, cv, hu, hv)
         bs.append(dict(r, base=BASE, eave=BASE + eave, roof=roof, roofpal=pal, walls=walls, door=door,
-                       wins_u=wu, wins_v=wv, winz=18, mat=TR.ROOF, tag=tag))
+                       wins_u=wu, wins_v=wv, winz=18, mat=TR.ROOF, tag=tag, pitch=1.05))      # stromsze dachy
     # katedra: wysoka nawa z dwuspadowym dachem, duże łukowe drzwi od strony placu, okna z witrażami; wieża z iglicą z tyłu
     nave = rect(-300, 240, 64, 34)
     bs.append(dict(nave, base=BASE, eave=BASE + 86, roof='gable_u', roofpal=2, walls='stone', door='u', wins_u=4, wins_v=0,
@@ -478,6 +495,10 @@ def layout(gu, gv):
             d_ = dv_ if b['roof'] == 'gable_u' else du_ if b['roof'] == 'gable_v' else np.minimum(du_, dv_)
             H[m] = (b['eave'] + np.floor(d_ * b.get('pitch', 0.8)))[m].astype(np.int32)
         MAT[m] = b['mat']
+        ch = house_chimney(b)
+        if ch:                                                            # kamienny komin ponad dachem
+            mc = (gu >= ch[0]) & (gu <= ch[1]) & (gv >= ch[2]) & (gv <= ch[3])
+            H[mc] = ch[4]; MAT[mc] = TR.WALL
         if b['tag'] == 'church_tower':
             continue
         if b['tag'] == 'tower':
@@ -493,6 +514,13 @@ def layout(gu, gv):
                 dc = (b['u0'] + b['u1']) / 2
                 walk = (gv > b['v1']) & (gv < b['v1'] + 40) & (np.abs(gu - dc) < 10) & town
             MAT[walk & (MAT == TR.GRASS)] = TR.PAVE
+            # kamienny schodek przed drzwiami
+            dwh = b.get('doorw', 11) + 3
+            if b['door'] == 'u':
+                stp = (gu > b['u1']) & (gu <= b['u1'] + 6) & (np.abs(gv - dc) < dwh)
+            else:
+                stp = (gv > b['v1']) & (gv <= b['v1'] + 6) & (np.abs(gu - dc) < dwh)
+            H[stp & town] = b['base'] + 4; MAT[stp & town] = TR.PAVE
             # dalej chodnik prosto do najbliższej drogi lub chodnika (w kierunku wyjścia z drzwi)
             lines = [CTR, a0 + RING, a1 - RING]
             if b['door'] == 'u':
@@ -830,10 +858,14 @@ def gen_cell(ci, cj, sizes):
             return f
         tsign = sign(('tavernsign', 'tavernsign_m'))
         add('prop', lambda r: tsign(r, (0, 1)), (tav['u0'] + tav['u1']) / 2 + 20, tav['v1'] + 2, h=BASE + 44, dz=2)
-        ridge = tav['eave'] + int((tav['v1'] - tav['v0']) / 2 * 0.8)
+        ridge = tav['eave'] + int((tav['v1'] - tav['v0']) / 2 * tav.get('pitch', 0.8))
         cu_, cv_ = tav['u1'] - 18, (tav['v0'] + tav['v1']) / 2
         add('prop', ['chimney'], cu_, cv_, h=ridge - 6, zfront=(tav, 4))
         add('smoke', [], cu_, cv_, h=ridge + 24, zfront=(tav, 5))
+        for b_ in buildings:
+            ch = house_chimney(b_)
+            if ch and hsh(b_['u0'], b_['v0'], 402) > 0.4:             # z części kominów leci dym
+                add('smoke', [], (ch[0] + ch[1]) / 2, (ch[2] + ch[3]) / 2, h=ch[4] + 2, zfront=(b_, 5))
         ssign = sign(('shopsign', 'shopsign_m'))
         add('prop', lambda r: ssign(r, (1, 0)), shop['u1'] + 2, (shop['v0'] + shop['v1']) / 2 - 18, h=BASE + 42, dz=2)
 

@@ -10,11 +10,13 @@ GRASS, DIRT, PATH, WALL, PAVE, WATER, ROOF, WOOD = 0, 1, 2, 3, 4, 5, 6, 7
 WALKABLE = [GRASS, DIRT, PATH, PAVE, WOOD]
 CLIFF_KIND = 10
 
-RF = K.hexs(['#2a1210', '#4a1c16', '#6a2a1c', '#8a3a22', '#a84e2a', '#c46a36', '#da8a4a'])   # dachówka czerwona
+RF = K.hexs(['#2e1610', '#4e2216', '#72301c', '#963f22', '#b4522a', '#cc6a34', '#e08844', '#f0aa62'])   # dachówka (ciepła terakota)
 RB = K.hexs(['#1c140e', '#33241a', '#4a3424', '#62462e', '#7a5a3a', '#94704a', '#ae885a'])   # gont brązowy
 RS = K.hexs(['#14161e', '#22263a', '#323a52', '#46506a', '#5c6882', '#76829a', '#929eb2'])   # łupek
 ROOF_PALS = [RF, RB, RS]
-PL = K.hexs(['#4a3e30', '#7a6a54', '#a89878', '#cbbc98', '#e2d6b4', '#f2e8cc'])               # tynk
+PL = K.hexs(['#4e4234', '#7c6c56', '#a8987c', '#c8ba9c', '#ded2b6', '#eee6d0', '#f8f2e2'])    # tynk (złamana biel)
+IVY = K.hexs(['#1a3a1c', '#24522a', '#356a32', '#4c8a3a', '#6aa848'])                      # bluszcz
+SHUT = [K.hexs(['#1e3a2c', '#2c5a40', '#3e7a54']), K.hexs(['#1e2e4a', '#2e4a72', '#4a6a96']), K.hexs(['#3a2416', '#5a3a22', '#7a5230'])]   # okiennice
 ROOFS = {'flat': 0, 'gable_u': 1, 'gable_v': 2, 'hip': 3}
 WD = K.hexs(['#24160c', '#432914', '#673e1c', '#8a5626', '#ad7034', '#cc8c46'])               # deski
 
@@ -134,18 +136,25 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
     rk = broof[bid_t]
     rows_by_u = (rk == ROOFS['gable_v']) | ((rk == ROOFS['hip']) & (du_e < dv_e))
     q_ = np.where(rows_by_u, u, v); p_ = np.where(rows_by_u, v, u)
-    rrow = np.floor(q_ / 5)
-    rcol = np.floor((p_ + (rrow % 2) * 3) / 6)
-    rl = (q_ % 5) / 5
+    rrow = np.floor(q_ / 4)
+    rcol = np.floor((p_ + (rrow % 2) * 2.5) / 5)
+    rl = (q_ % 4) / 4
+    seam = ((p_ + (rrow % 2) * 2.5) % 5) < 0.9
     gHu = np.pad(H, ((0, 0), (1, 1)), mode='edge')[:, 2:] - np.pad(H, ((0, 0), (1, 1)), mode='edge')[:, :-2]
     gHv = np.pad(H, ((1, 1), (0, 0)), mode='edge')[2:, :] - np.pad(H, ((1, 1), (0, 0)), mode='edge')[:-2, :]
     lit = np.sign(gHu) - np.sign(gHv)
     ridge = (np.abs(gHu) + np.abs(gHv) == 0) & (rk != ROOFS['flat'])
-    ri_ = 3.0 + 0.8 * lit + 0.8 * hsh(rrow, rcol, 7) + 1.2 * (rl > 0.6) - 1.4 * (rl < 0.2) - 1.0 * shadow - 0.6 * ao + 0.8 * ridge
+    tj = hsh(rrow, rcol, 7)
+    redge = (np.minimum(du_e, dv_e) < 1.6) & (rk != ROOFS['flat'])          # obrys połaci (okap / wiatrownica)
+    ri_ = (4.0 + 0.9 * lit + 1.5 * (tj - 0.5) + 1.0 * (rl > 0.62) - 1.6 * (rl < 0.22) - 0.8 * seam
+           - 1.0 * shadow - 0.6 * ao + 0.6 * ridge - 1.2 * (tj > 0.96) - 2.6 * redge)
     for pi, pal in enumerate(ROOF_PALS):
         mp = m & (bpal[bid_t] == pi)
         if mp.any():
             top[mp] = ramp(pal, ri_[mp], True, SX[mp], SY[mp])
+    # mech i porosty na dachówkach (plamy)
+    rmoss = m & (vnoise(u, v, 14, 66) > 0.7) & (hsh(rrow, rcol, 67) > 0.35) & (rl >= 0.22)
+    top[rmoss] = ramp(K.G, (2.2 + 1.2 * (rl > 0.62) + 0.8 * lit - shadow)[rmoss], True, SX[rmoss], SY[rmoss])
     # deski (most, pomosty)
     m = MAT == WOOD
     wa_, wb_ = (v, u) if wood_axis == 'v' else (u, v)
@@ -264,15 +273,39 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         wallpx = isb & ((zb < eaveb) | gable_end | (rk_ == ROOFS['flat']))
         roofpx = isb & ~wallpx
         alongF = np.where(fl, U_, V_).astype(np.float32)
-        # tynk z belkami (mur pruski)
+        # komin (mur ponad okapem wewnątrz budynku) – kamień, nie dach
+        chim = isb & (mat == WALL) & (zb >= eaveb) & ~gable_end
+        roofpx = roofpx & ~chim
+        # mur pruski: słupy co 18, oczep pod okapem i belki stropowe co piętro, ukośne zastrzały w części pól
         cornerF = np.where(fl, np.minimum(U_ - bu0[bid], bu1[bid] - U_), np.minimum(V_ - bv0[bid], bv1[bid] - V_))
-        beam = (cornerF < 3) | (zb < 3) | ((np.abs(zb - eaveb) < 2.5) & (zb < eaveb + 1)) | (((alongF + 7) % 22) < 2.5)
-        beam |= gable_end & (zb >= eaveb) & (((alongF + 3) % 9) < 1.5)
-        pli = 3.2 + 0.9 * hsh(np.floor(alongF / 3), np.floor(zb / 3), 71) - 0.8 * (~fl) + 0.6 * fls
+        fh = np.where(eaveb >= 70, 40.0, 1e9)                          # wysokość piętra (belka stropowa)
+        zf_ = np.where(zb >= 8, zb - 8, -1)                            # nad kamienną podmurówką
+        fin = zf_ % fh
+        panel = np.floor((alongF + 9) / 18)
+        pa_ = (alongF + 9) % 18
+        brace = (hsh(panel, np.floor(zf_ / fh), 72) > 0.45) & (zf_ >= 0)
+        diag = brace & (np.abs(pa_ - fin * 18 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.7) & (zb < eaveb)
+        diag2 = brace & (hsh(panel, 73) > 0.5) & (np.abs((18 - pa_) - fin * 18 / np.minimum(fh, eaveb - 8 + 1e-3)) < 1.7) & (zb < eaveb)
+        beam = (cornerF < 3) | ((zb >= 8) & (zb < 11)) | ((np.abs(zb - eaveb) < 2.5) & (zb < eaveb + 1)) | (pa_ < 2.5)
+        beam |= (fin < 2.5) & (zf_ > 4) & (zb < eaveb - 4)
+        beam |= diag | diag2
+        beam |= gable_end & (zb >= eaveb) & (((alongF + 3) % 12) < 2)
+        # tynk: przebarwienia, zacieki, brud przy ziemi, odpryski z cegłą
+        stain = vnoise(alongF, zb * 1.6, 7, 91) - 0.5
+        pli = 4.2 + 0.7 * hsh(np.floor(alongF / 3), np.floor(zb / 3), 71) + 1.4 * stain - 0.9 * (~fl) + 0.6 * fls
+        pli = pli - np.clip((22 - zb) / 22, 0, 1) * 1.3 - 1.4 * ((eaveb - zb) < 7) * (zb < eaveb)
         plcol = ramp(PL, pli, True, xs, ys)
-        plcol = np.where(beam[:, None], ramp(WD, 1.4 + 0.8 * fl, True, xs, ys), plcol)
-        # połać dachu widziana z boku (okap, spadek)
-        rface = 2.0 + 1.2 * fl - 0.6 * (zb - eaveb < 2)
+        chip = (vnoise(alongF, zb, 6, 94) > 0.82) & (hsh(np.floor(alongF / 4), np.floor(zb / 2.5), 95) > 0.3)
+        brick = ramp(RF, 2.4 + 1.2 * (zb % 2.5 < 0.8) - 0.6 * (~fl), True, xs, ys)
+        plcol = np.where(chip[:, None], brick, plcol)
+        plcol = np.where(beam[:, None], ramp(WD, 1.2 + 0.9 * fl + 0.5 * hsh(np.floor(alongF / 2), np.floor(zb / 6), 74), True, xs, ys), plcol)
+        plinth = zb < 8                                                # kamienna podmurówka pod tynkiem
+        # połać dachu widziana z boku: rzędy dachówek z ciemną dolną krawędzią, okap z cienkim ciemnym obrzeżem
+        trow = np.floor((zb - eaveb) / 4); tl_ = ((zb - eaveb) % 4) / 4
+        tcol = np.floor((alongF + (trow % 2) * 2.5) / 5)
+        tseam = ((alongF + (trow % 2) * 2.5) % 5) < 0.9
+        rface = (2.6 + 1.3 * fl + 1.2 * (hsh(trow, tcol, 75) - 0.5) - 1.6 * (tl_ < 0.25) + 0.7 * (tl_ > 0.7) - 0.8 * tseam
+                 - 2.2 * (zb - eaveb < 1.5))
         rcol_ = np.zeros((n_, 3), np.float32)
         for pi, pal in enumerate(ROOF_PALS):
             sel = roofpx & (bpal[bid] == pi)
@@ -303,11 +336,32 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
             ww, wh, aw = bww[bid], bwh[bid], alongF - wc
             zw = zb - bwinz[bid] - row * (wh + 20)
             ok_row = wface & ((row == 0) | (eaveb >= 80)) & (zw + wh + ww + 2 < eaveb)
-            arch = (zw < wh) | (aw ** 2 + (zw - wh) ** 2 < ww ** 2)
+            stb = bst[bid]
+            arch = (zw < wh) | (stb & (aw ** 2 + (zw - wh) ** 2 < ww ** 2))
             w_ = ok_row & (np.abs(aw) < ww) & (zw >= 0) & arch
-            f_ = ok_row & (np.abs(aw) < ww + 2) & (zw >= -2) & ((zw < wh) | (aw ** 2 + (zw - wh) ** 2 < (ww + 2) ** 2)) & ~w_
+            f_ = ok_row & (np.abs(aw) < ww + 2) & (zw >= -2) & ((zw < wh + 2) | (stb & (aw ** 2 + (zw - wh) ** 2 < (ww + 2) ** 2))) & ~w_
             cross = (np.abs(aw) < 0.8) | (np.abs(zw - wh * 0.5) < 0.8)
-            wc_ = ramp(K.WA, np.where(cross, 0.0, 1.0 + 2.5 * ((aw + zw) % 7 < 2)), True, xs, ys)
+            warmw = hsh(bid.astype(np.float32), np.floor(wc), 76) > 0.72          # część okien rozświetlona od środka
+            glassv = np.where(cross, 0.0, 1.0 + 2.5 * ((aw + zw) % 7 < 2) + 0.8 * (zw > wh * 0.6))
+            wc_ = ramp(K.WA, glassv * 0.7, True, xs, ys) * 0.75
+            wc_ = np.where((warmw & ~cross)[:, None], ramp(K.hexs(['#5a3a14', '#a8701e', '#e8b040', '#ffe08a']), 1.2 + 1.6 * (zw > wh * 0.4), True, xs, ys), wc_)
+            # okiennice po bokach i skrzynka z kwiatami pod oknem (domy, nie witraże)
+            houseW = ok_row & ~stb
+            shut = houseW & (np.abs(aw) >= ww + 2) & (np.abs(aw) < ww + 7) & (zw >= -1) & (zw < wh + 1)
+            sp_ = SHUT[0]
+            shc = np.zeros((n_, 3), np.float32)
+            for si, spal in enumerate(SHUT):
+                selc = (np.floor(hsh(bid.astype(np.float32), 77) * 3) == si)
+                shc = np.where(selc[:, None], ramp(spal, 1.2 + 0.6 * fl + 0.8 * ((np.abs(aw) - ww) % 2.5 < 0.8) * -1 + 0.6, True, xs, ys), shc)
+            fbox = houseW & (np.abs(aw) < ww + 3) & (zw >= -7) & (zw < -3)
+            flw = houseW & (np.abs(aw) < ww + 3) & (zw >= -3) & (zw < 0.5)
+            fcols = K.hexs(['#e83a4a', '#ff7a9a', '#ffd84a', '#f6f2e8', '#ff8a2a', '#c84ac8'])
+            fpick = fcols[(np.floor(hsh(np.floor(aw), np.floor(zw), bid.astype(np.float32)) * 6).astype(int)) % 6]
+            leaf = hsh(np.floor(aw * 1.0), np.floor(zw), 78) > 0.5
+            flc = np.where(leaf[:, None], ramp(IVY, 2.0 + 1.0 * fl, True, xs, ys), fpick)
+            wcol = np.where(shut[:, None], shc, wcol); win |= shut
+            wcol = np.where(fbox[:, None], ramp(WD, 1.6 + 0.8 * fl + 0.8 * (zw > -4.5), True, xs, ys), wcol); win |= fbox
+            wcol = np.where(flw[:, None], flc, wcol); win |= flw
             # witraż: kolorowe szkiełka w ołowianej siatce
             glass = K.hexs(['#c83a3a', '#3a5ac8', '#e8c040', '#3aa05a', '#9a4ac8', '#e87a2a'])
             gi = np.floor(hsh(np.floor((aw + 20) / 2.5), np.floor(zw / 3), 97) * len(glass)).astype(int) % len(glass)
@@ -319,7 +373,14 @@ def render(gu, gv, H, MAT, buildings, grass_pals, W, Hs, X0, Y0, seed=0, gpid=No
         col = rock.copy()
         stone = (mat == WALL) | (mat == PAVE) | (mat == PATH) | (mat == ROOF)
         col = np.where(stone[:, None], wall, col)
-        col = np.where((wallpx & bplaster[bid])[:, None], plcol, col)
+        col = np.where((wallpx & bplaster[bid] & ~plinth)[:, None], plcol, col)
+        # cień pod okapem na kamiennych ścianach
+        col = np.where((wallpx & ~bplaster[bid] & ((eaveb - zb) < 6) & (zb < eaveb))[:, None], col * 0.72, col)
+        # bluszcz: pnie się od ziemi przy narożnikach i w losowych miejscach (część domów)
+        ivyb = hsh(bid.astype(np.float32), 96) > 0.35
+        ivyn = vnoise(alongF, zb * 1.3, 8, 97) + 0.35 * np.exp(-cornerF / 10) - zb / np.maximum(eaveb, 1) * 0.55
+        ivy = wallpx & ivyb & (ivyn > 0.62) & (hsh(alongF, zb, 98) > 0.28) & (zb < eaveb - 3)
+        col = np.where(ivy[:, None], ramp(IVY, 1.6 + 2.0 * (ivyn - 0.62) * 4 * 0.4 + 0.8 * fl + 0.9 * (hsh(alongF, zb, 99) > 0.7), True, xs, ys), col)
         col = np.where(roofpx[:, None], rcol_, col)
         woodf = mat == WOOD
         col = np.where(woodf[:, None], ramp(WD, 2.2 + 1.0 * (z % 6 < 1) - 0.8 * fl, True, xs, ys), col)
